@@ -1,0 +1,1001 @@
+<!DOCTYPE html>
+<html lang="tr">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>BIG-BOT Coding Adventure</title>
+  <meta name="description" content="3D Robot Kodlama Simülasyonu - Blok tabanlı programlama ile robotu kontrol et">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link
+    href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600;700&family=Orbitron:wght@400;500;600;700;800;900&display=swap"
+    rel="stylesheet">
+  <style>
+    :root {
+      --bg-dark: #0f1117;
+      --bg-panel: #1a1d27;
+      --bg-card: #232736;
+      --bg-hover: #2a2f42;
+      --accent-primary: #00d4aa;
+      --accent-secondary: #667eea;
+      --accent-warning: #f5a623;
+      --accent-danger: #ff4757;
+      --accent-success: #00d4aa;
+      --brand-yellow: #f5a623;
+      --text-primary: #e8eaf0;
+      --text-secondary: #8b90a5;
+      --text-muted: #545973;
+      --border-color: #2a2f42;
+      --shadow-lg: 0 8px 32px rgba(0, 0, 0, 0.4);
+      --shadow-glow-green: 0 0 20px rgba(0, 212, 170, 0.3);
+      --shadow-glow-red: 0 0 20px rgba(255, 71, 87, 0.3);
+      --radius: 10px;
+      --radius-sm: 6px;
+      --transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      background: var(--bg-dark);
+      color: var(--text-primary);
+      overflow: hidden;
+      height: 100vh;
+      width: 100vw;
+    }
+
+    /* ═══════════════════════════════════
+       INTRO CINEMATIC OVERLAY
+    ═══════════════════════════════════ */
+    #intro-overlay {
+      position: fixed;
+      inset: 0;
+      z-index: 1000;
+      background: #000;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      transition: opacity 1s ease;
+    }
+
+    #intro-overlay.hidden {
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    .intro-content {
+      max-width: 600px;
+      text-align: center;
+      padding: 40px;
+    }
+
+    .intro-warning {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 12px;
+      color: #ff4757;
+      text-transform: uppercase;
+      letter-spacing: 3px;
+      margin-bottom: 8px;
+      opacity: 0;
+      animation: intro-fade-in 0.5s ease forwards;
+      animation-delay: 0.5s;
+    }
+
+    .intro-system-msg {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px;
+      color: #555;
+      margin-bottom: 30px;
+      opacity: 0;
+      animation: intro-fade-in 0.5s ease forwards;
+      animation-delay: 1s;
+    }
+
+    .intro-robot-eyes {
+      font-size: 80px;
+      margin-bottom: 20px;
+      opacity: 0;
+      animation: intro-eyes-open 1s ease forwards;
+      animation-delay: 2s;
+    }
+
+    .intro-title {
+      font-family: 'Orbitron', sans-serif;
+      font-size: 42px;
+      font-weight: 900;
+      color: var(--accent-primary);
+      margin-bottom: 10px;
+      opacity: 0;
+      animation: intro-fade-in 0.8s ease forwards;
+      animation-delay: 3s;
+      text-shadow: 0 0 30px rgba(0, 212, 170, 0.5);
+    }
+
+    .intro-subtitle {
+      font-size: 16px;
+      color: var(--text-secondary);
+      margin-bottom: 10px;
+      opacity: 0;
+      animation: intro-fade-in 0.5s ease forwards;
+      animation-delay: 3.5s;
+    }
+
+    .intro-story {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 13px;
+      color: var(--brand-yellow);
+      line-height: 1.8;
+      margin: 25px 0;
+      opacity: 0;
+      animation: intro-fade-in 0.8s ease forwards;
+      animation-delay: 4s;
+      text-align: left;
+      background: rgba(245, 166, 35, 0.08);
+      border-left: 3px solid var(--brand-yellow);
+      padding: 16px 20px;
+      border-radius: 0 8px 8px 0;
+    }
+
+    .intro-operator {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px;
+      color: var(--text-muted);
+      margin-bottom: 5px;
+      opacity: 0;
+      animation: intro-fade-in 0.3s ease forwards;
+      animation-delay: 3.8s;
+    }
+
+    .intro-start-btn {
+      font-family: 'Orbitron', sans-serif;
+      font-size: 16px;
+      font-weight: 700;
+      padding: 16px 48px;
+      background: linear-gradient(135deg, var(--accent-primary), #00a885);
+      color: #000;
+      border: none;
+      border-radius: 12px;
+      cursor: pointer;
+      opacity: 0;
+      animation: intro-fade-in 0.5s ease forwards;
+      animation-delay: 5s;
+      transition: var(--transition);
+      text-transform: uppercase;
+      letter-spacing: 2px;
+      box-shadow: 0 4px 20px rgba(0, 212, 170, 0.3);
+    }
+
+    .intro-start-btn:hover {
+      transform: translateY(-3px) scale(1.03);
+      box-shadow: 0 8px 30px rgba(0, 212, 170, 0.5);
+    }
+
+    @keyframes intro-fade-in {
+      from {
+        opacity: 0;
+        transform: translateY(10px);
+      }
+
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    @keyframes intro-eyes-open {
+      0% {
+        opacity: 0;
+        transform: scale(0.3);
+        filter: brightness(0);
+      }
+
+      60% {
+        opacity: 1;
+        transform: scale(1.2);
+        filter: brightness(2);
+      }
+
+      100% {
+        opacity: 1;
+        transform: scale(1);
+        filter: brightness(1);
+      }
+    }
+
+    /* ═══════════════════════════════════
+       SUCCESS OVERLAY
+    ═══════════════════════════════════ */
+    #success-overlay {
+      position: fixed;
+      inset: 0;
+      z-index: 900;
+      background: rgba(0, 0, 0, 0.85);
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      animation: overlay-fade-in 0.5s ease;
+    }
+
+    #success-overlay.visible {
+      display: flex;
+    }
+
+    .success-icon {
+      font-size: 100px;
+      margin-bottom: 20px;
+      animation: success-bounce 0.6s ease;
+    }
+
+    .success-title {
+      font-family: 'Orbitron', sans-serif;
+      font-size: 36px;
+      font-weight: 900;
+      color: var(--accent-success);
+      margin-bottom: 10px;
+      text-shadow: 0 0 30px rgba(0, 212, 170, 0.5);
+    }
+
+    .success-subtitle {
+      font-size: 18px;
+      color: var(--text-secondary);
+      margin-bottom: 30px;
+    }
+
+    .success-stats {
+      display: flex;
+      gap: 30px;
+      margin-bottom: 30px;
+    }
+
+    .stat-item {
+      text-align: center;
+    }
+
+    .stat-value {
+      font-family: 'Orbitron', sans-serif;
+      font-size: 28px;
+      font-weight: 800;
+      color: var(--accent-primary);
+    }
+
+    .stat-label {
+      font-size: 12px;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+
+    .success-next-btn {
+      font-family: 'Orbitron', sans-serif;
+      font-size: 14px;
+      font-weight: 700;
+      padding: 14px 40px;
+      background: linear-gradient(135deg, var(--accent-primary), #00a885);
+      color: #000;
+      border: none;
+      border-radius: 10px;
+      cursor: pointer;
+      transition: var(--transition);
+      text-transform: uppercase;
+      letter-spacing: 2px;
+    }
+
+    .success-next-btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 25px rgba(0, 212, 170, 0.4);
+    }
+
+    @keyframes success-bounce {
+      0% {
+        transform: scale(0);
+      }
+
+      50% {
+        transform: scale(1.3);
+      }
+
+      70% {
+        transform: scale(0.9);
+      }
+
+      100% {
+        transform: scale(1);
+      }
+    }
+
+    /* ═══════════════════════════════════
+       FAILURE OVERLAY
+    ═══════════════════════════════════ */
+    #failure-overlay {
+      position: fixed;
+      inset: 0;
+      z-index: 900;
+      background: rgba(20, 0, 0, 0.88);
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      animation: overlay-fade-in 0.5s ease;
+    }
+
+    #failure-overlay.visible {
+      display: flex;
+    }
+
+    .failure-icon {
+      font-size: 80px;
+      margin-bottom: 20px;
+      animation: failure-shake 0.5s ease;
+    }
+
+    .failure-title {
+      font-family: 'Orbitron', sans-serif;
+      font-size: 32px;
+      font-weight: 900;
+      color: var(--accent-danger);
+      margin-bottom: 10px;
+      text-shadow: 0 0 20px rgba(255, 71, 87, 0.4);
+    }
+
+    .failure-message {
+      font-size: 16px;
+      color: var(--text-secondary);
+      margin-bottom: 30px;
+      max-width: 400px;
+      text-align: center;
+    }
+
+    .failure-retry-btn {
+      font-family: 'Orbitron', sans-serif;
+      font-size: 14px;
+      font-weight: 700;
+      padding: 14px 40px;
+      background: linear-gradient(135deg, var(--accent-danger), #e0392e);
+      color: #fff;
+      border: none;
+      border-radius: 10px;
+      cursor: pointer;
+      transition: var(--transition);
+      text-transform: uppercase;
+      letter-spacing: 2px;
+    }
+
+    .failure-retry-btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 25px rgba(255, 71, 87, 0.4);
+    }
+
+    @keyframes failure-shake {
+
+      0%,
+      100% {
+        transform: translateX(0);
+      }
+
+      20% {
+        transform: translateX(-15px);
+      }
+
+      40% {
+        transform: translateX(15px);
+      }
+
+      60% {
+        transform: translateX(-10px);
+      }
+
+      80% {
+        transform: translateX(10px);
+      }
+    }
+
+    @keyframes overlay-fade-in {
+      from {
+        opacity: 0;
+      }
+
+      to {
+        opacity: 1;
+      }
+    }
+
+    /* ═══════════════════════════════════
+       TOP TOOLBAR
+    ═══════════════════════════════════ */
+    #top-toolbar {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 56px;
+      background: var(--bg-panel);
+      border-bottom: 1px solid var(--border-color);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 16px;
+      z-index: 100;
+      box-shadow: 0 2px 12px rgba(0, 0, 0, 0.3);
+    }
+
+    .toolbar-left {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .toolbar-center {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .toolbar-right {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .logo {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-weight: 800;
+      font-size: 18px;
+      color: var(--accent-primary);
+      letter-spacing: -0.5px;
+    }
+
+    .logo-icon {
+      width: 32px;
+      height: 32px;
+      background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary));
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 18px;
+    }
+
+    #toggle-panel-btn {
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      color: var(--text-primary);
+      padding: 8px 14px;
+      border-radius: var(--radius-sm);
+      font-family: 'Inter', sans-serif;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: var(--transition);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    #toggle-panel-btn:hover {
+      background: var(--bg-hover);
+      border-color: var(--accent-primary);
+    }
+
+    .ctrl-btn {
+      border: none;
+      padding: 8px 18px;
+      border-radius: var(--radius-sm);
+      font-family: 'Inter', sans-serif;
+      font-size: 13px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: var(--transition);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .ctrl-btn:active {
+      transform: scale(0.96);
+    }
+
+    #btn-green-flag {
+      background: linear-gradient(135deg, #00c853, #00a843);
+      color: white;
+      box-shadow: 0 2px 8px rgba(0, 200, 83, 0.3);
+    }
+
+    #btn-green-flag:hover {
+      box-shadow: var(--shadow-glow-green);
+      transform: translateY(-1px);
+    }
+
+    #btn-stop {
+      background: linear-gradient(135deg, var(--accent-danger), #e0392e);
+      color: white;
+    }
+
+    #btn-stop:hover {
+      box-shadow: var(--shadow-glow-red);
+      transform: translateY(-1px);
+    }
+
+    #btn-reset {
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      color: var(--text-primary);
+    }
+
+    #btn-reset:hover {
+      background: var(--bg-hover);
+      border-color: var(--accent-warning);
+    }
+
+    .battery-widget {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      background: var(--bg-card);
+      padding: 6px 12px;
+      border-radius: var(--radius-sm);
+      border: 1px solid var(--border-color);
+    }
+
+    .garage-mode-wrap {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      background: var(--bg-card);
+      padding: 6px 10px;
+      border-radius: var(--radius-sm);
+      border: 1px solid var(--border-color);
+      font-size: 12px;
+      color: var(--text-secondary);
+    }
+
+    #garage-mode-select {
+      background: #151a24;
+      color: var(--text-primary);
+      border: 1px solid #323a4e;
+      border-radius: 6px;
+      font-size: 12px;
+      font-weight: 600;
+      font-family: 'Inter', sans-serif;
+      padding: 6px 8px;
+      outline: none;
+      transition: var(--transition);
+    }
+
+    #garage-mode-select:hover {
+      border-color: var(--accent-primary);
+    }
+
+    #garage-mode-select:focus {
+      border-color: var(--accent-primary);
+      box-shadow: 0 0 0 2px rgba(0, 212, 170, 0.2);
+    }
+
+    .battery-bar-mini {
+      width: 60px;
+      height: 14px;
+      background: var(--bg-dark);
+      border-radius: 7px;
+      overflow: hidden;
+    }
+
+    .battery-fill-mini {
+      height: 100%;
+      background: linear-gradient(90deg, var(--accent-success), #00f5cc);
+      transition: width 0.4s ease, background 0.3s ease;
+      border-radius: 7px;
+    }
+
+    .battery-fill-mini.low {
+      background: linear-gradient(90deg, var(--accent-warning), #ff9800);
+    }
+
+    .battery-fill-mini.critical {
+      background: linear-gradient(90deg, var(--accent-danger), #ff6b81);
+      animation: pulse-battery 1s infinite;
+    }
+
+    @keyframes pulse-battery {
+
+      0%,
+      100% {
+        opacity: 1;
+      }
+
+      50% {
+        opacity: 0.5;
+      }
+    }
+
+    .battery-text {
+      font-size: 12px;
+      font-weight: 700;
+      font-family: 'JetBrains Mono', monospace;
+      color: var(--text-secondary);
+      min-width: 32px;
+    }
+
+    #camera-reset {
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      color: var(--text-secondary);
+      padding: 8px 12px;
+      border-radius: var(--radius-sm);
+      font-family: 'Inter', sans-serif;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: var(--transition);
+    }
+
+    #camera-reset:hover {
+      background: var(--bg-hover);
+      color: var(--text-primary);
+    }
+
+    /* ═══════════════════════════════════
+       MAIN LAYOUT
+    ═══════════════════════════════════ */
+    #app {
+      width: 100vw;
+      height: 100vh;
+      display: flex;
+      flex-direction: row;
+      padding-top: 56px;
+    }
+
+    #coding-panel {
+      width: 420px;
+      min-width: 420px;
+      background: var(--bg-panel);
+      border-right: 1px solid var(--border-color);
+      display: flex;
+      flex-direction: column;
+      transition: margin-left 0.35s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.25s ease;
+      position: relative;
+      z-index: 50;
+    }
+
+    #coding-panel.collapsed {
+      margin-left: -420px;
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    .panel-header {
+      padding: 14px 16px;
+      border-bottom: 1px solid var(--border-color);
+    }
+
+    .panel-title {
+      font-size: 14px;
+      font-weight: 700;
+      color: var(--text-primary);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .panel-title-icon {
+      width: 24px;
+      height: 24px;
+      background: linear-gradient(135deg, var(--accent-secondary), #8b5cf6);
+      border-radius: 6px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 12px;
+    }
+
+    .panel-subtitle {
+      font-size: 11px;
+      color: var(--text-muted);
+      font-weight: 500;
+      margin-top: 2px;
+    }
+
+    #blockly-div {
+      flex: 1;
+      width: 100%;
+      min-height: 0;
+    }
+
+    #canvas-container {
+      flex: 1;
+      position: relative;
+      overflow: hidden;
+    }
+
+    canvas {
+      display: block;
+      width: 100%;
+      height: 100%;
+    }
+
+    /* ═══════════════════════════════════
+       OVERLAYS ON CANVAS
+    ═══════════════════════════════════ */
+    #status-overlay {
+      position: absolute;
+      bottom: 16px;
+      right: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      z-index: 20;
+    }
+
+    .status-badge {
+      background: rgba(26, 29, 39, 0.9);
+      backdrop-filter: blur(10px);
+      border: 1px solid var(--border-color);
+      padding: 6px 12px;
+      border-radius: var(--radius-sm);
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--text-secondary);
+      font-family: 'JetBrains Mono', monospace;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .status-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--accent-success);
+      animation: status-pulse 2s infinite;
+    }
+
+    @keyframes status-pulse {
+
+      0%,
+      100% {
+        opacity: 1;
+      }
+
+      50% {
+        opacity: 0.4;
+      }
+    }
+
+    .status-dot.executing {
+      background: var(--accent-warning);
+    }
+
+    .status-dot.error {
+      background: var(--accent-danger);
+    }
+
+    #mission-overlay {
+      position: absolute;
+      top: 16px;
+      left: 16px;
+      z-index: 20;
+    }
+
+    .mission-card {
+      background: rgba(26, 29, 39, 0.9);
+      backdrop-filter: blur(10px);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius);
+      padding: 12px 16px;
+      max-width: 280px;
+      transition: var(--transition);
+    }
+
+    .mission-label {
+      font-size: 10px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: var(--accent-warning);
+      margin-bottom: 6px;
+    }
+
+    .mission-title {
+      font-size: 14px;
+      font-weight: 700;
+      color: var(--text-primary);
+      margin-bottom: 4px;
+    }
+
+    .mission-desc {
+      font-size: 12px;
+      color: var(--text-secondary);
+      line-height: 1.5;
+    }
+
+    /* Toast */
+    #toast-container {
+      position: fixed;
+      top: 68px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 200;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      pointer-events: none;
+    }
+
+    .toast {
+      background: rgba(26, 29, 39, 0.95);
+      backdrop-filter: blur(12px);
+      border: 1px solid var(--border-color);
+      padding: 10px 20px;
+      border-radius: var(--radius);
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text-primary);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      animation: toast-in 0.3s ease, toast-out 0.3s ease 2.7s forwards;
+      box-shadow: var(--shadow-lg);
+    }
+
+    .toast.success {
+      border-color: var(--accent-success);
+    }
+
+    .toast.error {
+      border-color: var(--accent-danger);
+    }
+
+    .toast.warning {
+      border-color: var(--accent-warning);
+    }
+
+    @keyframes toast-in {
+      from {
+        opacity: 0;
+        transform: translateY(-10px);
+      }
+
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    @keyframes toast-out {
+      from {
+        opacity: 1;
+      }
+
+      to {
+        opacity: 0;
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <!-- ═══ INTRO CINEMATIC ═══ -->
+  <div id="intro-overlay">
+    <div class="intro-content">
+      <div class="intro-warning">⚠ SİSTEM UYARISI</div>
+      <div class="intro-system-msg">BIG-BOT v3.2 // Görev Operatör Konsolu</div>
+      <div class="intro-robot-eyes">🤖</div>
+      <div class="intro-title">BIG-BOT</div>
+      <div class="intro-subtitle">Coding Adventure — Bölüm 1: Garajdan Şehre</div>
+      <div class="intro-operator">📡 GÖREV OPERATÖRÜ:</div>
+      <div class="intro-story">
+        "Merhaba Operatör! Ben BIG-BOT. Garajda mahsur kaldım ve bataryam neredeyse boş.
+        Kapıyı açmam ve şarj istasyonuna ulaşmam için senin kodlama becerilerine ihtiyacım var.
+        Bana doğru komutları vererek beni kurtarabilir misin?"
+      </div>
+      <button class="intro-start-btn" id="intro-start-btn">🚀 GÖREVE BAŞLA</button>
+    </div>
+  </div>
+
+  <!-- ═══ SUCCESS OVERLAY ═══ -->
+  <div id="success-overlay">
+    <div class="success-icon">🎉</div>
+    <div class="success-title">GÖREV TAMAMLANDI!</div>
+    <div class="success-subtitle" id="success-message">Tebrikler! BIG-BOT şarj oldu.</div>
+    <div class="success-stats">
+      <div class="stat-item">
+        <div class="stat-value" id="stat-commands">0</div>
+        <div class="stat-label">Komut</div>
+      </div>
+      <div class="stat-item">
+        <div class="stat-value" id="stat-battery">100%</div>
+        <div class="stat-label">Batarya</div>
+      </div>
+    </div>
+    <button class="success-next-btn" id="success-next-btn">DEVAM ET →</button>
+  </div>
+
+  <!-- ═══ FAILURE OVERLAY ═══ -->
+  <div id="failure-overlay">
+    <div class="failure-icon">😵</div>
+    <div class="failure-title">GÖREV BAŞARISIZ</div>
+    <div class="failure-message" id="failure-message">BIG-BOT'un bataryası bitti! Daha az hareketle dene.</div>
+    <button class="failure-retry-btn" id="failure-retry-btn">🔄 TEKRAR DENE</button>
+  </div>
+
+  <!-- ═══ TOP TOOLBAR ═══ -->
+  <div id="top-toolbar">
+    <div class="toolbar-left">
+      <div class="logo">
+        <div class="logo-icon">🤖</div>
+        <span>BIG-BOT</span>
+      </div>
+      <button id="toggle-panel-btn"><span>◧</span> Kodlama Paneli</button>
+    </div>
+    <div class="toolbar-center">
+      <button class="ctrl-btn" id="btn-green-flag"><span>🚩</span> Başlat</button>
+      <button class="ctrl-btn" id="btn-stop">⏹ Durdur</button>
+      <button class="ctrl-btn" id="btn-reset">↻ Sıfırla</button>
+    </div>
+    <div class="toolbar-right">
+      <div class="garage-mode-wrap">
+        <span>🏭</span>
+        <select id="garage-mode-select">
+          <option value="open">Açık Tavan</option>
+          <option value="closed">Kapalı Tavan Sürüş</option>
+        </select>
+      </div>
+      <div class="battery-widget">
+        <span>🔋</span>
+        <div class="battery-bar-mini">
+          <div class="battery-fill-mini" id="battery-fill" style="width: 5%"></div>
+        </div>
+        <span class="battery-text" id="battery-text">5%</span>
+      </div>
+      <button id="camera-reset">🎥 Kamera</button>
+    </div>
+  </div>
+
+  <!-- ═══ MAIN APP ═══ -->
+  <div id="app">
+    <div id="coding-panel">
+      <div class="panel-header">
+        <div class="panel-title">
+          <div class="panel-title-icon">⚡</div>
+          Komut Blokları
+        </div>
+        <div class="panel-subtitle">Blokları sürükleyerek programla</div>
+      </div>
+      <div id="blockly-div"></div>
+    </div>
+
+    <div id="canvas-container">
+      <div id="mission-overlay">
+        <div class="mission-card" id="mission-card">
+          <div class="mission-label" id="mission-label">📋 Görev 1</div>
+          <div class="mission-title" id="mission-title">Butona Ulaş</div>
+          <div class="mission-desc" id="mission-desc">Robotu butona kadar sürerek kapıyı aç.</div>
+        </div>
+      </div>
+      <div id="status-overlay">
+        <div class="status-badge">
+          <div class="status-dot" id="status-dot"></div>
+          <span id="status-text">Hazır</span>
+        </div>
+        <div class="status-badge">
+          📍 <span id="position-text">Pos: (2, 0) | Yön: K</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="toast-container"></div>
+  <script type="module" src="/src/demo/main.ts"></script>
+</body>
+
+</html>

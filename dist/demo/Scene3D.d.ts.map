@@ -1,0 +1,1 @@
+{"version":3,"file":"Scene3D.d.ts","sourceRoot":"","sources":["../../src/demo/Scene3D.tsx"],"names":[],"mappings":"AASA,UAAU,YAAY;IACpB,aAAa,EAAE;QAAE,CAAC,EAAE,MAAM,CAAC;QAAC,CAAC,EAAE,MAAM,CAAA;KAAE,CAAA;IACvC,aAAa,EAAE,MAAM,CAAA;IACrB,QAAQ,EAAE,OAAO,CAAA;CAClB;AAED,wBAAgB,OAAO,CAAC,EAAE,aAAa,EAAE,aAAa,EAAE,QAAQ,EAAE,EAAE,YAAY,2CAqD/E"}
