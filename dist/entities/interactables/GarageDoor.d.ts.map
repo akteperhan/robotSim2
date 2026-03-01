@@ -1,1 +1,0 @@
-{"version":3,"file":"GarageDoor.d.ts","sourceRoot":"","sources":["../../../src/entities/interactables/GarageDoor.ts"],"names":[],"mappings":"AAAA,OAAO,EAAE,aAAa,EAAE,gBAAgB,EAAE,MAAM,0BAA0B,CAAA;AAG1E,qBAAa,UAAW,YAAW,aAAa;IAC9C,OAAO,CAAC,MAAM,CAAS;;IAMvB,OAAO,IAAI,gBAAgB;IAI3B,QAAQ,IAAI,IAAI;IAOhB,WAAW,IAAI,OAAO;IAItB,SAAS,IAAI,OAAO;CAGrB"}

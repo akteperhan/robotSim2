@@ -57,12 +57,48 @@
       position: fixed;
       inset: 0;
       z-index: 1000;
-      background: #000;
+      background: radial-gradient(circle at center, #1a1d27 0%, #000 100%);
       display: flex;
       flex-direction: column;
       align-items: center;
       justify-content: center;
       transition: opacity 1s ease;
+      overflow: hidden;
+    }
+
+    #intro-overlay::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%), linear-gradient(90deg, rgba(255, 0, 0, 0.06), rgba(0, 255, 0, 0.02), rgba(0, 0, 255, 0.06));
+      background-size: 100% 2px, 3px 100%;
+      pointer-events: none;
+      z-index: 1001;
+      opacity: 0.3;
+    }
+
+    #intro-overlay::after {
+      content: "";
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: linear-gradient(to bottom, transparent 0%, rgba(0, 212, 170, 0.05) 50%, transparent 100%);
+      background-size: 100% 200%;
+      animation: scanline 8s linear infinite;
+      pointer-events: none;
+      z-index: 1002;
+    }
+
+    @keyframes scanline {
+      0% {
+        background-position: 0 -100%;
+      }
+
+      100% {
+        background-position: 0 100%;
+      }
     }
 
     #intro-overlay.hidden {
@@ -99,77 +135,96 @@
     }
 
     .intro-robot-eyes {
-      font-size: 80px;
+      font-size: 120px;
       margin-bottom: 20px;
       opacity: 0;
-      animation: intro-eyes-open 1s ease forwards;
-      animation-delay: 2s;
+      animation: intro-eyes-open 1.2s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards, robot-float 4s ease-in-out infinite alternate;
+      animation-delay: 1s, 2.2s;
+      filter: drop-shadow(0 0 20px rgba(0, 212, 170, 0.4));
+    }
+
+    @keyframes robot-float {
+      from {
+        transform: translateY(0);
+      }
+
+      to {
+        transform: translateY(-15px);
+      }
     }
 
     .intro-title {
-      font-family: 'Orbitron', sans-serif;
-      font-size: 42px;
+      font-family: 'Orbitron', 'Inter', sans-serif;
+      font-size: 64px;
       font-weight: 900;
       color: var(--accent-primary);
-      margin-bottom: 10px;
+      margin-bottom: 8px;
       opacity: 0;
       animation: intro-fade-in 0.8s ease forwards;
-      animation-delay: 3s;
-      text-shadow: 0 0 30px rgba(0, 212, 170, 0.5);
+      animation-delay: 2.5s;
+      text-shadow: 0 0 40px rgba(0, 212, 170, 0.6), 0 0 10px rgba(0, 212, 170, 0.4);
+      letter-spacing: 2px;
     }
 
     .intro-subtitle {
-      font-size: 16px;
+      font-size: 20px;
+      font-weight: 600;
       color: var(--text-secondary);
-      margin-bottom: 10px;
+      margin-bottom: 25px;
       opacity: 0;
       animation: intro-fade-in 0.5s ease forwards;
-      animation-delay: 3.5s;
+      animation-delay: 3s;
+      letter-spacing: 1px;
     }
 
     .intro-story {
-      font-family: 'JetBrains Mono', monospace;
-      font-size: 13px;
-      color: var(--brand-yellow);
+      font-family: 'Inter', sans-serif;
+      font-size: 15px;
+      font-weight: 500;
+      color: #fff;
       line-height: 1.8;
-      margin: 25px 0;
+      margin: 30px 0;
       opacity: 0;
       animation: intro-fade-in 0.8s ease forwards;
-      animation-delay: 4s;
+      animation-delay: 3.5s;
       text-align: left;
-      background: rgba(245, 166, 35, 0.08);
-      border-left: 3px solid var(--brand-yellow);
-      padding: 16px 20px;
-      border-radius: 0 8px 8px 0;
+      background: linear-gradient(90deg, rgba(245, 166, 35, 0.15), rgba(245, 166, 35, 0.05));
+      border-left: 4px solid var(--brand-yellow);
+      padding: 18px 24px;
+      border-radius: 6px 12px 12px 6px;
+      box-shadow: inset 0 0 20px rgba(245, 166, 35, 0.05);
     }
 
     .intro-operator {
-      font-family: 'JetBrains Mono', monospace;
-      font-size: 11px;
-      color: var(--text-muted);
-      margin-bottom: 5px;
+      font-family: 'Orbitron', sans-serif;
+      font-weight: 800;
+      font-size: 13px;
+      color: var(--brand-yellow);
+      margin-bottom: 10px;
       opacity: 0;
+      text-transform: uppercase;
+      letter-spacing: 2px;
       animation: intro-fade-in 0.3s ease forwards;
-      animation-delay: 3.8s;
+      animation-delay: 3.3s;
     }
 
     .intro-start-btn {
       font-family: 'Orbitron', sans-serif;
-      font-size: 16px;
-      font-weight: 700;
-      padding: 16px 48px;
+      font-size: 18px;
+      font-weight: 800;
+      padding: 18px 54px;
       background: linear-gradient(135deg, var(--accent-primary), #00a885);
-      color: #000;
-      border: none;
+      color: #111;
+      border: 2px solid rgba(255, 255, 255, 0.2);
       border-radius: 12px;
       cursor: pointer;
       opacity: 0;
       animation: intro-fade-in 0.5s ease forwards;
-      animation-delay: 5s;
+      animation-delay: 4.5s;
       transition: var(--transition);
       text-transform: uppercase;
       letter-spacing: 2px;
-      box-shadow: 0 4px 20px rgba(0, 212, 170, 0.3);
+      box-shadow: 0 4px 20px rgba(0, 212, 170, 0.4), inset 0 0 10px rgba(255, 255, 255, 0.3);
     }
 
     .intro-start-btn:hover {
@@ -538,6 +593,18 @@
       border-color: var(--accent-warning);
     }
 
+    #btn-load-code {
+      background: linear-gradient(135deg, #667eea, #764ba2);
+      color: white;
+      box-shadow: 0 2px 8px rgba(102, 126, 234, 0.3);
+      margin-left: 10px;
+    }
+
+    #btn-load-code:hover {
+      box-shadow: 0 0 15px rgba(102, 126, 234, 0.5);
+      transform: translateY(-1px);
+    }
+
     .battery-widget {
       display: flex;
       align-items: center;
@@ -816,6 +883,20 @@
       font-size: 12px;
       color: var(--text-secondary);
       line-height: 1.5;
+      margin-bottom: 8px;
+    }
+
+    .mission-energy {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px;
+      color: var(--accent-primary);
+      background: rgba(0, 212, 170, 0.1);
+      padding: 4px 8px;
+      border-radius: 4px;
+      border: 1px solid rgba(0, 212, 170, 0.2);
     }
 
     /* Toast */
@@ -894,9 +975,10 @@
       <div class="intro-subtitle">Coding Adventure — Bölüm 1: Garajdan Şehre</div>
       <div class="intro-operator">📡 GÖREV OPERATÖRÜ:</div>
       <div class="intro-story">
-        "Merhaba Operatör! Ben BIG-BOT. Garajda mahsur kaldım ve bataryam neredeyse boş.
-        Kapıyı açmam ve şarj istasyonuna ulaşmam için senin kodlama becerilerine ihtiyacım var.
-        Bana doğru komutları vererek beni kurtarabilir misin?"
+        "Merhaba Operatör! Ben BIG-BOT.<br /><br />
+        Garajda kilitli kaldım ve bataryam bitmek üzere. Kapıyı o siber tarayıcıdan açıp enerji santraline ulaşmam
+        lazım.<br />
+        Bana doğru rotayı çizecek komutları yazar mısın? Ama dikkatli ol; her hareketim bataryamdan enerji çeker!"
       </div>
       <button class="intro-start-btn" id="intro-start-btn">🚀 GÖREVE BAŞLA</button>
     </div>
@@ -941,6 +1023,7 @@
       <button class="ctrl-btn" id="btn-green-flag"><span>🚩</span> Başlat</button>
       <button class="ctrl-btn" id="btn-stop">⏹ Durdur</button>
       <button class="ctrl-btn" id="btn-reset">↻ Sıfırla</button>
+      <button class="ctrl-btn" id="btn-load-code">💡 Çözümü Yükle</button>
     </div>
     <div class="toolbar-right">
       <div class="garage-mode-wrap">
@@ -980,6 +1063,10 @@
           <div class="mission-label" id="mission-label">📋 Görev 1</div>
           <div class="mission-title" id="mission-title">Butona Ulaş</div>
           <div class="mission-desc" id="mission-desc">Robotu butona kadar sürerek kapıyı aç.</div>
+          <div class="mission-energy">
+            <span>⚡ Tahmini Gereken: </span>
+            <span id="energy-estimate">14%</span>
+          </div>
         </div>
       </div>
       <div id="status-overlay">

@@ -7,6 +7,9 @@ export interface GarageConfig {
     GRID_CENTER_X: number
     WALL_H: number
     DOOR_ROW: number
+    BUTTON_X?: number        // X coordinate of the button (for path arrows)
+    CHARGE_X?: number        // X coordinate of the charging station
+    CHARGE_Y?: number        // Y (Z in 3D) coordinate of the charging station
 }
 
 export function createGarage(config: GarageConfig) {
@@ -16,9 +19,9 @@ export function createGarage(config: GarageConfig) {
     const sideDepth = config.GARAGE_DEPTH + 2.2
     const midZ = sideDepth / 2 - 0.7
 
-    const wallMat = new THREE.MeshStandardMaterial({ color: 0x2f3444, roughness: 0.86, metalness: 0.08 })
-    const wallPanelMat = new THREE.MeshStandardMaterial({ color: 0x3b4154, roughness: 0.72, metalness: 0.18 })
-    const floorMat = new THREE.MeshStandardMaterial({ color: 0x4a4f5f, roughness: 0.82, metalness: 0.14 })
+    const wallMat = new THREE.MeshStandardMaterial({ color: 0x485066, roughness: 0.76, metalness: 0.15 })
+    const wallPanelMat = new THREE.MeshStandardMaterial({ color: 0x5a637d, roughness: 0.65, metalness: 0.25 })
+    const floorMat = new THREE.MeshStandardMaterial({ color: 0x555b6d, roughness: 0.75, metalness: 0.2 })
 
     // Base slab + perimeter lane
     const slab = new THREE.Mesh(new THREE.BoxGeometry(garageW + 0.7, 0.14, sideDepth + 0.2), floorMat)
@@ -33,6 +36,16 @@ export function createGarage(config: GarageConfig) {
     perimeterLane.receiveShadow = true
     g.add(perimeterLane)
 
+    // Arrow Shape Geometry for path indicators
+    const arrowShape = new THREE.Shape()
+    arrowShape.moveTo(0, 0.3)
+    arrowShape.lineTo(0.2, -0.3)
+    arrowShape.lineTo(0, -0.12)
+    arrowShape.lineTo(-0.2, -0.3)
+    arrowShape.lineTo(0, 0.3)
+    const arrowGeo = new THREE.ExtrudeGeometry(arrowShape, { depth: 0.02, bevelEnabled: false })
+    arrowGeo.center()
+
     // Interior floor tiles
     for (let x = 0; x < config.GRID_W; x++) {
         for (let z = 0; z < config.GARAGE_DEPTH; z++) {
@@ -43,15 +56,52 @@ export function createGarage(config: GarageConfig) {
             tile.position.set(x, -0.02, z)
             tile.receiveShadow = true
             g.add(tile)
-            if (x === config.GRID_CENTER_X || x === config.GRID_CENTER_X - 1 || x === config.GRID_CENTER_X + 1) {
-                const stripe = new THREE.Mesh(
-                    new THREE.BoxGeometry(0.16, 0.018, 0.82),
-                    new THREE.MeshStandardMaterial({ color: 0x26c6da, emissive: 0x26c6da, emissiveIntensity: 0.25, roughness: 0.35 })
+            // Generate floor guide arrows targeting the button on the left wall
+            const buttonX = config.BUTTON_X ?? 0
+            const isCenterPath = x === config.GRID_CENTER_X && z >= 3 && z <= 7
+            const isTurnPath = z === 7 && x <= config.GRID_CENTER_X && x > buttonX
+            const isButtonTile = x === buttonX && z === 7 // the actual button tile
+
+            if (isCenterPath || isTurnPath) {
+                const arrow = new THREE.Mesh(
+                    arrowGeo,
+                    new THREE.MeshStandardMaterial({ color: 0xFFD700, emissive: 0xFFD700, emissiveIntensity: 1.0, roughness: 0.35 })
                 )
-                stripe.position.set(x, 0.006, z)
-                g.add(stripe)
+                arrow.position.set(x, 0.015, z)
+                arrow.rotation.x = -Math.PI / 2
+
+                if (isTurnPath && !isCenterPath) {
+                    arrow.rotation.z = Math.PI / 2   // pointing West (left)
+                } else if (isCenterPath && z === 7) {
+                    arrow.rotation.z = Math.PI / 2   // corner: also West to show the turn
+                } else {
+                    arrow.rotation.z = Math.PI        // pointing North (straight ahead)
+                }
+                g.add(arrow)
             }
         }
+    }
+
+    // === Outdoor arrows from door toward charging station ===
+    const chargeX = config.CHARGE_X ?? config.GRID_CENTER_X
+    const chargeY = config.CHARGE_Y ?? (config.DOOR_ROW + 2)
+    const arrowMatOut = new THREE.MeshStandardMaterial({ color: 0x00E5FF, emissive: 0x00E5FF, emissiveIntensity: 1.2, roughness: 0.3 })
+
+    // North leg: x=0, from DOOR_ROW to chargeY (along left column)
+    for (let oz = config.DOOR_ROW; oz <= chargeY; oz++) {
+        const a = new THREE.Mesh(arrowGeo, arrowMatOut)
+        a.position.set(0, 0.015, oz)
+        a.rotation.x = -Math.PI / 2
+        a.rotation.z = Math.PI   // pointing North
+        g.add(a)
+    }
+    // East leg: z=chargeY, from x=0 to chargeX
+    for (let ox = 1; ox <= chargeX; ox++) {
+        const a = new THREE.Mesh(arrowGeo, arrowMatOut)
+        a.position.set(ox, 0.015, chargeY)
+        a.rotation.x = -Math.PI / 2
+        a.rotation.z = -Math.PI / 2   // pointing East
+        g.add(a)
     }
 
     // Walls
@@ -77,13 +127,13 @@ export function createGarage(config: GarageConfig) {
     }
     const backLightBar = new THREE.Mesh(
         new THREE.BoxGeometry(garageW - 1.1, 0.06, 0.05),
-        new THREE.MeshStandardMaterial({ color: 0x80d8ff, emissive: 0x80d8ff, emissiveIntensity: 0.8, roughness: 0.25 })
+        new THREE.MeshStandardMaterial({ color: 0xffffff, emissive: 0xaef2ff, emissiveIntensity: 1.5, roughness: 0.25 })
     )
     backLightBar.position.set(config.GRID_CENTER_X, config.WALL_H + 0.15, -0.52)
     g.add(backLightBar)
 
     // Entry portal frame
-    const portalMat = new THREE.MeshStandardMaterial({ color: 0x61687d, roughness: 0.35, metalness: 0.7 })
+    const portalMat = new THREE.MeshStandardMaterial({ color: 0x828b9e, roughness: 0.35, metalness: 0.7 })
     const topPortal = new THREE.Mesh(new THREE.BoxGeometry(garageW + 0.5, 0.22, 0.18), portalMat)
     topPortal.position.set(config.GRID_CENTER_X, config.WALL_H + 0.16, config.DOOR_ROW - 0.44)
     g.add(topPortal)
@@ -94,6 +144,10 @@ export function createGarage(config: GarageConfig) {
     rightPortal.position.set(config.GRID_W - 0.45, (config.WALL_H + 0.2) / 2, config.DOOR_ROW - 0.44)
     g.add(rightPortal)
 
+    // Roof group definition
+    const garageRoofGroup = new THREE.Group()
+    const garageRoofMaterials: THREE.MeshStandardMaterial[] = []
+
     // Ceiling utility lights
     const lightX = [1, 3, 5, 7, 9]
     const lightZ = [1, 3, 5, 7, 9, 11]
@@ -102,24 +156,28 @@ export function createGarage(config: GarageConfig) {
             const housing = new THREE.Mesh(new THREE.BoxGeometry(0.56, 0.07, 0.16),
                 new THREE.MeshStandardMaterial({ color: 0xaab3c7, roughness: 0.5, metalness: 0.4 }))
             housing.position.set(lx, config.WALL_H - 0.14, lz)
-            g.add(housing)
+            garageRoofGroup.add(housing)
             const tube = new THREE.Mesh(new THREE.BoxGeometry(0.46, 0.025, 0.065),
                 new THREE.MeshStandardMaterial({ color: 0xffffff, emissive: 0xe8f6ff, emissiveIntensity: 2.2, roughness: 0.1 }))
             tube.position.set(lx, config.WALL_H - 0.18, lz)
-            g.add(tube)
-            const pt = new THREE.PointLight(0xdde8ff, 1.2, 8.0)
-            pt.position.set(lx, config.WALL_H - 0.26, lz)
-            // Remove point light shadows inside to optimize!
-            g.add(pt)
+            garageRoofGroup.add(tube)
+            // Remove mass PointLights entirely and replace them with a large area light or a few directional fill lights instead for massive FPS gains
         }
     }
+    // Optimization: Add ambient PointLights that illuminate walls brightly when the roof blocks the sunlight
+    const fill1 = new THREE.PointLight(0xfff5e6, 25.0, 45) // Vastly boosted power to simulate bright interior workshop lighting
+    fill1.position.set(config.GRID_CENTER_X, config.WALL_H - 1.0, config.GARAGE_DEPTH / 3)
+    garageRoofGroup.add(fill1)
+
+    const fill2 = new THREE.PointLight(0xfff5e6, 25.0, 45)
+    fill2.position.set(config.GRID_CENTER_X, config.WALL_H - 1.0, (config.GARAGE_DEPTH / 3) * 2)
+    garageRoofGroup.add(fill2)
 
     // Workshop details
     const shelfMat = new THREE.MeshStandardMaterial({ color: 0x8d6e63, roughness: 0.7, metalness: 0.1 })
     for (let i = 0; i < 4; i++) {
         const shelf = new THREE.Mesh(new THREE.BoxGeometry(0.14, 0.03, 1.6), shelfMat)
         shelf.position.set(-0.43, 0.95 + i * 0.34, 2.0)
-        shelf.castShadow = true
         g.add(shelf)
     }
     const tireMat = new THREE.MeshStandardMaterial({ color: 0x1d1f28, roughness: 0.95 })
@@ -127,7 +185,6 @@ export function createGarage(config: GarageConfig) {
         const tire = new THREE.Mesh(new THREE.TorusGeometry(0.2, 0.11, 16, 34), tireMat)
         tire.rotation.x = Math.PI / 2
         tire.position.set(-0.35, 0.22 + i * 0.2, 4.9)
-        tire.castShadow = true
         g.add(tire)
     }
     const bench = new THREE.Mesh(
@@ -135,19 +192,17 @@ export function createGarage(config: GarageConfig) {
         new THREE.MeshStandardMaterial({ color: 0x4f585f, roughness: 0.7, metalness: 0.3 })
     )
     bench.position.set(config.GRID_W - 0.55, 0.53, 2.2)
-    bench.castShadow = true
+
     g.add(bench)
     const toolCabinet = new THREE.Mesh(
         new RoundedBoxGeometry(0.5, 0.9, 0.42, 4, 0.04),
         new THREE.MeshStandardMaterial({ color: 0xcf3a3a, roughness: 0.35, metalness: 0.5 })
     )
     toolCabinet.position.set(config.GRID_W - 0.8, 0.46, 1.3)
-    toolCabinet.castShadow = true
+
     g.add(toolCabinet)
 
-    // Roof
-    const garageRoofGroup = new THREE.Group()
-    const garageRoofMaterials: THREE.MeshStandardMaterial[] = []
+    // Roof meshes
 
     const roofMat = new THREE.MeshStandardMaterial({ color: 0x5e667c, roughness: 0.48, metalness: 0.55 })
     garageRoofMaterials.push(roofMat)

@@ -1,1 +1,0 @@
-{"version":3,"file":"GarageBuilder.d.ts","sourceRoot":"","sources":["../../../src/demo/scene/GarageBuilder.ts"],"names":[],"mappings":"AAAA,OAAO,KAAK,KAAK,MAAM,OAAO,CAAA;AAG9B,MAAM,WAAW,YAAY;IACzB,MAAM,EAAE,MAAM,CAAA;IACd,YAAY,EAAE,MAAM,CAAA;IACpB,aAAa,EAAE,MAAM,CAAA;IACrB,MAAM,EAAE,MAAM,CAAA;IACd,QAAQ,EAAE,MAAM,CAAA;CACnB;AAED,wBAAgB,YAAY,CAAC,MAAM,EAAE,YAAY;;;;EAwKhD"}

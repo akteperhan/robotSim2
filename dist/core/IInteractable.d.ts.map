@@ -1,1 +1,0 @@
-{"version":3,"file":"IInteractable.d.ts","sourceRoot":"","sources":["../../src/core/IInteractable.ts"],"names":[],"mappings":"AAAA,oBAAY,gBAAgB;IAC1B,MAAM,WAAW;IACjB,YAAY,iBAAiB;IAC7B,IAAI,SAAS;CACd;AAED,MAAM,WAAW,aAAa;IAC5B,OAAO,IAAI,gBAAgB,CAAA;IAC3B,QAAQ,IAAI,IAAI,CAAA;IAChB,WAAW,IAAI,OAAO,CAAA;CACvB"}

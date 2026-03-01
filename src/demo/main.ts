@@ -1,5 +1,6 @@
 import * as THREE from 'three'
 import { OrbitControls } from 'three-stdlib'
+import Stats from 'stats.js'
 import { Robot } from '../entities/Robot'
 import { Grid, Direction, Position } from '../systems/Grid'
 import { BatterySystem } from '../systems/BatterySystem'
@@ -24,12 +25,12 @@ import { createGarage as buildGarageLib } from './scene/GarageBuilder'
 // CONSTANTS & STATE
 // ═══════════════════════════════════════════
 const GRID_W = 12, GRID_H = 16, GARAGE_DEPTH = 12, DOOR_ROW = 12
-const GRID_CENTER_X = (GRID_W - 1) / 2
+const GRID_CENTER_X = Math.floor((GRID_W - 1) / 2)
 const DOOR_PANEL_H = 0.16
 const DOOR_Z = DOOR_ROW - 0.1
-const ROBOT_START: Position = { x: GRID_CENTER_X, y: 0 }
-const BUTTON_POS: Position = { x: GRID_CENTER_X, y: 5 }
-const CHARGE_POS: Position = { x: GRID_CENTER_X, y: 11 }
+const ROBOT_START: Position = { x: GRID_CENTER_X, y: 3 }
+const BUTTON_POS: Position = { x: 0, y: 7 } // Left wall
+const CHARGE_POS: Position = { x: GRID_CENTER_X, y: 14 } // Outside garage, beyond door
 const WALL_H = 3.0
 const CAM_POS = { x: 16, y: 11, z: 17 }
 const CAM_TARGET = { x: GRID_CENTER_X, y: 1.0, z: 6.1 }
@@ -39,9 +40,11 @@ const dirNames: Record<number, string> = { 0: 'K', 90: 'D', 180: 'G', 270: 'B' }
 type GarageMode = 'open' | 'closed'
 
 let scene: THREE.Scene, camera: THREE.PerspectiveCamera, renderer: THREE.WebGLRenderer, controls: OrbitControls
+let stats: Stats
 let robot: Robot, robotMesh: THREE.Group, grid: Grid, battery: BatterySystem, executor: ProgramExecutor
 let button: Button, door: GarageDoor, chargingPad: ChargingPad
 let doorPanels: THREE.Mesh[] = [], doorLines: THREE.Mesh[] = [], doorHandle: THREE.Mesh
+let buttonMesh: THREE.Group | null = null
 let workspace: Blockly.WorkspaceSvg
 let wheelMeshes: THREE.Mesh[] = [], chargePadMesh: THREE.Group
 let mainAmbientLight: THREE.AmbientLight | null = null
@@ -58,6 +61,7 @@ let robotEyeMeshes: THREE.Mesh[] = []
 let robotChargeRingMat: THREE.MeshStandardMaterial | null = null
 let robotChargeBaseIntensity = 0.6
 let robotChargeBar: THREE.Mesh | null = null
+let antennaBallMat: THREE.MeshStandardMaterial | null = null
 let robotChargePort: THREE.Object3D | null = null
 let chargingCableAnchor: THREE.Object3D | null = null
 let chargingCableLine: THREE.Line | null = null
@@ -181,6 +185,16 @@ function hideFailure() { document.getElementById('failure-overlay')!.classList.r
 function initScene() {
   const c = document.getElementById('canvas-container')!
   scene = new THREE.Scene()
+
+  stats = new Stats()
+  stats.showPanel(0) // 0: fps, 1: ms, 2: mb, 3+: custom
+  document.body.appendChild(stats.dom)
+  // Ensure stats stays on top right with absolute positioning so it doesn't overlap important UI if needed
+  stats.dom.style.position = 'absolute'
+  stats.dom.style.top = '60px'
+  stats.dom.style.right = '10px'
+  stats.dom.style.left = 'unset'
+
   scene.background = createSkyGradient()
   scene.fog = new THREE.FogExp2(0x3a5a8a, 0.0045)
 
@@ -189,8 +203,9 @@ function initScene() {
 
   renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' })
   renderer.setSize(c.clientWidth, c.clientHeight)
-  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2))
-  renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.PCFSoftShadowMap
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.0)) // Strictly limit to 1x ratio for max performance
+  renderer.shadowMap.enabled = true
+  renderer.shadowMap.type = THREE.BasicShadowMap // Using BasicShadowMap for maximum performance
   renderer.toneMapping = THREE.ACESFilmicToneMapping; renderer.toneMappingExposure = BASE_EXPOSURE
   renderer.outputColorSpace = THREE.SRGBColorSpace
   renderer.localClippingEnabled = true
@@ -206,7 +221,8 @@ function initScene() {
   scene.add(mainAmbientLight)
   const moonFill = new THREE.DirectionalLight(0xb8c8ff, 0.38)
   moonFill.position.set(-5, 9, -4); moonFill.castShadow = true
-  moonFill.shadow.mapSize.set(2048, 2048)
+  // Reduce shadow map resolution drastically for better FPS
+  moonFill.shadow.mapSize.set(256, 256)
   moonFill.shadow.camera.left = -12; moonFill.shadow.camera.right = 12
   moonFill.shadow.camera.top = 12; moonFill.shadow.camera.bottom = -12
   moonFill.shadow.bias = -0.00015; scene.add(moonFill)
@@ -234,7 +250,10 @@ function createGarage() {
     GARAGE_DEPTH,
     GRID_CENTER_X,
     WALL_H,
-    DOOR_ROW
+    DOOR_ROW,
+    BUTTON_X: BUTTON_POS.x,
+    CHARGE_X: CHARGE_POS.x,
+    CHARGE_Y: CHARGE_POS.y
   })
 
   garageGroup = result.garageGroup
@@ -307,8 +326,8 @@ function createRobot(pos: Position): THREE.Group {
   const ant = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.02, 0.28, 16),
     new THREE.MeshStandardMaterial({ color: 0x87CEEB }))
   ant.position.y = 1.05; g.add(ant)
-  const aBall = new THREE.Mesh(new THREE.SphereGeometry(0.065, 16, 16),
-    new THREE.MeshStandardMaterial({ color: 0x00E5FF, emissive: 0x00E5FF, emissiveIntensity: 2.5 }))
+  antennaBallMat = new THREE.MeshStandardMaterial({ color: 0x00E5FF, emissive: 0x00E5FF, emissiveIntensity: 2.5 })
+  const aBall = new THREE.Mesh(new THREE.SphereGeometry(0.065, 16, 16), antennaBallMat)
   aBall.position.y = 1.22; g.add(aBall)
   g.add(new THREE.PointLight(0x00E5FF, 0.5, 2.5).translateY(1.22))
 
@@ -320,7 +339,7 @@ function createRobot(pos: Position): THREE.Group {
   const wPos: [number, number, number][] = [[-0.37, 0.19, 0.36], [0.37, 0.19, 0.36], [-0.37, 0.19, -0.36], [0.37, 0.19, -0.36]]
   wPos.forEach(p => {
     const w = new THREE.Mesh(wGeo, wMat); w.rotation.z = Math.PI / 2
-    w.position.set(p[0], p[1], p[2]); w.castShadow = true; g.add(w); wheelMeshes.push(w)
+    w.position.set(p[0], p[1], p[2]); g.add(w); wheelMeshes.push(w)
     const r = new THREE.Mesh(rGeo, rMat); r.rotation.y = Math.PI / 2
     r.position.set(p[0] > 0 ? p[0] + 0.085 : p[0] - 0.085, p[1], p[2]); g.add(r)
   })
@@ -332,16 +351,47 @@ function createRobot(pos: Position): THREE.Group {
 // INTERACTABLES
 // ═══════════════════════════════════════════
 function createButton3D(pos: Position) {
-  const base = new THREE.Mesh(new THREE.CylinderGeometry(0.28, 0.28, 0.12, 32),
-    new THREE.MeshStandardMaterial({ color: 0xc87800, roughness: 0.3, metalness: 0.3 }))
-  base.position.set(pos.x, 0.06, pos.y); base.castShadow = true; scene.add(base)
-  const btn = new THREE.Mesh(new THREE.CylinderGeometry(0.22, 0.22, 0.1, 32),
-    new THREE.MeshStandardMaterial({ color: 0xFFEB3B, emissive: 0xFFD700, emissiveIntensity: 0.8, roughness: 0.2 }))
-  btn.position.set(pos.x, 0.17, pos.y); btn.castShadow = true; scene.add(btn)
-  const glow = new THREE.Mesh(new THREE.SphereGeometry(0.35, 16, 16),
-    new THREE.MeshBasicMaterial({ color: 0xFFEB3B, transparent: true, opacity: 0.15 }))
-  glow.position.set(pos.x, 0.2, pos.y); scene.add(glow)
-  scene.add(new THREE.PointLight(0xFFD700, 0.6, 4).translateX(pos.x).translateY(0.5).translateZ(pos.y))
+  const group = new THREE.Group()
+  const isLeftWall = pos.x < GRID_CENTER_X
+
+  // Adjusted offsets based on which wall the button is on
+  const sideOffset = isLeftWall ? -0.58 : 0.62
+  const screenOffset = isLeftWall ? -0.50 : 0.54
+  const stripOffset = isLeftWall ? -0.49 : 0.53
+  const lightOffset = isLeftWall ? -0.2 : 0.3
+
+  // Terminal base mounting
+  const base = new THREE.Mesh(new RoundedBoxGeometry(0.12, 0.6, 0.4, 3, 0.02),
+    new THREE.MeshStandardMaterial({ color: 0x1f2430, roughness: 0.4, metalness: 0.6 }))
+  base.position.set(pos.x + sideOffset, 1.2, pos.y)
+  base.castShadow = true
+  group.add(base)
+
+  // Scanner glass/screen
+  const screen = new THREE.Mesh(new RoundedBoxGeometry(0.06, 0.44, 0.34, 2, 0.01),
+    new THREE.MeshStandardMaterial({ color: 0xFFD700, emissive: 0xFFD700, emissiveIntensity: 1.8, roughness: 0.1, transparent: true, opacity: 0.9 }))
+  screen.position.set(pos.x + screenOffset, 1.2, pos.y)
+  group.add(screen)
+
+  // Glowing pulse strip indicator
+  const strip = new THREE.Mesh(new THREE.BoxGeometry(0.03, 0.44, 0.06),
+    new THREE.MeshStandardMaterial({ color: 0xFFEB3B, emissive: 0xFFD700, emissiveIntensity: 3.5 }))
+  strip.position.set(pos.x + stripOffset, 1.2, pos.y)
+  group.add(strip)
+
+  // Floor interaction decal zone
+  const zoneMat = new THREE.MeshStandardMaterial({ color: 0xFFD700, emissive: 0xFFD700, emissiveIntensity: 1.5, transparent: true, opacity: 0.3 })
+  const zone = new THREE.Mesh(new THREE.CylinderGeometry(0.5, 0.5, 0.02, 32), zoneMat)
+  zone.position.set(pos.x, 0.01, pos.y)
+  group.add(zone)
+
+  // Local indicator light
+  const pl = new THREE.PointLight(0xFFD700, 2.0, 5.0)
+  pl.position.set(pos.x + lightOffset, 1.2, pos.y)
+  group.add(pl)
+
+  scene.add(group)
+  return group
 }
 
 function createChargingStation(pos: Position): THREE.Group {
@@ -402,11 +452,11 @@ function createChargingStation(pos: Position): THREE.Group {
   // Gantry frame
   const frameMat = new THREE.MeshStandardMaterial({ color: 0x5f6f82, roughness: 0.34, metalness: 0.66 })
   const frameLeft = new THREE.Mesh(new THREE.BoxGeometry(0.18, 2.4, 0.18), frameMat)
-  frameLeft.position.set(-1.0, 1.2, -0.1); frameLeft.castShadow = true; g.add(frameLeft)
+  frameLeft.position.set(-1.0, 1.2, -0.1); g.add(frameLeft)
   const frameRight = new THREE.Mesh(new THREE.BoxGeometry(0.18, 2.4, 0.18), frameMat)
-  frameRight.position.set(1.0, 1.2, -0.1); frameRight.castShadow = true; g.add(frameRight)
+  frameRight.position.set(1.0, 1.2, -0.1); g.add(frameRight)
   const frameTop = new THREE.Mesh(new THREE.BoxGeometry(2.18, 0.16, 0.2), frameMat)
-  frameTop.position.set(0, 2.38, -0.1); frameTop.castShadow = true; g.add(frameTop)
+  frameTop.position.set(0, 2.38, -0.1); g.add(frameTop)
 
   // Cable reel + connector dock
   const reel = new THREE.Mesh(new THREE.TorusGeometry(0.2, 0.05, 16, 32),
@@ -429,7 +479,6 @@ function createChargingStation(pos: Position): THREE.Group {
     new THREE.MeshStandardMaterial({ color: 0x3b4a5e, roughness: 0.25, metalness: 0.72 })
   )
   canopy.position.y = 2.64
-  canopy.castShadow = true
   g.add(canopy)
   const canopyLed = new THREE.Mesh(
     new THREE.BoxGeometry(2.4, 0.03, 0.05),
@@ -519,6 +568,9 @@ function animateDoorOpening() {
   const originalLineY = doorLines.map(l => l.position.y)
   const handleOrigY = doorHandle.position.y
 
+  // Button pushing down animation variables
+  const buttonOrigY = buttonMesh ? buttonMesh.position.y : 0
+
   // Sunlight from outside
   if (doorSunLight) scene.remove(doorSunLight)
   doorSunLight = new THREE.DirectionalLight(0xfff4e0, 0)
@@ -551,6 +603,12 @@ function animateDoorOpening() {
     })
     doorHandle.position.y = handleOrigY + totalHeight * ease
 
+    // Animate button panel plunging backward to show its pressed
+    if (buttonMesh) {
+      // Moves back slightly and lowers slightly during the animation
+      buttonMesh.position.y = buttonOrigY - (ease * 0.25)
+    }
+
     // Sunlight / glow increases then glow fades
     if (doorSunLight) doorSunLight.intensity = ease * 2.2
     if (t < 0.8) glowMat.opacity = ease * 0.3
@@ -564,8 +622,12 @@ function animateDoorOpening() {
       // Remove glow plane completely
       if (doorGlowPlane) { scene.remove(doorGlowPlane); doorGlowPlane = null }
 
-      // Make door row walkable — robot can now go outside!
-      for (let x = 0; x < GRID_W; x++) grid.setWalkable({ x, y: DOOR_ROW }, true)
+      // Make door row AND outdoor path walkable — robot can now go outside!
+      for (let x = 0; x < GRID_W; x++) {
+        for (let y = DOOR_ROW; y <= CHARGE_POS.y; y++) {
+          grid.setWalkable({ x, y }, true)
+        }
+      }
 
       gameState = GameState.DOOR_OPENED
 
@@ -618,6 +680,10 @@ function resetDoorVisualState() {
   doorHandle.rotation.set(0, 0, 0)
   doorHandle.scale.set(1, 1, 1)
 
+  if (buttonMesh) {
+    buttonMesh.position.y = 0 // Bring button back to normal height
+  }
+
   renderer.toneMappingExposure = BASE_EXPOSURE
   if (skyLight) skyLight.intensity = 0
 }
@@ -634,16 +700,23 @@ function resetSimulationState() {
   clearCommandHighlight()
 
   robot = new Robot(ROBOT_START, Direction.NORTH)
-  battery = new BatterySystem(10)
+  battery = new BatterySystem(35)
   executor = new ProgramExecutor(800)
   grid = new Grid(GRID_W, GRID_H)
 
   door = new GarageDoor()
   button = new Button(() => { door.interact() })
+  if (buttonMesh) scene.remove(buttonMesh)
+  buttonMesh = createButton3D(BUTTON_POS)
   chargingPad = new ChargingPad(battery)
   grid.placeInteractable(BUTTON_POS, button)
   grid.placeInteractable(CHARGE_POS, chargingPad)
-  for (let x = 0; x < GRID_W; x++) grid.setWalkable({ x, y: DOOR_ROW }, false)
+  // Door row & outdoor rows NOT walkable until door is opened
+  for (let x = 0; x < GRID_W; x++) {
+    for (let y = DOOR_ROW; y <= CHARGE_POS.y; y++) {
+      grid.setWalkable({ x, y }, false)
+    }
+  }
 
   resetDoorVisualState()
 
@@ -655,11 +728,11 @@ function resetSimulationState() {
 
   gameState = GameState.READY
   updateRobotPosition()
-  updateBatteryUI(10)
-  updateRobotChargeIndicator(10)
+  updateBatteryUI(35)
+  updateRobotChargeIndicator(35)
   updatePositionDisplay()
   updateStatus('Hazır', 'ready')
-  updateMission(1, 'Butona Ulaş', 'Robotu butona kadar sürerek kapıyı aç.')
+  updateMission(1, 'Tarayıcıya Ulaş', 'Robotu duvardaki mavi tarayıcı paneline kadar sür ve butona basarak kapıyı aç.')
 }
 
 // ═══════════════════════════════════════════
@@ -682,7 +755,7 @@ function animateCameraTo(tp: { x: number, y: number, z: number }, tl: { x: numbe
 // ═══════════════════════════════════════════
 function updateRobotPosition() {
   const pos = robot.getPosition(), dir = robot.getDirection()
-  const tx = pos.x, tz = pos.y, tr = -dir * Math.PI / 180
+  const tx = pos.x, tz = pos.y, tr = dir * Math.PI / 180 // REMOVED MINUS SIGN TO FIX INVERTED ROTATION
   const sx = robotMesh.position.x, sz = robotMesh.position.z, sr = robotMesh.rotation.y
   const st = Date.now(), dur = 400
 
@@ -804,9 +877,13 @@ function updateGarageRoofVisual() {
   if (!garageRoofMaterials.length) return
   const closed = garageMode === 'closed'
   const roofFade = closed && camera.position.y > WALL_H + 1.25 ? 0.38 : 1
+  const isTransparent = roofFade < 0.99
   garageRoofMaterials.forEach((mat) => {
-    mat.transparent = roofFade < 0.99
-    mat.opacity = roofFade
+    if (mat.transparent !== isTransparent) {
+      mat.transparent = isTransparent
+      mat.needsUpdate = true
+    }
+    if (mat.opacity !== roofFade) mat.opacity = roofFade
   })
 }
 
@@ -831,11 +908,11 @@ function playChargingAnimation() {
 function initGame() {
   grid = new Grid(GRID_W, GRID_H)
   robot = new Robot(ROBOT_START, Direction.NORTH)
-  battery = new BatterySystem(10)
+  battery = new BatterySystem(35)
   executor = new ProgramExecutor(800)
 
   robotMesh = createRobot(robot.getPosition())
-  createButton3D(BUTTON_POS)
+  buttonMesh = createButton3D(BUTTON_POS)
   chargePadMesh = createChargingStation(CHARGE_POS)
   createDoor()
   const env = createOutdoorScene(scene, { GRID_W, GRID_H, DOOR_ROW, GRID_CENTER_X })
@@ -848,8 +925,12 @@ function initGame() {
   grid.placeInteractable(BUTTON_POS, button)
   grid.placeInteractable(CHARGE_POS, chargingPad)
 
-  // Door row not walkable until opened
-  for (let x = 0; x < GRID_W; x++) grid.setWalkable({ x, y: DOOR_ROW }, false)
+  // Door row & outdoor rows NOT walkable until door is opened
+  for (let x = 0; x < GRID_W; x++) {
+    for (let y = DOOR_ROW; y <= CHARGE_POS.y; y++) {
+      grid.setWalkable({ x, y }, false)
+    }
+  }
 
   // Events
   EventBus.on('battery:updated', (l: number) => { updateBatteryUI(l); updateRobotChargeIndicator(l) })
@@ -864,12 +945,16 @@ function initGame() {
     if (!isRobotOnChargingPad()) setChargingCableConnected(false)
   })
   EventBus.on('command:highlight', (index: number) => highlightCommandByIndex(index))
-  EventBus.on('command:executed', (d: { type: string }) => {
-    switch (d.type) {
+  EventBus.on('command:executed', (data: { type: string, index: number }) => {
+    // Play sounds based on command type
+    switch (data.type) {
       case 'MOVE_FORWARD': case 'MOVE_BACKWARD': soundManager.playMove(); break
       case 'TURN_LEFT': case 'TURN_RIGHT': soundManager.playTurn(); break
       case 'CHARGE': soundManager.playCharging(); break
     }
+
+    // Physical console feedback for energy
+    showToast(`⚡ -1% Enerji (${data.type})`, 'info')
   })
 
   EventBus.on('battery:dead', () => {
@@ -907,9 +992,9 @@ function initGame() {
   blinkProgress = 0
   nextBlinkAt = 1.8 + Math.random() * 2.8
   isBlinking = false
-  updateRobotChargeIndicator(10)
-  updatePositionDisplay(); updateBatteryUI(10)
-  updateMission(1, 'Butona Ulaş', 'Robotu butona kadar sürerek kapıyı aç.')
+  updateRobotChargeIndicator(35)
+  updatePositionDisplay(); updateBatteryUI(35)
+  updateMission(1, 'Tarayıcıya Ulaş', 'Robotu duvardaki mavi tarayıcı paneline kadar sür ve butona basarak kapıyı aç.')
 }
 
 // ═══════════════════════════════════════════
@@ -917,14 +1002,14 @@ function initGame() {
 // ═══════════════════════════════════════════
 let time = 0
 function renderLoop() {
+  stats.begin()
   requestAnimationFrame(renderLoop); time += 0.016; controls.update()
   updateEyeBlink(0.016)
   updateGarageRoofVisual()
   updateChargingCable()
   if (robotMesh) {
     // Antenna pulse
-    const ab = robotMesh.children.find(c => c instanceof THREE.Mesh && c.position.y > 1.1) as THREE.Mesh | undefined
-    if (ab) (ab.material as THREE.MeshStandardMaterial).emissiveIntensity = 2 + Math.sin(time * 3) * 0.8
+    if (antennaBallMat) antennaBallMat.emissiveIntensity = 2 + Math.sin(time * 3) * 0.8
     // Idle bob
     if (!isExecuting) robotMesh.position.y = Math.sin(time * 1.5) * 0.01
   }
@@ -937,6 +1022,7 @@ function renderLoop() {
     chargingAmbientGlowMat.opacity = 0.06 + Math.sin(time * 2) * 0.04
   }
   renderer.render(scene, camera)
+  stats.end()
 }
 
 // ═══════════════════════════════════════════
@@ -1085,6 +1171,13 @@ function updateProgramFromBlockly() {
     }
     cur = cur.getNextBlock()
   }
+
+  // Update Energy Estimation UI
+  const estElement = document.getElementById('energy-estimate')
+  if (estElement) {
+    const totalCost = executor.getCommands().length // Each command costs 1 energy currently
+    estElement.innerText = `${totalCost}%`
+  }
 }
 
 // ═══════════════════════════════════════════
@@ -1183,6 +1276,44 @@ document.getElementById('btn-reset')!.addEventListener('click', () => {
 document.getElementById('success-next-btn')!.addEventListener('click', () => hideSuccess())
 document.getElementById('failure-retry-btn')!.addEventListener('click', () => {
   hideFailure(); document.getElementById('btn-reset')!.click()
+})
+
+// LOAD SAMPLE CODE
+document.getElementById('btn-load-code')!.addEventListener('click', () => {
+  if (isExecuting) return
+  workspace.clear()
+  const gf = workspace.newBlock('green_flag')
+  gf.initSvg(); gf.render(); gf.moveBy(30, 30)
+
+  let cur = gf
+  const add = (type: string, fields?: any) => {
+    const b = workspace.newBlock(type)
+    if (fields) {
+      for (const f in fields) b.setFieldValue(fields[f], f)
+    }
+    b.initSvg(); b.render()
+    cur.nextConnection.connect(b.previousConnection)
+    cur = b
+  }
+
+  // Full journey:
+  // Robot starts at (5,3) facing North
+  // Step 1: Go to button at (0,7): Forward 4 -> Turn Left -> Forward 5 -> Press Button
+  add('move_forward', { COUNT: 4 })    // (5,3) -> (5,7)
+  add('turn_left', { COUNT: 1 })    // now facing West
+  add('move_forward', { COUNT: 5 })    // (5,7) -> (0,7)
+  add('press_button')                  // opens door @ (0,7)
+  // Step 2: Go to charging station at (5,14) via (0,14)
+  // After button press: at (0,7), facing West.
+  // Turn right twice (180°) to face East, then right again to face North -> simpler:
+  add('turn_right', { COUNT: 1 })    // facing North
+  add('move_forward', { COUNT: 7 })    // (0,7) -> (0,14)
+  add('turn_right', { COUNT: 1 })    // facing East
+  add('move_forward', { COUNT: 5 })    // (0,14) -> (5,14)
+  add('charge')                        // charge up!
+
+  updateProgramFromBlockly()
+  showToast('💡 Örnek kod yüklendi!', 'success')
 })
 
 // ═══════════════════════════════════════════

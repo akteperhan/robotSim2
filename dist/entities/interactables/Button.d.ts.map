@@ -1,1 +1,0 @@
-{"version":3,"file":"Button.d.ts","sourceRoot":"","sources":["../../../src/entities/interactables/Button.ts"],"names":[],"mappings":"AAAA,OAAO,EAAE,aAAa,EAAE,gBAAgB,EAAE,MAAM,0BAA0B,CAAA;AAG1E,qBAAa,MAAO,YAAW,aAAa;IAC1C,OAAO,CAAC,SAAS,CAAS;IAC1B,OAAO,CAAC,eAAe,CAAY;gBAEvB,OAAO,EAAE,MAAM,IAAI;IAK/B,OAAO,IAAI,gBAAgB;IAI3B,QAAQ,IAAI,IAAI;IAQhB,WAAW,IAAI,OAAO;CAGvB"}
