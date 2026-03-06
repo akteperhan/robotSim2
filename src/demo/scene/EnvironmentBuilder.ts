@@ -31,13 +31,13 @@ export function createOutdoorScene(
     sky.scale.setScalar(480)
     sky.position.set(config.GRID_CENTER_X, 0, config.DOOR_ROW + 10)
     const skyUniforms = (sky.material as THREE.ShaderMaterial).uniforms as Record<string, THREE.IUniform<unknown>>
-        ; (skyUniforms['turbidity'] as THREE.IUniform<number>).value = 2.6
-        ; (skyUniforms['rayleigh'] as THREE.IUniform<number>).value = 2.4
-        ; (skyUniforms['mieCoefficient'] as THREE.IUniform<number>).value = 0.00045
-        ; (skyUniforms['mieDirectionalG'] as THREE.IUniform<number>).value = 0.79
+        ; (skyUniforms['turbidity'] as THREE.IUniform<number>).value = 4.5 // Şehir sisi / kirliliği
+        ; (skyUniforms['rayleigh'] as THREE.IUniform<number>).value = 1.8 // Işık saçılımı
+        ; (skyUniforms['mieCoefficient'] as THREE.IUniform<number>).value = 0.005 // Daha yoğun şehir atmosferi
+        ; (skyUniforms['mieDirectionalG'] as THREE.IUniform<number>).value = 0.8
     const sunDir = new THREE.Vector3()
-    const elevation = 12
-    const azimuth = 170
+    const elevation = 4 // Güneşi batmaya yakınlaştır
+    const azimuth = 185
     const phi = THREE.MathUtils.degToRad(90 - elevation)
     const theta = THREE.MathUtils.degToRad(azimuth)
     sunDir.setFromSphericalCoords(1, phi, theta)
@@ -45,16 +45,16 @@ export function createOutdoorScene(
         ; (sky.material as THREE.ShaderMaterial).depthWrite = false
     scene.add(sky)
 
-    const outdoorSun = new THREE.DirectionalLight(0xfff3d2, 0.36)
+    const outdoorSun = new THREE.DirectionalLight(0xffa85c, 0.45) // Daha turuncu bir ışık
     outdoorSun.position.copy(sunDir).multiplyScalar(170)
     outdoorSun.target.position.set(config.GRID_CENTER_X, 0.4, config.DOOR_ROW + 2)
-    // Disable costly shadows for the outdoor sun unless necessary, to improve performance
     outdoorSun.castShadow = false
     scene.add(outdoorSun)
     scene.add(outdoorSun.target)
 
     // === Clouds ===
-    const cloudMat = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.35 })
+    // Bulutlara gün batımı rengi tonları
+    const cloudMat = new THREE.MeshBasicMaterial({ color: 0xffd1b8, transparent: true, opacity: 0.35 })
     const cloudPositions: [number, number, number, number][] = [
         [-10, 18, 20, 3], [15, 20, 25, 2.5], [5, 22, 30, 4], [-8, 16, 35, 2],
         [25, 19, 22, 3.5], [0, 21, 40, 3], [12, 17, 15, 2.8]
@@ -72,25 +72,25 @@ export function createOutdoorScene(
         scene.add(cloud)
     })
 
-    // === Ground ===
+    // === Ground (Asphalt road) ===
     const ground = new THREE.Mesh(new THREE.PlaneGeometry(220, 220),
-        new THREE.MeshStandardMaterial({ color: 0x4f7f45, roughness: 0.95 }))
+        new THREE.MeshStandardMaterial({ color: 0x1a1c20, roughness: 0.85 }))
     ground.rotation.x = -Math.PI / 2
     ground.position.set(config.GRID_CENTER_X, -0.08, 70)
     ground.receiveShadow = true
     scene.add(ground)
     const nearGroundBlend = new THREE.Mesh(
         new THREE.PlaneGeometry(30, 24),
-        new THREE.MeshStandardMaterial({ color: 0x5a864d, roughness: 0.88 })
+        new THREE.MeshStandardMaterial({ color: 0x202226, roughness: 0.88 })
     )
     nearGroundBlend.rotation.x = -Math.PI / 2
     nearGroundBlend.position.set(config.GRID_CENTER_X, -0.06, 10)
     nearGroundBlend.receiveShadow = true
     scene.add(nearGroundBlend)
 
-    // === Outdoor grid tiles (from door to beyond charging station) ===
-    const outdoorTileMat = new THREE.MeshStandardMaterial({ color: 0x5a6a5a, roughness: 0.82, metalness: 0.05 })
-    const outdoorEdgeMat = new THREE.LineBasicMaterial({ color: 0x7a8a70, transparent: true, opacity: 0.5 })
+    // === Outdoor grid tiles (City road path) ===
+    const outdoorTileMat = new THREE.MeshStandardMaterial({ color: 0x2a2c30, roughness: 0.75, metalness: 0.1 })
+    const outdoorEdgeMat = new THREE.LineBasicMaterial({ color: 0x3a3c40, transparent: true, opacity: 0.6 })
     for (let x = 0; x < config.GRID_W; x++) {
         for (let z = config.DOOR_ROW; z < config.GRID_H; z++) {
             const tile = new THREE.Mesh(new THREE.BoxGeometry(0.96, 0.04, 0.96), outdoorTileMat)
@@ -118,110 +118,164 @@ export function createOutdoorScene(
     }
 
     // === Sidewalks ===
-    const sidewalkMat = new THREE.MeshStandardMaterial({ color: 0x9e9e9e, roughness: 0.8 })
-    const lSW = new THREE.Mesh(new THREE.BoxGeometry(1.5, 0.1, 70), sidewalkMat)
-    lSW.position.set(-1.3, 0.03, 35)
+    const sidewalkMat = new THREE.MeshStandardMaterial({ color: 0x7a7a7a, roughness: 0.9 })
+    const lSW = new THREE.Mesh(new THREE.BoxGeometry(3.5, 0.1, 80), sidewalkMat)
+    lSW.position.set(-2.25, 0.03, 40)
     lSW.receiveShadow = true
     scene.add(lSW)
-    const rSW = new THREE.Mesh(new THREE.BoxGeometry(1.5, 0.1, 70), sidewalkMat)
-    rSW.position.set(config.GRID_W + 0.3, 0.03, 35)
+    const rSW = new THREE.Mesh(new THREE.BoxGeometry(3.5, 0.1, 80), sidewalkMat)
+    rSW.position.set(config.GRID_W + 1.25, 0.03, 40)
     rSW.receiveShadow = true
     scene.add(rSW)
 
-    // === Trees (varied shapes) ===
-    const treeData: [number, number, number][] = [
-        [-2.5, 8, 1.2], [config.GRID_W + 1.5, 8, 1.0], [-3, 14, 1.4], [config.GRID_W + 2, 13, 0.9],
-        [-2, 20, 1.1], [config.GRID_W + 1.5, 19, 1.3], [-3.5, 26, 1.0], [config.GRID_W + 2.5, 25, 1.2]
+    // === City Buildings & Props ===
+    const buildMat1 = new THREE.MeshStandardMaterial({ color: 0xd0d4dc, roughness: 0.9, metalness: 0.1 })
+    const buildMat2 = new THREE.MeshStandardMaterial({ color: 0x8a9ba8, roughness: 0.8, metalness: 0.2 })
+    const buildMat3 = new THREE.MeshStandardMaterial({ color: 0xa69b97, roughness: 0.85, metalness: 0.15 })
+
+    const winMat = new THREE.MeshStandardMaterial({ color: 0xFFF9C4, emissive: 0xFFE082, emissiveIntensity: 0.8 })
+    const winDarkMat = new THREE.MeshStandardMaterial({ color: 0x11151c, roughness: 0.2, metalness: 0.8 }) // Işığı kapalı pencereler
+
+    const houseData = [
+        // Sol taraf binaları
+        { x: -6, z: 8, w: 4, h: 5, d: 4, mat: buildMat1 },
+        { x: -7, z: 15, w: 5, h: 8, d: 5, mat: buildMat2 },
+        { x: -6.5, z: 23, w: 4.5, h: 6, d: 4, mat: buildMat3 },
+        { x: -8, z: 32, w: 6, h: 12, d: 6, mat: buildMat2 },
+        // Sağ taraf binaları
+        { x: config.GRID_W + 5, z: 9, w: 4, h: 6, d: 4, mat: buildMat2 },
+        { x: config.GRID_W + 6, z: 17, w: 5, h: 9, d: 5, mat: buildMat1 },
+        { x: config.GRID_W + 5.5, z: 25, w: 4, h: 5, d: 4, mat: buildMat3 },
+        { x: config.GRID_W + 7, z: 34, w: 6, h: 14, d: 6, mat: buildMat1 }
     ]
-    treeData.forEach(([tx, tz, s]) => {
-        const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.1 * s, 0.14 * s, 1.8 * s, 8),
-            new THREE.MeshStandardMaterial({ color: 0x5d4037, roughness: 0.9 }))
-        trunk.position.set(tx, 0.9 * s, tz)
-        // trunk.castShadow = true // Optimization: remove shadows for distant objects
-        scene.add(trunk)
-        // Spherical leaves (more realistic)
-        const leaves = new THREE.Mesh(new THREE.SphereGeometry(0.7 * s, 8, 6),
-            new THREE.MeshStandardMaterial({ color: 0x2e7d32, roughness: 0.85 }))
-        leaves.position.set(tx, 2.2 * s, tz)
-        // leaves.castShadow = true
-        scene.add(leaves)
-        // Second leaf cluster
-        const l2 = new THREE.Mesh(new THREE.SphereGeometry(0.5 * s, 8, 6),
-            new THREE.MeshStandardMaterial({ color: 0x388E3C, roughness: 0.85 }))
-        l2.position.set(tx + 0.3 * s, 2.5 * s, tz - 0.2 * s)
-        // l2.castShadow = true
-        scene.add(l2)
+
+    // Ağaç ve bitki örtüsü eklentisi
+    const trunkMat = new THREE.MeshStandardMaterial({ color: 0x4a3b2c, roughness: 0.9 })
+    const leavesMat = new THREE.MeshStandardMaterial({ color: 0x2d4c1e, roughness: 0.8 })
+
+    houseData.forEach(h => {
+        const b = new THREE.Mesh(new THREE.BoxGeometry(h.w, h.h, h.d), h.mat)
+        b.position.set(h.x, h.h / 2, h.z)
+        b.castShadow = true
+        b.receiveShadow = true
+        scene.add(b)
+
+        const roof = new THREE.Mesh(new THREE.BoxGeometry(h.w * 1.05, 0.4, h.d * 1.05), new THREE.MeshStandardMaterial({ color: 0x222222 }))
+        roof.position.set(h.x, h.h + 0.2, h.z)
+        roof.castShadow = true
+        scene.add(roof)
+
+        // Bina Pencereleri
+        for (let wy = 1.2; wy < h.h - 0.5; wy += 1.5) {
+            for (let wx = -h.w / 2 + 0.6; wx <= h.w / 2 - 0.6; wx += 1.2) {
+                const isLit = Math.random() > 0.4 // %60 ışığı açık
+                const wMesh = new THREE.Mesh(new THREE.PlaneGeometry(0.6, 0.8), isLit ? winMat : winDarkMat)
+                if (h.x < 0) {
+                    wMesh.position.set(h.x + wx, wy, h.z + h.d / 2 + 0.01)
+                } else {
+                    wMesh.position.set(h.x + wx, wy, h.z - h.d / 2 - 0.01)
+                    wMesh.rotation.y = Math.PI
+                }
+                scene.add(wMesh)
+            }
+            // Yan cephe pencereleri
+            for (let wz = -h.d / 2 + 0.6; wz <= h.d / 2 - 0.6; wz += 1.2) {
+                const isLit = Math.random() > 0.4
+                const wMesh = new THREE.Mesh(new THREE.PlaneGeometry(0.6, 0.8), isLit ? winMat : winDarkMat)
+                if (h.x < 0) {
+                    wMesh.position.set(h.x + h.w / 2 + 0.01, wy, h.z + wz)
+                    wMesh.rotation.y = Math.PI / 2
+                } else {
+                    wMesh.position.set(h.x - h.w / 2 - 0.01, wy, h.z + wz)
+                    wMesh.rotation.y = -Math.PI / 2
+                }
+                scene.add(wMesh)
+            }
+        }
+
+        // Binaların önüne rastgele küçük ağaçlar ekle
+        if (Math.random() > 0.3) {
+            const treeGroup = new THREE.Group()
+            const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.15, 0.2, 1.5, 5), trunkMat)
+            trunk.position.y = 0.75
+            trunk.castShadow = true
+            treeGroup.add(trunk)
+
+            const leaves = new THREE.Mesh(new THREE.DodecahedronGeometry(1.2, 1), leavesMat)
+            leaves.position.y = 2.0
+            leaves.castShadow = true
+            treeGroup.add(leaves)
+
+            // Ağacı binanın kapıya yakın ucuna koy
+            treeGroup.position.set(h.x > 0 ? h.x - h.w / 2 - 1.5 : h.x + h.w / 2 + 1.5, 0, h.z + (Math.random() * 2 - 1))
+            scene.add(treeGroup)
+        }
     })
 
-    // === Street lamps (modern design) ===
-    const lampPos: [number, number][] = [[-1.5, 7], [config.GRID_W + 0.5, 7], [-1.5, 13], [config.GRID_W + 0.5, 13], [-1.5, 19], [config.GRID_W + 0.5, 19]]
-    lampPos.forEach(([lx, lz]) => {
-        // Pole
-        const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.05, 3.5, 8),
-            new THREE.MeshStandardMaterial({ color: 0x37474F, roughness: 0.3, metalness: 0.7 }))
-        pole.position.set(lx, 1.75, lz)
-        scene.add(pole)
-        // Curved arm
-        const arm = new THREE.Mesh(new THREE.BoxGeometry(0.8, 0.04, 0.04),
-            new THREE.MeshStandardMaterial({ color: 0x37474F, roughness: 0.3, metalness: 0.7 }))
-        arm.position.set(lx + (lx < config.GRID_CENTER_X ? 0.4 : -0.4), 3.45, lz)
-        scene.add(arm)
-        // Light fixture
-        const fixture = new THREE.Mesh(new THREE.CylinderGeometry(0.15, 0.1, 0.08, 16),
-            new THREE.MeshStandardMaterial({ color: 0xffffff, emissive: 0xfff3e0, emissiveIntensity: 1.2 }))
-        fixture.position.set(lx + (lx < config.GRID_CENTER_X ? 0.8 : -0.8), 3.42, lz)
-        scene.add(fixture)
-        // Optimization: avoid casting shadows inside multiple point lights
-        const lt = new THREE.PointLight(0xfff3e0, 0.3, 10)
-        lt.position.set(lx + (lx < config.GRID_CENTER_X ? 0.8 : -0.8), 3.35, lz)
-        scene.add(lt)
-    })
+    // === Background City skyline ===
+    const skyMat1 = new THREE.MeshStandardMaterial({ color: 0x1a212a, roughness: 0.85, metalness: 0.1 })
+    const skyMat2 = new THREE.MeshStandardMaterial({ color: 0x11161d, roughness: 0.9, metalness: 0.15 })
 
-    // === City skyline (background) ===
-    const buildMat = new THREE.MeshStandardMaterial({ color: 0x263238, roughness: 0.85, metalness: 0.1 })
-    const builds: [number, number, number, number][] = [
-        [-10, 5, 3, 35], [-5, 8, 2.5, 38], [config.GRID_W + 6, 6, 3, 35], [config.GRID_W + 10, 9, 2, 40],
-        [config.GRID_W + 14, 4, 2.5, 33], [-8, 7, 2, 37], [config.GRID_W + 8, 5, 2.5, 36], [config.GRID_W + 12, 7, 3, 39]
+    const skyline: [number, number, number, number][] = [
+        [-15, 20, 8, 45], [-8, 28, 6, 50], [config.GRID_W + 10, 25, 7, 48], [config.GRID_W + 18, 30, 8, 55],
+        [config.GRID_W + 25, 18, 6, 42], [-22, 15, 5, 40], [config.GRID_W + 5, 22, 6, 52], [config.GRID_W + 14, 19, 7, 47]
     ]
-    builds.forEach(([bx, bh, bw, bz]) => {
-        const b = new THREE.Mesh(new THREE.BoxGeometry(bw, bh, bw), buildMat)
+
+    const beaconMat = new THREE.MeshBasicMaterial({ color: 0xff0000 })
+
+    skyline.forEach(([bx, bh, bw, bz], index) => {
+        const isDark = index % 2 === 0
+        const b = new THREE.Mesh(new THREE.BoxGeometry(bw, bh, bw), isDark ? skyMat1 : skyMat2)
         b.position.set(bx, bh / 2, bz)
         scene.add(b)
-        const winMat = new THREE.MeshStandardMaterial({ color: 0xFFF9C4, emissive: 0xFFE082, emissiveIntensity: 0.6 })
-        for (let wy = 1; wy < bh - 0.5; wy += 1.2) {
+
+        // Uçak/Helikopter ikaz lambası (Sadece yüksek binalara)
+        if (bh >= 25) {
+            const beacon = new THREE.Mesh(new THREE.SphereGeometry(0.3, 8, 8), beaconMat)
+            beacon.position.set(bx, bh + 0.5, bz)
+            scene.add(beacon)
+            // Performans için sadece nokta ışığı (PointLight) kullanmak yerine emissive shader da kullanılabilir ama 
+            // şimdilik basit bir kırmızı obje yeterli.
+        }
+
+        for (let wy = 2; wy < bh - 1; wy += 2) {
             for (let wx = -bw / 3; wx <= bw / 3; wx += bw / 3) {
-                if (Math.random() > 0.35) {
-                    const w = new THREE.Mesh(new THREE.PlaneGeometry(0.2, 0.3), winMat)
-                    w.position.set(bx + wx, wy, bz - bw / 2 - 0.01)
-                    scene.add(w)
-                }
+                // Background buildings have fewer lit windows
+                const isLit = Math.random() > 0.65
+                const w = new THREE.Mesh(new THREE.PlaneGeometry(0.4, 0.6), isLit ? winMat : winDarkMat)
+                w.position.set(bx + wx, wy, bz - bw / 2 - 0.01)
+                scene.add(w)
             }
         }
     })
 
-    // === Park benches ===
-    const benchPos: [number, number][] = [[-1.5, 10], [config.GRID_W + 0.5, 16]]
-    benchPos.forEach(([bx, bz]) => {
-        const seat = new THREE.Mesh(new THREE.BoxGeometry(0.8, 0.06, 0.35),
-            new THREE.MeshStandardMaterial({ color: 0x5d4037, roughness: 0.8 }))
-        seat.position.set(bx, 0.35, bz)
-        scene.add(seat)
-        const back = new THREE.Mesh(new THREE.BoxGeometry(0.8, 0.3, 0.04),
-            new THREE.MeshStandardMaterial({ color: 0x5d4037, roughness: 0.8 }))
-        back.position.set(bx, 0.5, bz - 0.15)
-        scene.add(back)
-        // Legs
-        const legMat = new THREE.MeshStandardMaterial({ color: 0x37474F, roughness: 0.4, metalness: 0.5 })
-        const legGeo = new THREE.CylinderGeometry(0.02, 0.02, 0.35, 8)
-        for (const lx of [-0.3, 0.3]) {
-            const leg = new THREE.Mesh(legGeo, legMat)
-            leg.position.set(bx + lx, 0.175, bz)
-            scene.add(leg)
-        }
+    // === Street lamps (modern design) ===
+    const lampPos: [number, number][] = [[-2.5, 7], [config.GRID_W + 1.5, 7], [-2.5, 15], [config.GRID_W + 1.5, 15], [-2.5, 23], [config.GRID_W + 1.5, 23]]
+    lampPos.forEach(([lx, lz]) => {
+        const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.06, 4.0, 8),
+            new THREE.MeshStandardMaterial({ color: 0x222222, roughness: 0.3, metalness: 0.7 }))
+        pole.position.set(lx, 2.0, lz)
+        scene.add(pole)
+        const arm = new THREE.Mesh(new THREE.BoxGeometry(1.2, 0.05, 0.05),
+            new THREE.MeshStandardMaterial({ color: 0x222222, roughness: 0.3, metalness: 0.7 }))
+        arm.position.set(lx + (lx < config.GRID_CENTER_X ? 0.6 : -0.6), 3.95, lz)
+        scene.add(arm)
+
+        // Lambanın ışık yayan kısmı daha sıcak turuncu/sarı bir ton (Gün batımı teması)
+        const fixture = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.15, 0.1, 16),
+            new THREE.MeshStandardMaterial({ color: 0xffffff, emissive: 0xffaa00, emissiveIntensity: 1.5 }))
+        fixture.position.set(lx + (lx < config.GRID_CENTER_X ? 1.1 : -1.1), 3.9, lz)
+        scene.add(fixture)
+
+        // Loş sıcak nokta ışığı
+        const lt = new THREE.PointLight(0xffaa00, 0.6, 12)
+        lt.position.set(lx + (lx < config.GRID_CENTER_X ? 1.1 : -1.1), 3.8, lz)
+        scene.add(lt)
     })
 
     // === Hemisphere sky light (brightens when door opens) ===
-    const skyLightParam = new THREE.HemisphereLight(0x87CEEB, 0x4a7c3f, 0)
+    // Gökyüzünden hafif mavi (evening), yerden loş hafif sıcak siyah/gri yansıma
+    const skyLightParam = new THREE.HemisphereLight(0x406080, 0x1f1412, 0)
     skyLightParam.position.set(0, 10, 0)
     scene.add(skyLightParam)
 

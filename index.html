@@ -13,25 +13,25 @@
     rel="stylesheet">
   <style>
     :root {
-      --bg-dark: #0f1117;
-      --bg-panel: #1a1d27;
-      --bg-card: #232736;
-      --bg-hover: #2a2f42;
-      --accent-primary: #00d4aa;
-      --accent-secondary: #667eea;
-      --accent-warning: #f5a623;
-      --accent-danger: #ff4757;
-      --accent-success: #00d4aa;
-      --brand-yellow: #f5a623;
-      --text-primary: #e8eaf0;
-      --text-secondary: #8b90a5;
-      --text-muted: #545973;
-      --border-color: #2a2f42;
-      --shadow-lg: 0 8px 32px rgba(0, 0, 0, 0.4);
-      --shadow-glow-green: 0 0 20px rgba(0, 212, 170, 0.3);
-      --shadow-glow-red: 0 0 20px rgba(255, 71, 87, 0.3);
-      --radius: 10px;
-      --radius-sm: 6px;
+      --bg-dark: #121826;
+      --bg-panel: #1a2235;
+      --bg-card: #242d45;
+      --bg-hover: #2d3856;
+      --accent-primary: #00e6b8;
+      --accent-secondary: #7e95ff;
+      --accent-warning: #ffb833;
+      --accent-danger: #fe5b6a;
+      --accent-success: #00e6b8;
+      --brand-yellow: #ffc107;
+      --text-primary: #f2f5fc;
+      --text-secondary: #a9b5d6;
+      --text-muted: #6e7a9e;
+      --border-color: #313d5f;
+      --shadow-lg: 0 10px 40px rgba(0, 0, 0, 0.5);
+      --shadow-glow-green: 0 0 25px rgba(0, 230, 184, 0.4);
+      --shadow-glow-red: 0 0 25px rgba(254, 91, 106, 0.4);
+      --radius: 12px;
+      --radius-sm: 8px;
       --transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
     }
 
@@ -57,7 +57,7 @@
       position: fixed;
       inset: 0;
       z-index: 1000;
-      background: radial-gradient(circle at center, #1a1d27 0%, #000 100%);
+      background: radial-gradient(circle at center, #1b263b 0%, #0d1321 80%, #000 100%);
       display: flex;
       flex-direction: column;
       align-items: center;
@@ -70,11 +70,11 @@
       content: "";
       position: absolute;
       inset: 0;
-      background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%), linear-gradient(90deg, rgba(255, 0, 0, 0.06), rgba(0, 255, 0, 0.02), rgba(0, 0, 255, 0.06));
+      background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.1) 50%), linear-gradient(90deg, rgba(0, 212, 170, 0.08), rgba(102, 126, 234, 0.06), rgba(245, 166, 35, 0.08));
       background-size: 100% 2px, 3px 100%;
       pointer-events: none;
       z-index: 1001;
-      opacity: 0.3;
+      opacity: 0.6;
     }
 
     #intro-overlay::after {
@@ -135,12 +135,12 @@
     }
 
     .intro-robot-eyes {
-      font-size: 120px;
-      margin-bottom: 20px;
+      font-size: 130px;
+      margin-bottom: 10px;
       opacity: 0;
-      animation: intro-eyes-open 1.2s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards, robot-float 4s ease-in-out infinite alternate;
+      animation: intro-eyes-open 1.2s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards, robot-float 3.5s ease-in-out infinite alternate;
       animation-delay: 1s, 2.2s;
-      filter: drop-shadow(0 0 20px rgba(0, 212, 170, 0.4));
+      filter: drop-shadow(0 0 35px rgba(0, 212, 170, 0.7)) drop-shadow(0 0 15px rgba(102, 126, 234, 0.5));
     }
 
     @keyframes robot-float {
@@ -155,26 +155,28 @@
 
     .intro-title {
       font-family: 'Orbitron', 'Inter', sans-serif;
-      font-size: 64px;
+      font-size: 72px;
       font-weight: 900;
-      color: var(--accent-primary);
-      margin-bottom: 8px;
+      color: #fff;
+      margin-bottom: 4px;
       opacity: 0;
       animation: intro-fade-in 0.8s ease forwards;
       animation-delay: 2.5s;
-      text-shadow: 0 0 40px rgba(0, 212, 170, 0.6), 0 0 10px rgba(0, 212, 170, 0.4);
-      letter-spacing: 2px;
+      text-shadow: 0 0 50px rgba(0, 212, 170, 0.8), 0 0 15px rgba(102, 126, 234, 0.6), 2px 2px 0px var(--accent-primary);
+      letter-spacing: 3px;
     }
 
     .intro-subtitle {
-      font-size: 20px;
-      font-weight: 600;
-      color: var(--text-secondary);
-      margin-bottom: 25px;
+      font-size: 22px;
+      font-weight: 700;
+      color: var(--accent-success);
+      margin-bottom: 20px;
       opacity: 0;
       animation: intro-fade-in 0.5s ease forwards;
       animation-delay: 3s;
-      letter-spacing: 1px;
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+      text-shadow: 0 0 15px rgba(0, 212, 170, 0.3);
     }
 
     .intro-story {
@@ -210,26 +212,39 @@
 
     .intro-start-btn {
       font-family: 'Orbitron', sans-serif;
-      font-size: 18px;
-      font-weight: 800;
-      padding: 18px 54px;
-      background: linear-gradient(135deg, var(--accent-primary), #00a885);
-      color: #111;
-      border: 2px solid rgba(255, 255, 255, 0.2);
-      border-radius: 12px;
+      font-size: 20px;
+      font-weight: 900;
+      padding: 20px 60px;
+      background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary));
+      color: #fff;
+      border: 3px solid rgba(255, 255, 255, 0.4);
+      border-radius: 16px;
       cursor: pointer;
       opacity: 0;
-      animation: intro-fade-in 0.5s ease forwards;
+      animation: intro-fade-in 0.5s ease forwards, glow-pulse 3s infinite alternate;
       animation-delay: 4.5s;
-      transition: var(--transition);
+      transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
       text-transform: uppercase;
-      letter-spacing: 2px;
-      box-shadow: 0 4px 20px rgba(0, 212, 170, 0.4), inset 0 0 10px rgba(255, 255, 255, 0.3);
+      letter-spacing: 3px;
+      box-shadow: 0 10px 30px rgba(0, 212, 170, 0.5), inset 0 0 20px rgba(255, 255, 255, 0.4);
     }
 
     .intro-start-btn:hover {
-      transform: translateY(-3px) scale(1.03);
-      box-shadow: 0 8px 30px rgba(0, 212, 170, 0.5);
+      transform: translateY(-5px) scale(1.06);
+      border-color: #fff;
+      box-shadow: 0 15px 40px rgba(0, 212, 170, 0.8), 0 0 20px var(--accent-secondary);
+      background: linear-gradient(135deg, #00fab4, #8b9dff);
+      color: #000;
+    }
+
+    @keyframes glow-pulse {
+      0% {
+        box-shadow: 0 10px 30px rgba(0, 212, 170, 0.4), inset 0 0 10px rgba(255, 255, 255, 0.2);
+      }
+
+      100% {
+        box-shadow: 0 15px 45px rgba(0, 212, 170, 0.7), inset 0 0 25px rgba(255, 255, 255, 0.6);
+      }
     }
 
     @keyframes intro-fade-in {
@@ -470,15 +485,15 @@
       top: 0;
       left: 0;
       right: 0;
-      height: 56px;
-      background: var(--bg-panel);
-      border-bottom: 1px solid var(--border-color);
+      height: 60px;
+      background: linear-gradient(90deg, #101522 0%, #1a2235 50%, #101522 100%);
+      border-bottom: 1px solid rgba(255, 255, 255, 0.05);
       display: flex;
       align-items: center;
       justify-content: space-between;
-      padding: 0 16px;
+      padding: 0 20px;
       z-index: 100;
-      box-shadow: 0 2px 12px rgba(0, 0, 0, 0.3);
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
     }
 
     .toolbar-left {
@@ -562,24 +577,25 @@
     }
 
     #btn-green-flag {
-      background: linear-gradient(135deg, #00c853, #00a843);
-      color: white;
-      box-shadow: 0 2px 8px rgba(0, 200, 83, 0.3);
+      background: linear-gradient(135deg, #00e6b8, #00b38d);
+      color: #0b1120;
+      box-shadow: 0 4px 15px rgba(0, 230, 184, 0.3);
     }
 
     #btn-green-flag:hover {
       box-shadow: var(--shadow-glow-green);
-      transform: translateY(-1px);
+      transform: translateY(-2px);
     }
 
     #btn-stop {
-      background: linear-gradient(135deg, var(--accent-danger), #e0392e);
+      background: linear-gradient(135deg, #fe5b6a, #d43b48);
       color: white;
+      box-shadow: 0 4px 15px rgba(254, 91, 106, 0.3);
     }
 
     #btn-stop:hover {
       box-shadow: var(--shadow-glow-red);
-      transform: translateY(-1px);
+      transform: translateY(-2px);
     }
 
     #btn-reset {
@@ -609,10 +625,11 @@
       display: flex;
       align-items: center;
       gap: 8px;
-      background: var(--bg-card);
-      padding: 6px 12px;
+      background: rgba(36, 45, 69, 0.7);
+      padding: 6px 14px;
       border-radius: var(--radius-sm);
-      border: 1px solid var(--border-color);
+      border: 1px solid rgba(126, 149, 255, 0.3);
+      box-shadow: inset 0 0 10px rgba(126, 149, 255, 0.1);
     }
 
     .garage-mode-wrap {
@@ -628,25 +645,27 @@
     }
 
     #garage-mode-select {
-      background: #151a24;
+      background: rgba(26, 34, 53, 0.8);
       color: var(--text-primary);
-      border: 1px solid #323a4e;
+      border: 1px solid rgba(126, 149, 255, 0.4);
       border-radius: 6px;
-      font-size: 12px;
+      font-size: 13px;
       font-weight: 600;
       font-family: 'Inter', sans-serif;
-      padding: 6px 8px;
+      padding: 6px 10px;
       outline: none;
       transition: var(--transition);
+      cursor: pointer;
     }
 
     #garage-mode-select:hover {
       border-color: var(--accent-primary);
+      box-shadow: 0 0 10px rgba(0, 230, 184, 0.2);
     }
 
     #garage-mode-select:focus {
       border-color: var(--accent-primary);
-      box-shadow: 0 0 0 2px rgba(0, 212, 170, 0.2);
+      box-shadow: 0 0 15px rgba(0, 230, 184, 0.4);
     }
 
     .battery-bar-mini {
@@ -694,21 +713,23 @@
     }
 
     #camera-reset {
-      background: var(--bg-card);
-      border: 1px solid var(--border-color);
-      color: var(--text-secondary);
-      padding: 8px 12px;
+      background: rgba(36, 45, 69, 0.6);
+      border: 1px solid rgba(126, 149, 255, 0.3);
+      color: var(--text-primary);
+      padding: 8px 14px;
       border-radius: var(--radius-sm);
       font-family: 'Inter', sans-serif;
-      font-size: 12px;
+      font-size: 13px;
       font-weight: 600;
       cursor: pointer;
       transition: var(--transition);
     }
 
     #camera-reset:hover {
-      background: var(--bg-hover);
-      color: var(--text-primary);
+      background: linear-gradient(135deg, var(--accent-secondary), #8b5cf6);
+      border-color: transparent;
+      box-shadow: 0 4px 15px rgba(126, 149, 255, 0.4);
+      color: #fff;
     }
 
     /* ═══════════════════════════════════
@@ -968,17 +989,15 @@
   <!-- ═══ INTRO CINEMATIC ═══ -->
   <div id="intro-overlay">
     <div class="intro-content">
-      <div class="intro-warning">⚠ SİSTEM UYARISI</div>
+      <div class="intro-warning">⚠️ SİSTEM UYARISI: Pil Seviyesi %5. Acil Şarj Gerekli!</div>
       <div class="intro-system-msg">BIG-BOT v3.2 // Görev Operatör Konsolu</div>
-      <div class="intro-robot-eyes">🤖</div>
+      <div class="intro-robot-eyes">0.o</div>
       <div class="intro-title">BIG-BOT</div>
       <div class="intro-subtitle">Coding Adventure — Bölüm 1: Garajdan Şehre</div>
       <div class="intro-operator">📡 GÖREV OPERATÖRÜ:</div>
       <div class="intro-story">
-        "Merhaba Operatör! Ben BIG-BOT.<br /><br />
-        Garajda kilitli kaldım ve bataryam bitmek üzere. Kapıyı o siber tarayıcıdan açıp enerji santraline ulaşmam
-        lazım.<br />
-        Bana doğru rotayı çizecek komutları yazar mısın? Ama dikkatli ol; her hareketim bataryamdan enerji çeker!"
+        "Merhaba! Şehrin sana ihtiyacı var. Küçük Can'ın doğum günü hediyesi depoda kaldı ve onu ulaştırabilecek tek
+        robot sensin. Ama önce garajdan çıkmalı ve şarj olmalısın!"
       </div>
       <button class="intro-start-btn" id="intro-start-btn">🚀 GÖREVE BAŞLA</button>
     </div>
