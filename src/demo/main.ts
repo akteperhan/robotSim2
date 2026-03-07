@@ -5,39 +5,42 @@ import { Robot } from '../entities/Robot'
 import { Grid, Direction, Position } from '../systems/Grid'
 import { BatterySystem } from '../systems/BatterySystem'
 import { ProgramExecutor } from '../systems/ProgramExecutor'
-import { MoveForwardCommand } from '../systems/commands/MoveForwardCommand'
-import { MoveBackwardCommand } from '../systems/commands/MoveBackwardCommand'
-import { TurnLeftCommand } from '../systems/commands/TurnLeftCommand'
-import { TurnRightCommand } from '../systems/commands/TurnRightCommand'
-import { PressButtonCommand } from '../systems/commands/PressButtonCommand'
-import { ChargeCommand } from '../systems/commands/ChargeCommand'
 import { Button } from '../entities/interactables/Button'
 import { GarageDoor } from '../entities/interactables/GarageDoor'
 import { ChargingPad } from '../entities/interactables/ChargingPad'
 import EventBus from '../systems/EventBus'
+import { EyeExpression } from '../entities/Robot'
 import { soundManager } from '../systems/SoundManager'
 import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeometry.js'
-import * as Blockly from 'blockly'
-import { createSkyGradient, createOutdoorScene } from './scene/EnvironmentBuilder'
+import { createSkyGradient, createOutdoorScene, applyThemeToEnvironment } from './scene/EnvironmentBuilder'
 import { createGarage as buildGarageLib } from './scene/GarageBuilder'
+import { UIManager } from './UIManager'
+import { BlocklyManager } from './BlocklyManager'
+import { ScoreSystem } from '../systems/ScoreSystem'
+import { WorkspacePersistence } from '../systems/WorkspacePersistence'
+import { MissionManager } from '../missions/MissionManager'
+import { getFullErrorMessage } from '../systems/ErrorMessages'
+import { ParticleSystem } from './ParticleSystem'
+import { LogPanel } from './LogPanel'
+import {
+  GRID_W, GRID_H, GARAGE_DEPTH, DOOR_ROW, GRID_CENTER_X, DOOR_PANEL_H, DOOR_Z,
+  ROBOT_START, BUTTON_POS, CHARGE_POS, WALL_H,
+  CAM_POS, CAM_TARGET, BASE_EXPOSURE, DOOR_OPEN_EXPOSURE_BOOST,
+  INITIAL_BATTERY_LEVEL, DEFAULT_EXECUTION_SPEED,
+  BLINK_MIN_INTERVAL, BLINK_MAX_INTERVAL, BLINK_DURATION,
+  type GarageMode
+} from '../core/Constants'
 
 // ═══════════════════════════════════════════
-// CONSTANTS & STATE
+// MODULE INSTANCES
 // ═══════════════════════════════════════════
-const GRID_W = 12, GRID_H = 16, GARAGE_DEPTH = 12, DOOR_ROW = 12
-const GRID_CENTER_X = Math.floor((GRID_W - 1) / 2)
-const DOOR_PANEL_H = 0.16
-const DOOR_Z = DOOR_ROW - 0.1
-const ROBOT_START: Position = { x: GRID_CENTER_X, y: 3 }
-const BUTTON_POS: Position = { x: 0, y: 7 } // Left wall
-const CHARGE_POS: Position = { x: GRID_CENTER_X, y: 14 } // Outside garage, beyond door
-const WALL_H = 3.0
-const CAM_POS = { x: 16, y: 11, z: 17 }
-const CAM_TARGET = { x: GRID_CENTER_X, y: 1.0, z: 6.1 }
-const BASE_EXPOSURE = 0.66
-const DOOR_OPEN_EXPOSURE_BOOST = 0.34
-const dirNames: Record<number, string> = { 0: 'K', 90: 'D', 180: 'G', 270: 'B' }
-type GarageMode = 'open' | 'closed'
+const ui = new UIManager()
+const blocklyMgr = new BlocklyManager()
+const scoreSystem = new ScoreSystem()
+const persistence = new WorkspacePersistence()
+const missionMgr = new MissionManager(scoreSystem)
+const logPanel = new LogPanel()
+let particles: ParticleSystem
 
 let scene: THREE.Scene, camera: THREE.PerspectiveCamera, renderer: THREE.WebGLRenderer, controls: OrbitControls
 let stats: Stats
@@ -45,23 +48,27 @@ let robot: Robot, robotMesh: THREE.Group, grid: Grid, battery: BatterySystem, ex
 let button: Button, door: GarageDoor, chargingPad: ChargingPad
 let doorPanels: THREE.Mesh[] = [], doorLines: THREE.Mesh[] = [], doorHandle: THREE.Mesh
 let buttonMesh: THREE.Group | null = null
-let workspace: Blockly.WorkspaceSvg
 let wheelMeshes: THREE.Mesh[] = [], chargePadMesh: THREE.Group
 let mainAmbientLight: THREE.AmbientLight | null = null
 let chargingSurfaceMat: THREE.MeshStandardMaterial | null = null
 let chargingAmbientGlowMat: THREE.MeshBasicMaterial | null = null
 let isExecuting = false, isPanelOpen = true
-let commandBlockMap: string[] = [], highlightedBlockId: string | null = null
 let skyLight: THREE.HemisphereLight
 let doorClipPlane: THREE.Plane
 let doorGlowPlane: THREE.Mesh | null = null
 let doorSunLight: THREE.DirectionalLight | null = null
+let doorVolumetricLights: THREE.SpotLight[] = []
+let doorFloorStrips: THREE.Mesh[] = []
+let doorDustInterval: ReturnType<typeof setInterval> | null = null
 let doorAnimationVersion = 0
 let robotEyeMeshes: THREE.Mesh[] = []
+let robotEyeLights: THREE.PointLight[] = []
 let robotChargeRingMat: THREE.MeshStandardMaterial | null = null
 let robotChargeBaseIntensity = 0.6
 let robotChargeBar: THREE.Mesh | null = null
 let antennaBallMat: THREE.MeshStandardMaterial | null = null
+let robotPupils: THREE.Mesh[] = []
+let robotAntennaMesh: THREE.Mesh | null = null
 let robotChargePort: THREE.Object3D | null = null
 let chargingCableAnchor: THREE.Object3D | null = null
 let chargingCableLine: THREE.Line | null = null
@@ -76,6 +83,9 @@ let garageMode: GarageMode = 'open'
 let garageGroup: THREE.Group | null = null
 let garageRoofGroup: THREE.Group | null = null
 let garageRoofMaterials: THREE.MeshStandardMaterial[] = []
+let envAnimatedObjects: { clouds: THREE.Group[], birds: THREE.Group[], planes: THREE.Group[] } | null = null
+let cameraMode: 'overview' | 'follow' | 'cinematic' = 'overview'
+let cinematicAngle = 0
 
 enum GameState { INTRO, READY, EXECUTING, DOOR_OPENED, COMPLETE, FAILED }
 let gameState = GameState.INTRO
@@ -83,7 +93,7 @@ let gameState = GameState.INTRO
 function getPrimaryCameraPose(mode: GarageMode = garageMode): { pos: { x: number, y: number, z: number }, target: { x: number, y: number, z: number } } {
   if (mode === 'closed') {
     return {
-      pos: { x: GRID_CENTER_X, y: 3.5, z: -2.5 }, // Positioning behind the robot inside the garage
+      pos: { x: GRID_CENTER_X, y: 3.5, z: -2.5 },
       target: { x: GRID_CENTER_X, y: 0.5, z: 2.0 }
     }
   }
@@ -99,8 +109,8 @@ function applyGarageMode(mode: GarageMode, animate = false, notify = false) {
     mat.opacity = 1
   })
   if (mainAmbientLight) {
-    mainAmbientLight.intensity = mode === 'closed' ? 0.4 : 0.8
-    mainAmbientLight.color.setHex(mode === 'closed' ? 0x90a0c0 : 0xffffff)
+    mainAmbientLight.intensity = mode === 'closed' ? 4.5 : 4.5
+    mainAmbientLight.color.setHex(0xffffff)
   }
   if (controls) {
     controls.maxPolarAngle = roofVisible ? Math.PI / 2.25 : Math.PI / 2.05
@@ -121,7 +131,7 @@ function applyGarageMode(mode: GarageMode, animate = false, notify = false) {
   }
 
   if (notify) {
-    showToast(
+    ui.showToast(
       mode === 'closed'
         ? 'Garaj modu: Kapalı tavan sürüş görünümü'
         : 'Garaj modu: Açık tavan sahne görünümü',
@@ -129,54 +139,6 @@ function applyGarageMode(mode: GarageMode, animate = false, notify = false) {
     )
   }
 }
-
-// ═══════════════════════════════════════════
-// UI HELPERS
-// ═══════════════════════════════════════════
-function showToast(msg: string, type: 'success' | 'error' | 'warning' | 'info' = 'info') {
-  const c = document.getElementById('toast-container')!
-  const t = document.createElement('div')
-  const icons: Record<string, string> = { success: '✅', error: '❌', warning: '⚠️', info: 'ℹ️' }
-  t.className = `toast ${type}`; t.innerHTML = `<span>${icons[type]}</span> ${msg}`
-  c.appendChild(t); setTimeout(() => t.remove(), 3000)
-}
-function updateStatus(text: string, state: 'ready' | 'executing' | 'error' = 'ready') {
-  document.getElementById('status-text')!.textContent = text
-  const d = document.getElementById('status-dot')!
-  d.className = 'status-dot'; if (state !== 'ready') d.classList.add(state)
-}
-function updatePositionDisplay() {
-  const p = robot.getPosition(), d = robot.getDirection()
-  document.getElementById('position-text')!.textContent = `Pos: (${p.x}, ${p.y}) | Yön: ${dirNames[d] || '?'}`
-}
-function updateMission(num: number, title: string, desc: string) {
-  document.getElementById('mission-label')!.textContent = `📋 Görev ${num}`
-  document.getElementById('mission-title')!.textContent = title
-  document.getElementById('mission-desc')!.textContent = desc
-}
-function updateBatteryUI(level: number) {
-  const pct = Math.max(0, Math.min(100, level))
-  const fill = document.getElementById('battery-fill')!
-  fill.style.width = `${pct}%`
-  document.getElementById('battery-text')!.textContent = `${Math.round(pct)}%`
-  fill.className = 'battery-fill-mini'
-  if (pct <= 5) fill.classList.add('critical')
-  else if (pct <= 20) fill.classList.add('low')
-}
-function showSuccess(msg: string, cmds: number, bat: number) {
-  soundManager.playSuccess()
-  document.getElementById('success-message')!.textContent = msg
-  document.getElementById('stat-commands')!.textContent = String(cmds)
-  document.getElementById('stat-battery')!.textContent = `${Math.round(bat)}%`
-  document.getElementById('success-overlay')!.classList.add('visible')
-}
-function hideSuccess() { document.getElementById('success-overlay')!.classList.remove('visible') }
-function showFailure(msg: string) {
-  soundManager.playFailure()
-  document.getElementById('failure-message')!.textContent = msg
-  document.getElementById('failure-overlay')!.classList.add('visible')
-}
-function hideFailure() { document.getElementById('failure-overlay')!.classList.remove('visible') }
 
 // ═══════════════════════════════════════════
 // SCENE
@@ -187,15 +149,16 @@ function initScene() {
   scene = new THREE.Scene()
 
   stats = new Stats()
-  stats.showPanel(0) // 0: fps, 1: ms, 2: mb, 3+: custom
+  stats.showPanel(0)
   document.body.appendChild(stats.dom)
-  // Ensure stats stays on top right with absolute positioning so it doesn't overlap important UI if needed
   stats.dom.style.position = 'absolute'
   stats.dom.style.top = '60px'
   stats.dom.style.right = '10px'
   stats.dom.style.left = 'unset'
 
-  scene.background = createSkyGradient()
+  const skyTex = createSkyGradient()
+  scene.background = skyTex
+  scene.environment = skyTex  // EnvMap — cam/metal yüzeylerde gökyüzü yansıması
   scene.fog = new THREE.FogExp2(0x3a5a8a, 0.0045)
 
   camera = new THREE.PerspectiveCamera(45, c.clientWidth / c.clientHeight, 0.1, 500)
@@ -203,9 +166,9 @@ function initScene() {
 
   renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' })
   renderer.setSize(c.clientWidth, c.clientHeight)
-  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.0)) // Strictly limit to 1x ratio for max performance
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.0))
   renderer.shadowMap.enabled = true
-  renderer.shadowMap.type = THREE.BasicShadowMap // Using BasicShadowMap for maximum performance
+  renderer.shadowMap.type = THREE.PCFSoftShadowMap
   renderer.toneMapping = THREE.ACESFilmicToneMapping; renderer.toneMappingExposure = BASE_EXPOSURE
   renderer.outputColorSpace = THREE.SRGBColorSpace
   renderer.localClippingEnabled = true
@@ -217,20 +180,16 @@ function initScene() {
   controls.target.set(CAM_TARGET.x, CAM_TARGET.y, CAM_TARGET.z); controls.update()
 
   // Lights
-  mainAmbientLight = new THREE.AmbientLight(0xffffff, 0.8)
+  mainAmbientLight = new THREE.AmbientLight(0xffffff, 1.2)
   scene.add(mainAmbientLight)
-  const moonFill = new THREE.DirectionalLight(0xb8c8ff, 0.38)
-  moonFill.position.set(-5, 9, -4); moonFill.castShadow = true
-  // Reduce shadow map resolution drastically for better FPS
-  moonFill.shadow.mapSize.set(256, 256)
-  moonFill.shadow.camera.left = -12; moonFill.shadow.camera.right = 12
-  moonFill.shadow.camera.top = 12; moonFill.shadow.camera.bottom = -12
-  moonFill.shadow.bias = -0.00015; scene.add(moonFill)
   const practicalBounce = new THREE.PointLight(0x8cb0ff, 0.2, 12)
   practicalBounce.position.set(GRID_CENTER_X, 1.2, 2.5)
   scene.add(practicalBounce)
 
-  // Clipping plane for door — clips everything above wall height
+  // Init particle system
+  particles = new ParticleSystem(scene)
+
+  // Clipping plane for door
   doorClipPlane = new THREE.Plane(new THREE.Vector3(0, -1, 0), WALL_H)
 
   window.addEventListener('resize', () => {
@@ -268,80 +227,178 @@ function createGarage() {
 // ROBOT
 // ═══════════════════════════════════════════
 function createRobot(pos: Position): THREE.Group {
-  const g = new THREE.Group(); wheelMeshes = []; robotEyeMeshes = []
-  const body = new THREE.Mesh(new RoundedBoxGeometry(0.72, 0.62, 0.82, 4, 0.1),
-    new THREE.MeshStandardMaterial({ color: 0x87CEEB, roughness: 0.2, metalness: 0.08 }))
-  body.position.y = 0.42; body.castShadow = true; g.add(body)
+  const g = new THREE.Group(); wheelMeshes = []; robotEyeMeshes = []; robotPupils = []
 
-  const panel = new THREE.Mesh(new RoundedBoxGeometry(0.74, 0.52, 0.1, 4, 0.06),
-    new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.12 }))
-  panel.position.set(0, 0.42, 0.46); g.add(panel)
+  // ── GÖVDE — Daha büyük, daha yuvarlak, PDF'deki mini-van oranları ──
+  const body = new THREE.Mesh(new RoundedBoxGeometry(0.88, 0.68, 0.98, 6, 0.15),
+    new THREE.MeshStandardMaterial({ color: 0x7EC8E3, roughness: 0.18, metalness: 0.1 }))
+  body.position.y = 0.46; body.castShadow = true; g.add(body)
 
-  const screen = new THREE.Mesh(new RoundedBoxGeometry(0.52, 0.28, 0.03, 4, 0.02),
+  // Yan şerit (dekoratif — PDF'deki koyu alt bant)
+  const sideBand = new THREE.Mesh(new RoundedBoxGeometry(0.90, 0.08, 1.0, 4, 0.02),
+    new THREE.MeshStandardMaterial({ color: 0x4a9bb5, roughness: 0.25, metalness: 0.15 }))
+  sideBand.position.set(0, 0.22, 0); g.add(sideBand)
+
+  // ── ÖN PANEL — Daha büyük yüz alanı ──
+  const panel = new THREE.Mesh(new RoundedBoxGeometry(0.90, 0.58, 0.1, 5, 0.08),
+    new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.10 }))
+  panel.position.set(0, 0.46, 0.50); g.add(panel)
+
+  // ── EKRAN ──
+  const screen = new THREE.Mesh(new RoundedBoxGeometry(0.62, 0.32, 0.03, 4, 0.02),
     new THREE.MeshStandardMaterial({ color: 0x111111, roughness: 0.1, metalness: 0.3 }))
-  screen.position.set(0, 0.46, 0.52); g.add(screen)
+  screen.position.set(0, 0.50, 0.56); g.add(screen)
+
+  // ── ŞARJ ÇUBUĞU ──
   const chargeBarTrack = new THREE.Mesh(
-    new RoundedBoxGeometry(0.36, 0.05, 0.012, 2, 0.006),
+    new RoundedBoxGeometry(0.42, 0.05, 0.012, 2, 0.006),
     new THREE.MeshStandardMaterial({ color: 0x20252f, roughness: 0.45, metalness: 0.4 })
   )
-  chargeBarTrack.position.set(0, 0.36, 0.536)
+  chargeBarTrack.position.set(0, 0.38, 0.57)
   g.add(chargeBarTrack)
   robotChargeBar = new THREE.Mesh(
-    new RoundedBoxGeometry(0.34, 0.036, 0.008, 2, 0.005),
+    new RoundedBoxGeometry(0.40, 0.036, 0.008, 2, 0.005),
     new THREE.MeshStandardMaterial({ color: 0xff7043, emissive: 0xff7043, emissiveIntensity: 1.2, roughness: 0.15 })
   )
-  robotChargeBar.position.set(0, 0.36, 0.542)
+  robotChargeBar.position.set(0, 0.38, 0.576)
   g.add(robotChargeBar)
 
-  const eyeMat = new THREE.MeshStandardMaterial({ color: 0xFFD700, emissive: 0xFFD700, emissiveIntensity: 2, roughness: 0.2 })
-  const eyeGeo = new THREE.SphereGeometry(0.085, 32, 32)
+  const isIntro = gameState === GameState.INTRO;
+  const initEyeIntensity = isIntro ? 0 : 2.5;
+  const initEyeScaleY = isIntro ? 0.1 : 1;
+
+  // ── GÖZLER — Daha büyük (r=0.12), canlı, pupilli ──
+  const eyeMat = new THREE.MeshStandardMaterial({ color: 0xFFD700, emissive: 0xFFD700, emissiveIntensity: initEyeIntensity, roughness: 0.15 })
+  const eyeGeo = new THREE.SphereGeometry(0.12, 32, 32)
   const leftEye = new THREE.Mesh(eyeGeo, eyeMat)
-  leftEye.position.set(-0.13, 0.46, 0.535); g.add(leftEye)
+  leftEye.position.set(-0.16, 0.52, 0.57); leftEye.scale.y = initEyeScaleY; g.add(leftEye)
   const rightEye = new THREE.Mesh(eyeGeo, eyeMat)
-  rightEye.position.set(0.13, 0.46, 0.535); g.add(rightEye)
+  rightEye.position.set(0.16, 0.52, 0.57); rightEye.scale.y = initEyeScaleY; g.add(rightEye)
   robotEyeMeshes.push(leftEye, rightEye)
-  g.add(new THREE.PointLight(0xFFD700, 0.4, 1.5).translateX(-0.13).translateY(0.46).translateZ(0.6))
-  g.add(new THREE.PointLight(0xFFD700, 0.4, 1.5).translateX(0.13).translateY(0.46).translateZ(0.6))
 
-  const smile = new THREE.Mesh(new RoundedBoxGeometry(0.16, 0.025, 0.02, 2, 0.01),
+  // Göz bebekleri (siyah) — referans sakla (göz takibi için)
+  const pupilMat = new THREE.MeshStandardMaterial({ color: 0x111111, roughness: 0.3, metalness: 0.2 })
+  const pupilGeo = new THREE.SphereGeometry(0.045, 16, 16)
+  const leftPupil = new THREE.Mesh(pupilGeo, pupilMat)
+  leftPupil.position.set(-0.16, 0.52, 0.685); g.add(leftPupil)
+  const rightPupil = new THREE.Mesh(pupilGeo, pupilMat)
+  rightPupil.position.set(0.16, 0.52, 0.685); g.add(rightPupil)
+  robotPupils.push(leftPupil, rightPupil)
+
+  // Göz parlaması (beyaz küçük nokta — canlılık)
+  const glintMat = new THREE.MeshStandardMaterial({ color: 0xffffff, emissive: 0xffffff, emissiveIntensity: 2, roughness: 0.1 })
+  const glintGeo = new THREE.SphereGeometry(0.018, 8, 8)
+  const leftGlint = new THREE.Mesh(glintGeo, glintMat)
+  leftGlint.position.set(-0.14, 0.54, 0.70); g.add(leftGlint)
+  const rightGlint = new THREE.Mesh(glintGeo, glintMat)
+  rightGlint.position.set(0.18, 0.54, 0.70); g.add(rightGlint)
+
+  robotEyeLights = []
+  const lLight = new THREE.PointLight(0xFFD700, isIntro ? 0 : 0.5, 2.0).translateX(-0.16).translateY(0.52).translateZ(0.65)
+  const rLight = new THREE.PointLight(0xFFD700, isIntro ? 0 : 0.5, 2.0).translateX(0.16).translateY(0.52).translateZ(0.65)
+  g.add(lLight); g.add(rLight)
+  robotEyeLights.push(lLight, rLight)
+
+  // ── YANAK KIZARIKLIKLARI — Sevimlilik ──
+  const blushMat = new THREE.MeshStandardMaterial({ color: 0xff8a80, roughness: 0.8, transparent: true, opacity: 0.25 })
+  const blushGeo = new THREE.CircleGeometry(0.065, 16)
+  const leftBlush = new THREE.Mesh(blushGeo, blushMat)
+  leftBlush.position.set(-0.24, 0.42, 0.565); g.add(leftBlush)
+  const rightBlush = new THREE.Mesh(blushGeo, blushMat)
+  rightBlush.position.set(0.24, 0.42, 0.565); g.add(rightBlush)
+
+  // ── GÜLÜMSEME ──
+  const smile = new THREE.Mesh(new RoundedBoxGeometry(0.18, 0.025, 0.02, 2, 0.01),
     new THREE.MeshStandardMaterial({ color: 0xFFD700, emissive: 0xFFD700, emissiveIntensity: 1 }))
-  smile.position.set(0, 0.34, 0.535); g.add(smile)
+  smile.position.set(0, 0.36, 0.57); g.add(smile)
 
-  const top = new THREE.Mesh(new RoundedBoxGeometry(0.52, 0.16, 0.52, 4, 0.06),
-    new THREE.MeshStandardMaterial({ color: 0x5B9BD5, roughness: 0.3 }))
-  top.position.set(0, 0.82, 0); top.castShadow = true; g.add(top)
+  // ── ÜST DOME/KAFA — Daha büyük ──
+  const top = new THREE.Mesh(new RoundedBoxGeometry(0.60, 0.20, 0.60, 5, 0.08),
+    new THREE.MeshStandardMaterial({ color: 0x5BA8C8, roughness: 0.25 }))
+  top.position.set(0, 0.90, 0); top.castShadow = true; g.add(top)
 
-  const chargeRingMat = new THREE.MeshStandardMaterial({ color: 0xff7043, emissive: 0xff7043, emissiveIntensity: 0.6, roughness: 0.2, metalness: 0.35 })
-  const chargeRing = new THREE.Mesh(new THREE.TorusGeometry(0.18, 0.03, 16, 40), chargeRingMat)
+  // ── ŞARJ HALKASİ ──
+  const initRingIntensity = isIntro ? 0 : 0.6;
+  const chargeRingMat = new THREE.MeshStandardMaterial({ color: 0xff7043, emissive: 0xff7043, emissiveIntensity: initRingIntensity, roughness: 0.2, metalness: 0.35 })
+  const chargeRing = new THREE.Mesh(new THREE.TorusGeometry(0.22, 0.03, 16, 40), chargeRingMat)
   chargeRing.rotation.x = Math.PI / 2
-  chargeRing.position.set(0, 0.9, 0)
+  chargeRing.position.set(0, 1.0, 0)
   g.add(chargeRing)
   robotChargeRingMat = chargeRingMat
   robotChargeBaseIntensity = 0.6
 
   robotChargePort = new THREE.Object3D()
-  robotChargePort.position.set(0, 0.84, 0.34)
+  robotChargePort.position.set(0, 0.92, 0.40)
   g.add(robotChargePort)
 
-  const ant = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.02, 0.28, 16),
-    new THREE.MeshStandardMaterial({ color: 0x87CEEB }))
-  ant.position.y = 1.05; g.add(ant)
+  // ── ANTEN ──
+  const ant = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.02, 0.30, 16),
+    new THREE.MeshStandardMaterial({ color: 0x7EC8E3 }))
+  ant.position.y = 1.16; g.add(ant)
+  robotAntennaMesh = ant
   antennaBallMat = new THREE.MeshStandardMaterial({ color: 0x00E5FF, emissive: 0x00E5FF, emissiveIntensity: 2.5 })
-  const aBall = new THREE.Mesh(new THREE.SphereGeometry(0.065, 16, 16), antennaBallMat)
-  aBall.position.y = 1.22; g.add(aBall)
-  g.add(new THREE.PointLight(0x00E5FF, 0.5, 2.5).translateY(1.22))
+  const aBall = new THREE.Mesh(new THREE.SphereGeometry(0.075, 16, 16), antennaBallMat)
+  aBall.position.y = 1.34; g.add(aBall)
+  g.add(new THREE.PointLight(0x00E5FF, 0.5, 2.5).translateY(1.34))
 
-  // Wheels
-  const wGeo = new THREE.CylinderGeometry(0.19, 0.19, 0.16, 32)
+  // ── PANEL ÇİZGİLERİ — Mekanik detay hissi ──
+  const panelLineMat = new THREE.MeshStandardMaterial({ color: 0x5a9ab5, roughness: 0.4 })
+  // Yatay panel derzleri
+  for (const py of [0.25, 0.65]) {
+    const hLine = new THREE.Mesh(new THREE.BoxGeometry(0.86, 0.005, 0.96), panelLineMat)
+    hLine.position.set(0, py, 0); g.add(hLine)
+  }
+  // Dikey panel derzleri (yan)
+  for (const px of [-0.2, 0.2]) {
+    const vLine = new THREE.Mesh(new THREE.BoxGeometry(0.005, 0.40, 0.96), panelLineMat)
+    vLine.position.set(px, 0.46, 0); g.add(vLine)
+  }
+
+  // ── ARKA HAVALANDIRMA IZGARASI ──
+  const ventBackMat = new THREE.MeshStandardMaterial({ color: 0x4a7a8a, roughness: 0.4, metalness: 0.5 })
+  const ventBack = new THREE.Mesh(new RoundedBoxGeometry(0.50, 0.28, 0.04, 2, 0.01), ventBackMat)
+  ventBack.position.set(0, 0.40, -0.50); g.add(ventBack)
+  for (let vi = 0; vi < 5; vi++) {
+    const slat = new THREE.Mesh(new THREE.BoxGeometry(0.44, 0.015, 0.02), panelLineMat)
+    slat.position.set(0, 0.30 + vi * 0.05, -0.51); g.add(slat)
+  }
+
+  // ── YAN TUTAMAKLAR (taşıma kulpu) ──
+  const handleMat = new THREE.MeshStandardMaterial({ color: 0x455a64, roughness: 0.3, metalness: 0.7 })
+  for (const hx of [-0.46, 0.46]) {
+    const handle = new THREE.Mesh(new THREE.TorusGeometry(0.06, 0.012, 8, 16, Math.PI), handleMat)
+    handle.rotation.y = Math.PI / 2
+    handle.rotation.z = Math.PI / 2
+    handle.position.set(hx, 0.55, 0); g.add(handle)
+  }
+
+  // ── ALT GÖVDE DETAYI (mekanik aksam) ──
+  const mechMat = new THREE.MeshStandardMaterial({ color: 0x37474f, roughness: 0.5, metalness: 0.6 })
+  const underPlate = new THREE.Mesh(new THREE.BoxGeometry(0.60, 0.03, 0.70), mechMat)
+  underPlate.position.set(0, 0.10, 0); g.add(underPlate)
+  // Alt borular
+  for (const pz of [-0.15, 0.15]) {
+    const pipe = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.02, 0.50, 8), mechMat)
+    pipe.rotation.z = Math.PI / 2; pipe.position.set(0, 0.08, pz); g.add(pipe)
+  }
+
+  // ── Contact shadow ──
+  const robotShadow = new THREE.Mesh(new THREE.CircleGeometry(0.5, 16),
+    new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.25, depthWrite: false }))
+  robotShadow.rotation.x = -Math.PI / 2; robotShadow.scale.set(1.1, 1.3, 1)
+  robotShadow.position.y = 0.004; g.add(robotShadow)
+
+  // ── TEKERLEKLER — Daha büyük (r=0.22), parlak jantlar ──
+  const wGeo = new THREE.CylinderGeometry(0.22, 0.22, 0.18, 32)
   const wMat = new THREE.MeshStandardMaterial({ color: 0x1a2030, roughness: 0.7, metalness: 0.3 })
-  const rGeo = new THREE.TorusGeometry(0.16, 0.03, 16, 32)
-  const rMat = new THREE.MeshStandardMaterial({ color: 0x00BCD4, emissive: 0x00BCD4, emissiveIntensity: 1.5 })
-  const wPos: [number, number, number][] = [[-0.37, 0.19, 0.36], [0.37, 0.19, 0.36], [-0.37, 0.19, -0.36], [0.37, 0.19, -0.36]]
+  const rGeo = new THREE.TorusGeometry(0.19, 0.035, 16, 32)
+  const rMat = new THREE.MeshStandardMaterial({ color: 0x00BCD4, emissive: 0x00BCD4, emissiveIntensity: 2.0 })
+  const wPos: [number, number, number][] = [[-0.44, 0.22, 0.40], [0.44, 0.22, 0.40], [-0.44, 0.22, -0.40], [0.44, 0.22, -0.40]]
   wPos.forEach(p => {
     const w = new THREE.Mesh(wGeo, wMat); w.rotation.z = Math.PI / 2
     w.position.set(p[0], p[1], p[2]); g.add(w); wheelMeshes.push(w)
     const r = new THREE.Mesh(rGeo, rMat); r.rotation.y = Math.PI / 2
-    r.position.set(p[0] > 0 ? p[0] + 0.085 : p[0] - 0.085, p[1], p[2]); g.add(r)
+    r.position.set(p[0] > 0 ? p[0] + 0.095 : p[0] - 0.095, p[1], p[2]); g.add(r)
   })
 
   g.position.set(pos.x, 0, pos.y); scene.add(g); return g
@@ -354,39 +411,31 @@ function createButton3D(pos: Position) {
   const group = new THREE.Group()
   const isLeftWall = pos.x < GRID_CENTER_X
 
-  // Adjusted offsets based on which wall the button is on
   const sideOffset = isLeftWall ? -0.58 : 0.62
-  const screenOffset = isLeftWall ? -0.50 : 0.54
-  const stripOffset = isLeftWall ? -0.49 : 0.53
+  const screenOffset = isLeftWall ? -0.46 : 0.50
   const lightOffset = isLeftWall ? -0.2 : 0.3
 
   // Terminal base mounting
-  const base = new THREE.Mesh(new RoundedBoxGeometry(0.12, 0.6, 0.4, 3, 0.02),
+  const base = new THREE.Mesh(new RoundedBoxGeometry(0.2, 0.8, 0.6, 4, 0.04),
     new THREE.MeshStandardMaterial({ color: 0x1f2430, roughness: 0.4, metalness: 0.6 }))
   base.position.set(pos.x + sideOffset, 1.2, pos.y)
   base.castShadow = true
   group.add(base)
 
-  // Scanner glass/screen
-  const screen = new THREE.Mesh(new RoundedBoxGeometry(0.06, 0.44, 0.34, 2, 0.01),
-    new THREE.MeshStandardMaterial({ color: 0xFFD700, emissive: 0xFFD700, emissiveIntensity: 1.8, roughness: 0.1, transparent: true, opacity: 0.9 }))
+  // Glowing yellow button
+  const screen = new THREE.Mesh(new RoundedBoxGeometry(0.14, 0.6, 0.45, 3, 0.02),
+    new THREE.MeshStandardMaterial({ color: 0xFFEA00, emissive: 0xFFEA00, emissiveIntensity: 2.5, roughness: 0.1 }))
   screen.position.set(pos.x + screenOffset, 1.2, pos.y)
   group.add(screen)
 
-  // Glowing pulse strip indicator
-  const strip = new THREE.Mesh(new THREE.BoxGeometry(0.03, 0.44, 0.06),
-    new THREE.MeshStandardMaterial({ color: 0xFFEB3B, emissive: 0xFFD700, emissiveIntensity: 3.5 }))
-  strip.position.set(pos.x + stripOffset, 1.2, pos.y)
-  group.add(strip)
-
   // Floor interaction decal zone
-  const zoneMat = new THREE.MeshStandardMaterial({ color: 0xFFD700, emissive: 0xFFD700, emissiveIntensity: 1.5, transparent: true, opacity: 0.3 })
-  const zone = new THREE.Mesh(new THREE.CylinderGeometry(0.5, 0.5, 0.02, 32), zoneMat)
+  const zoneMat = new THREE.MeshStandardMaterial({ color: 0xFFEA00, emissive: 0xFFEA00, emissiveIntensity: 1.5, transparent: true, opacity: 0.4 })
+  const zone = new THREE.Mesh(new THREE.CylinderGeometry(0.6, 0.6, 0.02, 32), zoneMat)
   zone.position.set(pos.x, 0.01, pos.y)
   group.add(zone)
 
   // Local indicator light
-  const pl = new THREE.PointLight(0xFFD700, 2.0, 5.0)
+  const pl = new THREE.PointLight(0xFFEA00, 3.0, 7.0)
   pl.position.set(pos.x + lightOffset, 1.2, pos.y)
   group.add(pl)
 
@@ -561,14 +610,13 @@ function createDoor(): THREE.Group {
 function animateDoorOpening() {
   const animationVersion = ++doorAnimationVersion
   soundManager.playDoorOpen()
-  showToast('Kapı açılıyor! 🚪', 'success')
+  ui.showToast('Kapı açılıyor! 🚪', 'success')
 
   const duration = 2500, startTime = Date.now(), totalHeight = WALL_H + 0.5
   const originalY = doorPanels.map(p => p.position.y)
   const originalLineY = doorLines.map(l => l.position.y)
   const handleOrigY = doorHandle.position.y
 
-  // Button pushing down animation variables
   const buttonOrigY = buttonMesh ? buttonMesh.position.y : 0
 
   // Sunlight from outside
@@ -576,11 +624,56 @@ function animateDoorOpening() {
   doorSunLight = new THREE.DirectionalLight(0xfff4e0, 0)
   doorSunLight.position.set(GRID_CENTER_X + 2.5, 9, DOOR_ROW + 15); scene.add(doorSunLight)
 
-  // Glow plane (will be removed after animation)
+  // Glow plane
   if (doorGlowPlane) scene.remove(doorGlowPlane)
   const glowMat = new THREE.MeshBasicMaterial({ color: 0xfff8e1, transparent: true, opacity: 0, side: THREE.DoubleSide })
   doorGlowPlane = new THREE.Mesh(new THREE.PlaneGeometry(GRID_W, WALL_H), glowMat)
   doorGlowPlane.position.set(GRID_CENTER_X, WALL_H / 2, DOOR_ROW + 0.1); scene.add(doorGlowPlane)
+
+  // Volumetric SpotLights — fan-shaped light beams flooding into garage
+  doorVolumetricLights.forEach(l => scene.remove(l))
+  doorVolumetricLights = []
+  const spotAngles = [-0.6, 0, 0.6] // fan spread angles
+  const spotColors = [0xfff4e0, 0xfffbe6, 0xfff4e0]
+  spotAngles.forEach((angle, idx) => {
+    const spot = new THREE.SpotLight(spotColors[idx], 0, 12, Math.PI / 6, 0.6, 1.5)
+    spot.position.set(GRID_CENTER_X + Math.sin(angle) * 2, WALL_H * 0.7, DOOR_ROW + 1)
+    const targetObj = new THREE.Object3D()
+    targetObj.position.set(GRID_CENTER_X + Math.sin(angle) * 4, 0, DOOR_ROW - 5)
+    scene.add(targetObj)
+    spot.target = targetObj
+    scene.add(spot)
+    doorVolumetricLights.push(spot)
+  })
+
+  // Floor light strips — light beams on the floor from the doorway
+  doorFloorStrips.forEach(s => scene.remove(s))
+  doorFloorStrips = []
+  const stripPositions = [-2.0, -0.7, 0.7, 2.0]
+  stripPositions.forEach(offsetX => {
+    const stripMat = new THREE.MeshBasicMaterial({
+      color: 0xfff8d6, transparent: true, opacity: 0, side: THREE.DoubleSide
+    })
+    const strip = new THREE.Mesh(new THREE.PlaneGeometry(0.5, 5), stripMat)
+    strip.rotation.x = -Math.PI / 2
+    strip.position.set(GRID_CENTER_X + offsetX, 0.02, DOOR_ROW - 2.5)
+    scene.add(strip)
+    doorFloorStrips.push(strip)
+  })
+
+  // Dust particles — start emitting floating dust through the light beams
+  if (doorDustInterval) clearInterval(doorDustInterval)
+  let dustWaves = 0
+  doorDustInterval = setInterval(() => {
+    particles.emitDoorDust(
+      new THREE.Vector3(GRID_CENTER_X, 0, DOOR_ROW),
+      GRID_W * 0.7, WALL_H, 12
+    )
+    dustWaves++
+    if (dustWaves >= 6) {
+      if (doorDustInterval) { clearInterval(doorDustInterval); doorDustInterval = null }
+    }
+  }, 400)
 
   const animate = () => {
     if (animationVersion !== doorAnimationVersion) return
@@ -603,26 +696,38 @@ function animateDoorOpening() {
     })
     doorHandle.position.y = handleOrigY + totalHeight * ease
 
-    // Animate button panel plunging backward to show its pressed
     if (buttonMesh) {
-      // Moves back slightly and lowers slightly during the animation
       buttonMesh.position.y = buttonOrigY - (ease * 0.25)
     }
 
     // Sunlight / glow increases then glow fades
     if (doorSunLight) doorSunLight.intensity = ease * 2.2
     if (t < 0.8) glowMat.opacity = ease * 0.3
-    else glowMat.opacity = 0.3 * (1 - (t - 0.8) / 0.2) // fade out in last 20%
+    else glowMat.opacity = 0.3 * (1 - (t - 0.8) / 0.2)
+
+    // Volumetric SpotLights fade in
+    doorVolumetricLights.forEach(spot => { spot.intensity = ease * 3.5 })
+
+    // Floor light strips fade in, then gently fade as door fully opens
+    doorFloorStrips.forEach(strip => {
+      const mat = strip.material as THREE.MeshBasicMaterial
+      if (t < 0.7) mat.opacity = ease * 0.35
+      else mat.opacity = 0.35 * (1 - (t - 0.7) / 0.3)
+    })
 
     renderer.toneMappingExposure = BASE_EXPOSURE + ease * DOOR_OPEN_EXPOSURE_BOOST
     if (skyLight) skyLight.intensity = ease * 0.95
 
     if (t < 1) requestAnimationFrame(animate)
     else {
-      // Remove glow plane completely
       if (doorGlowPlane) { scene.remove(doorGlowPlane); doorGlowPlane = null }
+      // Clean up floor strips
+      doorFloorStrips.forEach(s => scene.remove(s))
+      doorFloorStrips = []
+      // Keep volumetric lights but reduce intensity for ambient outdoor feel
+      doorVolumetricLights.forEach(spot => { spot.intensity = 1.8 })
 
-      // Make door row AND outdoor path walkable — robot can now go outside!
+      // Make door row AND outdoor path walkable
       for (let x = 0; x < GRID_W; x++) {
         for (let y = DOOR_ROW; y <= CHARGE_POS.y; y++) {
           grid.setWalkable({ x, y }, true)
@@ -633,8 +738,8 @@ function animateDoorOpening() {
 
       // Cinematic camera: zoom to show outside
       animateCameraTo({ x: GRID_CENTER_X + 2.2, y: 5.8, z: DOOR_ROW + 6.4 }, { x: GRID_CENTER_X, y: 1, z: DOOR_ROW + 1.5 }, 1500, () => {
-        updateMission(2, 'Şarj İstasyonu', 'Robotu dışarıdaki yeşil şarj alanına götür ve şarj et.')
-        showToast('Yeni görev: Şarj istasyonuna ulaş! ⚡', 'info')
+        ui.updateMission(2, 'Şarj İstasyonu', 'Robotu dışarıdaki yeşil şarj alanına götür ve şarj et.')
+        ui.showToast('Yeni görev: Şarj istasyonuna ulaş! ⚡', 'info')
         const pose = getPrimaryCameraPose()
         setTimeout(() => animateCameraTo(pose.pos, pose.target, 1200), 1500)
       })
@@ -643,28 +748,16 @@ function animateDoorOpening() {
   animate()
 }
 
-function clearCommandHighlight() {
-  if (workspace) workspace.highlightBlock(null)
-  highlightedBlockId = null
-}
-
-function highlightCommandByIndex(index: number) {
-  const blockId = commandBlockMap[index]
-  if (!workspace || !blockId) {
-    clearCommandHighlight()
-    return
-  }
-  if (highlightedBlockId === blockId) return
-  workspace.highlightBlock(blockId)
-  highlightedBlockId = blockId
-}
-
 function resetDoorVisualState() {
-  // Cancel in-flight animation loops before restoring geometry.
   doorAnimationVersion++
 
   if (doorGlowPlane) { scene.remove(doorGlowPlane); doorGlowPlane = null }
   if (doorSunLight) { scene.remove(doorSunLight); doorSunLight = null }
+  doorVolumetricLights.forEach(l => { if (l.target) scene.remove(l.target); scene.remove(l) })
+  doorVolumetricLights = []
+  doorFloorStrips.forEach(s => scene.remove(s))
+  doorFloorStrips = []
+  if (doorDustInterval) { clearInterval(doorDustInterval); doorDustInterval = null }
 
   doorPanels.forEach((p, i) => {
     p.position.set(GRID_CENTER_X, DOOR_PANEL_H / 2 + i * DOOR_PANEL_H, DOOR_Z)
@@ -681,7 +774,7 @@ function resetDoorVisualState() {
   doorHandle.scale.set(1, 1, 1)
 
   if (buttonMesh) {
-    buttonMesh.position.y = 0 // Bring button back to normal height
+    buttonMesh.position.y = 0
   }
 
   renderer.toneMappingExposure = BASE_EXPOSURE
@@ -695,13 +788,13 @@ function resetSimulationState() {
   chargePulseUntil = 0
   isExecuting = false
 
-  hideSuccess()
-  hideFailure()
-  clearCommandHighlight()
+  ui.hideSuccess()
+  ui.hideFailure()
+  blocklyMgr.clearHighlight()
 
   robot = new Robot(ROBOT_START, Direction.NORTH)
-  battery = new BatterySystem(35)
-  executor = new ProgramExecutor(800)
+  battery = new BatterySystem(INITIAL_BATTERY_LEVEL)
+  executor = new ProgramExecutor(DEFAULT_EXECUTION_SPEED)
   grid = new Grid(GRID_W, GRID_H)
 
   door = new GarageDoor()
@@ -728,11 +821,11 @@ function resetSimulationState() {
 
   gameState = GameState.READY
   updateRobotPosition()
-  updateBatteryUI(35)
-  updateRobotChargeIndicator(35)
-  updatePositionDisplay()
-  updateStatus('Hazır', 'ready')
-  updateMission(1, 'Tarayıcıya Ulaş', 'Robotu duvardaki mavi tarayıcı paneline kadar sür ve butona basarak kapıyı aç.')
+  ui.updateBatteryUI(INITIAL_BATTERY_LEVEL)
+  updateRobotChargeIndicator(INITIAL_BATTERY_LEVEL)
+  ui.updatePositionDisplay(robot)
+  ui.updateStatus('Hazır', 'ready')
+  ui.updateMission(1, 'Tarayıcıya Ulaş', 'Robotu duvardaki mavi tarayıcı paneline kadar sür ve butona basarak kapıyı aç.')
 }
 
 // ═══════════════════════════════════════════
@@ -755,9 +848,16 @@ function animateCameraTo(tp: { x: number, y: number, z: number }, tl: { x: numbe
 // ═══════════════════════════════════════════
 function updateRobotPosition() {
   const pos = robot.getPosition(), dir = robot.getDirection()
-  const tx = pos.x, tz = pos.y, tr = dir * Math.PI / 180 // REMOVED MINUS SIGN TO FIX INVERTED ROTATION
+  const tx = pos.x, tz = pos.y, tr = dir * Math.PI / 180
   const sx = robotMesh.position.x, sz = robotMesh.position.z, sr = robotMesh.rotation.y
+  const isMoving = Math.abs(tx - sx) > 0.01 || Math.abs(tz - sz) > 0.01
+  const isTurning = !isMoving
   const st = Date.now(), dur = 400
+
+  // Emit dust when moving
+  if (isMoving && particles) {
+    particles.emitMoveDust(new THREE.Vector3(sx, 0, sz))
+  }
 
   const a = () => {
     const t = Math.min((Date.now() - st) / dur, 1)
@@ -765,11 +865,22 @@ function updateRobotPosition() {
     robotMesh.position.x = sx + (tx - sx) * e; robotMesh.position.z = sz + (tz - sz) * e
     let dr = tr - sr; while (dr > Math.PI) dr -= Math.PI * 2; while (dr < -Math.PI) dr += Math.PI * 2
     robotMesh.rotation.y = sr + dr * e
-    wheelMeshes.forEach(w => { w.rotation.x += t * 0.4 })
+    wheelMeshes.forEach(w => { w.rotation.x += t * 3.5 })
+
+    // Gentle tilt during movement, wobble during turn
+    if (isMoving) {
+      robotMesh.rotation.x = Math.sin(t * Math.PI) * 0.03
+    } else if (isTurning) {
+      robotMesh.rotation.z = Math.sin(t * Math.PI * 2) * 0.05 * (1 - t)
+    }
+
     if (t < 1) requestAnimationFrame(a)
-    else { robotMesh.position.x = tx; robotMesh.position.z = tz; robotMesh.rotation.y = tr }
+    else {
+      robotMesh.position.x = tx; robotMesh.position.z = tz; robotMesh.rotation.y = tr
+      robotMesh.position.y = 0; robotMesh.rotation.x = 0; robotMesh.rotation.z = 0
+    }
   }; a()
-  updatePositionDisplay()
+  ui.updatePositionDisplay(robot)
 }
 
 function isRobotOnChargingPad(): boolean {
@@ -908,8 +1019,8 @@ function playChargingAnimation() {
 function initGame() {
   grid = new Grid(GRID_W, GRID_H)
   robot = new Robot(ROBOT_START, Direction.NORTH)
-  battery = new BatterySystem(35)
-  executor = new ProgramExecutor(800)
+  battery = new BatterySystem(INITIAL_BATTERY_LEVEL)
+  executor = new ProgramExecutor(DEFAULT_EXECUTION_SPEED)
 
   robotMesh = createRobot(robot.getPosition())
   buttonMesh = createButton3D(BUTTON_POS)
@@ -917,6 +1028,15 @@ function initGame() {
   createDoor()
   const env = createOutdoorScene(scene, { GRID_W, GRID_H, DOOR_ROW, GRID_CENTER_X })
   skyLight = env.skyLight
+  envAnimatedObjects = env.animatedObjects
+
+  // Apply initial theme
+  const initialTheme = (localStorage.getItem('bigbot-theme') as 'light' | 'dark') || 'dark'
+  applyThemeToEnvironment(scene, initialTheme)
+
+  window.addEventListener('theme-changed', ((e: CustomEvent<{ theme: 'light' | 'dark' }>) => {
+    applyThemeToEnvironment(scene, e.detail.theme)
+  }) as EventListener)
 
   button = new Button(() => { door.interact() })
   door = new GarageDoor()
@@ -933,68 +1053,135 @@ function initGame() {
   }
 
   // Events
-  EventBus.on('battery:updated', (l: number) => { updateBatteryUI(l); updateRobotChargeIndicator(l) })
-  EventBus.on('battery:critical', () => showToast('⚠️ Batarya kritik!', 'warning'))
-  EventBus.on('door:opening', () => animateDoorOpening())
-  EventBus.on('button:pressed', () => soundManager.playButtonPress())
-  EventBus.on('robot:on_charging_pad', () => playChargingAnimation())
+  EventBus.on('battery:updated', (l: number) => { ui.updateBatteryUI(l); updateRobotChargeIndicator(l) })
+  EventBus.on('battery:critical', () => ui.showToast('⚠️ Batarya kritik!', 'warning'))
+  EventBus.on('door:opening', () => {
+    animateDoorOpening()
+    logPanel.addEntry('event', 'Garaj kapısı açılıyor')
+  })
+  EventBus.on('button:pressed', () => {
+    soundManager.playButtonPress()
+    logPanel.addEntry('command', 'Butona basıldı')
+  })
+  EventBus.on('robot:on_charging_pad', () => {
+    playChargingAnimation()
+    if (particles) particles.emitChargeSparks(new THREE.Vector3(CHARGE_POS.x, 0.3, CHARGE_POS.y), 25)
+    logPanel.addEntry('event', 'Şarj istasyonuna bağlandı')
+  })
 
   EventBus.on('robot:moved', () => {
     updateRobotPosition()
-    updatePositionDisplay()
+    ui.updatePositionDisplay(robot)
     if (!isRobotOnChargingPad()) setChargingCableConnected(false)
+    const p = robot.getPosition()
+    logPanel.addEntry('command', `Hareket → (${p.x}, ${p.y})`)
   })
-  EventBus.on('command:highlight', (index: number) => highlightCommandByIndex(index))
+  EventBus.on('command:highlight', (index: number) => blocklyMgr.highlightByIndex(index))
   EventBus.on('command:executed', (data: { type: string, index: number }) => {
-    // Play sounds based on command type
     switch (data.type) {
       case 'MOVE_FORWARD': case 'MOVE_BACKWARD': soundManager.playMove(); break
       case 'TURN_LEFT': case 'TURN_RIGHT': soundManager.playTurn(); break
       case 'CHARGE': soundManager.playCharging(); break
     }
-
-    // Physical console feedback for energy
-    showToast(`⚡ -1% Enerji (${data.type})`, 'info')
+    ui.showToast(`⚡ Enerji kullanıldı (${data.type})`, 'info')
   })
 
   EventBus.on('battery:dead', () => {
     setChargingCableConnected(false)
     chargePulseUntil = 0
     isExecuting = false; gameState = GameState.FAILED
-    clearCommandHighlight()
-    showFailure('BIG-BOT\'un bataryası bitti! Daha verimli bir rota dene.')
+    blocklyMgr.clearHighlight()
+    ui.showFailure('BIG-BOT\'un bataryası bitti! Daha verimli bir rota dene.')
+    logPanel.addEntry('error', 'Batarya bitti! Görev başarısız.')
   })
 
   EventBus.on('battery:full', () => {
     setChargingCableConnected(false)
     chargePulseUntil = 0
-    updateBatteryUI(100); showToast('🔋 Batarya %100 dolu!', 'success')
+    ui.updateBatteryUI(100); ui.showToast('🔋 Batarya %100 dolu!', 'success')
     gameState = GameState.COMPLETE
-    clearCommandHighlight()
+    blocklyMgr.clearHighlight()
+
+    // Celebration: jump, happy expression, spin, confetti
+    EventBus.emit('robot:expression', EyeExpression.HAPPY)
+    if (particles) particles.emitConfetti(robotMesh.position.clone(), 50)
+    logPanel.addEntry('success', 'Batarya %100 dolu! Görev tamamlandı!')
+    const jumpDur = 1200;
+    const startY = robotMesh.position.y;
+    const startRot = robotMesh.rotation.y;
+    const startTime = Date.now();
+    const jumpAnim = () => {
+      const t = Math.min((Date.now() - startTime) / jumpDur, 1);
+      const jumpH = Math.sin(t * Math.PI) * 1.5;
+      robotMesh.position.y = startY + jumpH;
+      robotMesh.rotation.y = startRot + t * Math.PI * 4;
+      if (t < 1) requestAnimationFrame(jumpAnim);
+      else {
+        robotMesh.position.y = startY;
+        robotMesh.rotation.y = startRot;
+      }
+    };
+    jumpAnim();
+
     setTimeout(() => {
-      showSuccess('BIG-BOT şarj oldu! Şehre çıkmaya hazır! 🏙️', executor.getCommands().length, 100)
-    }, 500)
+      ui.showSuccess('HAZIRSIN! ŞEHİR SENİ BEKLİYOR 🏙️', executor.getCommands().length, 100)
+    }, 1200)
   })
 
   EventBus.on('program:stopped', () => {
     isExecuting = false
-    clearCommandHighlight()
+    blocklyMgr.clearHighlight()
     if (!isRobotOnChargingPad()) setChargingCableConnected(false)
-    updateStatus('Durduruldu', 'ready')
+    ui.updateStatus('Durduruldu', 'ready')
   })
-  EventBus.on('program:complete', () => { isExecuting = false; clearCommandHighlight(); updateStatus('Tamamlandı', 'ready') })
+  EventBus.on('program:complete', () => {
+    isExecuting = false; blocklyMgr.clearHighlight(); ui.updateStatus('Tamamlandı', 'ready')
+    // Check mission win condition
+    if (gameState !== GameState.COMPLETE && gameState !== GameState.FAILED) {
+      if (missionMgr.checkWinCondition(robot, grid, battery)) {
+        const score = missionMgr.completeCurrentMission(executor.getCommands().length, battery.getCurrentLevel())
+        gameState = GameState.COMPLETE
+        const starsStr = '⭐'.repeat(score.stars) + '☆'.repeat(3 - score.stars)
+        const starsEl = document.getElementById('success-stars')
+        if (starsEl) starsEl.textContent = starsStr
+        ui.showSuccess(`Görev tamamlandı! ${starsStr}`, score.commandsUsed, score.batteryRemaining)
+        updateMissionStarsDisplay()
+        if (particles) particles.emitConfetti(robotMesh.position.clone(), 40)
+        logPanel.addEntry('success', `Görev tamamlandı! ${starsStr}`)
+      }
+    }
+  })
   EventBus.on('command:error', (d: { index: number, message: string }) => {
-    clearCommandHighlight()
-    showToast(`Komut ${d.index + 1}: ${d.message}`, 'error'); updateStatus('Hata!', 'error')
+    blocklyMgr.highlightError(d.index)
+    const msg = getFullErrorMessage(d.message) || d.message
+    ui.showToast(`Komut ${d.index + 1}: ${msg}`, 'error'); ui.updateStatus('Hata!', 'error')
+    logPanel.addEntry('error', `Komut ${d.index + 1}: ${msg}`)
+  })
+
+  EventBus.on('robot:expression', (expr: string) => {
+    if (gameState === GameState.INTRO) return;
+
+    robotEyeMeshes.forEach(eye => {
+      eye.scale.set(1, 1, 1);
+      eye.position.y = 0.46;
+    });
+
+    if (expr === 'HAPPY') {
+      robotEyeMeshes.forEach(eye => { eye.scale.set(1.4, 0.35, 1); });
+    } else if (expr === 'WORRIED') {
+      robotEyeMeshes.forEach(eye => { eye.scale.set(0.8, 1.2, 1); eye.position.y = 0.49; });
+    } else if (expr === 'EXCITED') {
+      robotEyeMeshes.forEach(eye => { eye.scale.set(1.5, 1.5, 1); });
+    }
   })
 
   blinkTimer = 0
   blinkProgress = 0
   nextBlinkAt = 1.8 + Math.random() * 2.8
   isBlinking = false
-  updateRobotChargeIndicator(35)
-  updatePositionDisplay(); updateBatteryUI(35)
-  updateMission(1, 'Tarayıcıya Ulaş', 'Robotu duvardaki mavi tarayıcı paneline kadar sür ve butona basarak kapıyı aç.')
+  updateRobotChargeIndicator(INITIAL_BATTERY_LEVEL)
+  ui.updatePositionDisplay(robot); ui.updateBatteryUI(INITIAL_BATTERY_LEVEL)
+  ui.updateMission(1, 'Tarayıcıya Ulaş', 'Robotu duvardaki mavi tarayıcı paneline kadar sür ve butona basarak kapıyı aç.')
 }
 
 // ═══════════════════════════════════════════
@@ -1007,177 +1194,84 @@ function renderLoop() {
   updateEyeBlink(0.016)
   updateGarageRoofVisual()
   updateChargingCable()
+  if (particles) particles.update(0.016)
   if (robotMesh) {
-    // Antenna pulse
+    // Antenna pulse + wobble
     if (antennaBallMat) antennaBallMat.emissiveIntensity = 2 + Math.sin(time * 3) * 0.8
+    if (robotAntennaMesh) {
+      robotAntennaMesh.rotation.z = Math.sin(time * 2.5) * 0.04
+      robotAntennaMesh.rotation.x = Math.cos(time * 1.8) * 0.03
+    }
+    // Eye tracking — pupils look toward camera
+    if (robotPupils.length === 2 && camera) {
+      const robotWorldPos = new THREE.Vector3()
+      robotMesh.getWorldPosition(robotWorldPos)
+      const toCam = camera.position.clone().sub(robotWorldPos).normalize()
+      const maxAngle = 0.04  // max pupil offset
+      const targetX = THREE.MathUtils.clamp(toCam.x * maxAngle, -maxAngle, maxAngle)
+      const targetY = THREE.MathUtils.clamp(toCam.y * 0.02, -0.02, 0.02)
+      robotPupils[0].position.x = THREE.MathUtils.lerp(robotPupils[0].position.x, -0.16 + targetX, 0.05)
+      robotPupils[0].position.y = THREE.MathUtils.lerp(robotPupils[0].position.y, 0.52 + targetY, 0.05)
+      robotPupils[1].position.x = THREE.MathUtils.lerp(robotPupils[1].position.x, 0.16 + targetX, 0.05)
+      robotPupils[1].position.y = THREE.MathUtils.lerp(robotPupils[1].position.y, 0.52 + targetY, 0.05)
+    }
     // Idle bob
     if (!isExecuting) robotMesh.position.y = Math.sin(time * 1.5) * 0.01
   }
   if (robotChargeRingMat) {
-    const pulseBoost = chargePulseUntil > performance.now() ? 0.45 + Math.sin(time * 14) * 0.35 : 0
+    const isCharging = chargePulseUntil > performance.now()
+    const pulseBoost = isCharging ? 0.45 + Math.sin(time * 14) * 0.35 : 0
     robotChargeRingMat.emissiveIntensity = robotChargeBaseIntensity + pulseBoost
+    // Continuous charge sparks during charging
+    if (isCharging && particles && Math.random() < 0.3) {
+      particles.emitChargeSparks(new THREE.Vector3(CHARGE_POS.x, 0.4, CHARGE_POS.y), 3)
+    }
   }
   // Charging pad glow pulse
   if (chargingAmbientGlowMat) {
     chargingAmbientGlowMat.opacity = 0.06 + Math.sin(time * 2) * 0.04
   }
+
+  // === Animate Sky Objects ===
+  if (envAnimatedObjects) {
+    envAnimatedObjects.clouds.forEach((cloud, i) => {
+      cloud.position.x += 0.004 + i * 0.0005
+      if (cloud.position.x > 60) cloud.position.x = -40
+    })
+    envAnimatedObjects.birds.forEach((flock, i) => {
+      flock.position.x += 0.012 + i * 0.002
+      flock.position.y = flock.position.y + Math.sin(time * 2.5 + i) * 0.002
+      if (flock.position.x > 50) flock.position.x = -30
+      flock.children.forEach((child, ci) => {
+        if (ci % 3 === 0) child.rotation.z = 0.3 + Math.sin(time * 6 + i + ci) * 0.25
+        else if (ci % 3 === 1) child.rotation.z = -(0.3 + Math.sin(time * 6 + i + ci) * 0.25)
+      })
+    })
+    envAnimatedObjects.planes.forEach((plane, i) => {
+      plane.position.x += 0.025 + i * 0.01
+      plane.position.z += 0.01
+      if (plane.position.x > 80) { plane.position.x = -60; plane.position.z = 10 + i * 15 }
+    })
+  }
+
+  // Camera modes
+  if (cameraMode === 'follow' && robotMesh) {
+    const rp = robotMesh.position
+    const followPos = new THREE.Vector3(rp.x - 2, rp.y + 3.5, rp.z - 3)
+    camera.position.lerp(followPos, 0.05)
+    controls.target.lerp(new THREE.Vector3(rp.x, rp.y + 0.5, rp.z), 0.05)
+    controls.update()
+  } else if (cameraMode === 'cinematic') {
+    cinematicAngle += 0.003
+    const cx = GRID_CENTER_X + Math.cos(cinematicAngle) * 12
+    const cz = 6 + Math.sin(cinematicAngle) * 10
+    camera.position.set(cx, 8, cz)
+    controls.target.set(GRID_CENTER_X, 1, 6)
+    controls.update()
+  }
+
   renderer.render(scene, camera)
   stats.end()
-}
-
-// ═══════════════════════════════════════════
-// BLOCKLY
-// ═══════════════════════════════════════════
-function initBlockly() {
-  Blockly.Blocks['green_flag'] = {
-    init: function (this: Blockly.Block) {
-      this.appendDummyInput().appendField('🚩 Yeşil Bayrak Tıklandığında')
-      this.setNextStatement(true, null); this.setColour(65); this.setDeletable(false)
-    }
-  }
-
-  Blockly.Blocks['move_forward'] = {
-    init: function (this: Blockly.Block) {
-      this.appendDummyInput().appendField('⬆️ İleri Git')
-        .appendField(new Blockly.FieldNumber(1, 1, 20, 1), 'COUNT').appendField('adım')
-      this.setPreviousStatement(true, null); this.setNextStatement(true, null); this.setColour(230)
-      this.setTooltip('Robotu belirtilen adım kadar ileri götürür')
-    }
-  }
-
-  Blockly.Blocks['move_backward'] = {
-    init: function (this: Blockly.Block) {
-      this.appendDummyInput().appendField('⬇️ Geri Git')
-        .appendField(new Blockly.FieldNumber(1, 1, 20, 1), 'COUNT').appendField('adım')
-      this.setPreviousStatement(true, null); this.setNextStatement(true, null); this.setColour(230)
-      this.setTooltip('Robotu belirtilen adım kadar geriye götürür')
-    }
-  }
-
-  Blockly.Blocks['turn_left'] = {
-    init: function (this: Blockly.Block) {
-      this.appendDummyInput().appendField('⬅️ Sola Dön')
-        .appendField(new Blockly.FieldNumber(1, 1, 4, 1), 'COUNT').appendField('kez')
-      this.setPreviousStatement(true, null); this.setNextStatement(true, null); this.setColour(230)
-    }
-  }
-
-  Blockly.Blocks['turn_right'] = {
-    init: function (this: Blockly.Block) {
-      this.appendDummyInput().appendField('➡️ Sağa Dön')
-        .appendField(new Blockly.FieldNumber(1, 1, 4, 1), 'COUNT').appendField('kez')
-      this.setPreviousStatement(true, null); this.setNextStatement(true, null); this.setColour(230)
-    }
-  }
-
-  Blockly.Blocks['press_button'] = {
-    init: function (this: Blockly.Block) {
-      this.appendDummyInput().appendField('🔘 Butona Bas')
-      this.setPreviousStatement(true, null); this.setNextStatement(true, null); this.setColour(290)
-    }
-  }
-
-  Blockly.Blocks['charge'] = {
-    init: function (this: Blockly.Block) {
-      this.appendDummyInput().appendField('⚡ Şarj Ol')
-      this.setPreviousStatement(true, null); this.setNextStatement(true, null); this.setColour(160)
-    }
-  }
-
-  workspace = Blockly.inject('blockly-div', {
-    toolbox: {
-      kind: 'categoryToolbox', contents: [
-        { kind: 'category', name: '🎯 Olaylar', colour: '65', contents: [{ kind: 'block', type: 'green_flag' }] },
-        {
-          kind: 'category', name: '🏃 Hareket', colour: '230', contents: [
-            { kind: 'block', type: 'move_forward' }, { kind: 'block', type: 'move_backward' },
-            { kind: 'block', type: 'turn_left' }, { kind: 'block', type: 'turn_right' }
-          ]
-        },
-        {
-          kind: 'category', name: '🤖 Robot', colour: '290', contents: [
-            { kind: 'block', type: 'press_button' }, { kind: 'block', type: 'charge' }
-          ]
-        }
-      ]
-    },
-    scrollbars: true, trashcan: true,
-    zoom: { controls: true, wheel: true, startScale: 1.0, maxScale: 3, minScale: 0.3, scaleSpeed: 1.2 },
-    grid: { spacing: 25, length: 3, colour: '#2a2f42', snap: true },
-    theme: Blockly.Theme.defineTheme('bigbot_dark', {
-      name: 'bigbot_dark', base: Blockly.Themes.Classic,
-      componentStyles: {
-        workspaceBackgroundColour: '#151822', toolboxBackgroundColour: '#1e2233',
-        toolboxForegroundColour: '#e0e0e0', flyoutBackgroundColour: '#1e2233',
-        flyoutForegroundColour: '#e0e0e0', flyoutOpacity: 0.95,
-        scrollbarColour: '#3a3f55', scrollbarOpacity: 0.6,
-        insertionMarkerColour: '#00d4aa', insertionMarkerOpacity: 0.5, cursorColour: '#00d4aa'
-      },
-      fontStyle: { family: 'Inter, Arial, sans-serif', weight: 'bold', size: 12 }
-    })
-  })
-
-  const gf = workspace.newBlock('green_flag')
-  gf.initSvg(); gf.render(); gf.moveBy(30, 30)
-  workspace.addChangeListener(() => updateProgramFromBlockly())
-}
-
-function updateProgramFromBlockly() {
-  executor = new ProgramExecutor(800)
-  commandBlockMap = []
-  clearCommandHighlight()
-  const blocks = workspace.getTopBlocks(true)
-  let start: Blockly.Block | null = null
-  for (const b of blocks) { if (b.type === 'green_flag') { start = b.getNextBlock(); break } }
-  if (!start) return
-
-  let cur: Blockly.Block | null = start
-  while (cur) {
-    const blockId = cur.id
-    const count = Number(cur.getFieldValue('COUNT')) || 1
-    switch (cur.type) {
-      case 'move_forward':
-        for (let i = 0; i < count; i++) {
-          executor.addCommand(new MoveForwardCommand())
-          commandBlockMap.push(blockId)
-        }
-        break
-      case 'move_backward':
-        for (let i = 0; i < count; i++) {
-          executor.addCommand(new MoveBackwardCommand())
-          commandBlockMap.push(blockId)
-        }
-        break
-      case 'turn_left':
-        for (let i = 0; i < count; i++) {
-          executor.addCommand(new TurnLeftCommand())
-          commandBlockMap.push(blockId)
-        }
-        break
-      case 'turn_right':
-        for (let i = 0; i < count; i++) {
-          executor.addCommand(new TurnRightCommand())
-          commandBlockMap.push(blockId)
-        }
-        break
-      case 'press_button':
-        executor.addCommand(new PressButtonCommand())
-        commandBlockMap.push(blockId)
-        break
-      case 'charge':
-        executor.addCommand(new ChargeCommand())
-        commandBlockMap.push(blockId)
-        break
-    }
-    cur = cur.getNextBlock()
-  }
-
-  // Update Energy Estimation UI
-  const estElement = document.getElementById('energy-estimate')
-  if (estElement) {
-    const totalCost = executor.getCommands().length // Each command costs 1 energy currently
-    estElement.innerText = `${totalCost}%`
-  }
 }
 
 // ═══════════════════════════════════════════
@@ -1191,6 +1285,15 @@ document.getElementById('intro-start-btn')!.addEventListener('click', () => {
   ov.classList.add('hidden')
   setTimeout(() => { ov.style.display = 'none' }, 1000)
   gameState = GameState.READY
+  applyGarageMode(garageMode, false, false)
+
+  robotEyeMeshes.forEach(eye => {
+    eye.scale.y = 1;
+    if (eye.material instanceof THREE.MeshStandardMaterial) eye.material.emissiveIntensity = 2;
+  });
+  robotEyeLights.forEach(l => l.intensity = 0.4);
+  if (robotChargeRingMat) robotChargeRingMat.emissiveIntensity = 0.6;
+
   const pose = getPrimaryCameraPose()
   camera.position.set(GRID_CENTER_X, 1, -1.2)
   controls.target.set(GRID_CENTER_X, 0.8, 2.8)
@@ -1203,7 +1306,7 @@ document.getElementById('toggle-panel-btn')!.addEventListener('click', () => {
   document.getElementById('coding-panel')!.classList.toggle('collapsed', !isPanelOpen)
   document.getElementById('toggle-panel-btn')!.innerHTML = isPanelOpen ? '<span>◧</span> Kodlama Paneli' : '<span>◨</span> Paneli Aç'
   setTimeout(() => {
-    if (workspace) Blockly.svgResize(workspace)
+    blocklyMgr.resize()
     const c = document.getElementById('canvas-container')!
     camera.aspect = c.clientWidth / c.clientHeight
     camera.updateProjectionMatrix(); renderer.setSize(c.clientWidth, c.clientHeight)
@@ -1226,94 +1329,181 @@ if (garageModeSelect) {
 
 // GREEN FLAG — run program
 document.getElementById('btn-green-flag')!.addEventListener('click', async () => {
-  if (isExecuting) { showToast('Zaten çalışıyor!', 'warning'); return }
-  if (gameState === GameState.INTRO) { showToast('Önce göreve başlayın!', 'warning'); return }
+  if (isExecuting) { ui.showToast('Zaten çalışıyor!', 'warning'); return }
+  if (gameState === GameState.INTRO) { ui.showToast('Önce göreve başlayın!', 'warning'); return }
 
   const cmds = executor.getCommands().length
-  if (cmds === 0) { showToast('Blok ekleyin!', 'warning'); return }
+  if (cmds === 0) { ui.showToast('Blok ekleyin!', 'warning'); return }
 
   if (battery.getCurrentLevel() <= 0) {
-    showFailure('Batarya tamamen bitti! Sıfırla ve tekrar dene.')
+    ui.showFailure('Batarya tamamen bitti! Sıfırla ve tekrar dene.')
     gameState = GameState.FAILED; return
   }
 
   isExecuting = true
-  // Don't force gameState to EXECUTING if door is already opened — allow continued play
   if (gameState === GameState.READY || gameState === GameState.DOOR_OPENED) {
-    updateStatus('Çalışıyor...', 'executing')
+    ui.updateStatus('Çalışıyor...', 'executing')
   }
 
   const result = await executor.execute(robot, grid, battery)
 
   if (result.stopped) {
-    updateStatus('Durduruldu', 'ready')
+    ui.updateStatus('Durduruldu', 'ready')
   } else if (!result.success && (gameState as unknown) !== GameState.FAILED) {
-    updateStatus('Başarısız', 'error')
+    ui.updateStatus('Başarısız', 'error')
   }
 
   isExecuting = false
-  updatePositionDisplay()
+  ui.updatePositionDisplay(robot)
 })
 
 // STOP
 document.getElementById('btn-stop')!.addEventListener('click', () => {
   executor.stop(); isExecuting = false
-  clearCommandHighlight()
-  updateStatus('Durduruldu', 'ready'); showToast('⏹ Durduruldu', 'warning')
+  blocklyMgr.clearHighlight()
+  ui.updateStatus('Durduruldu', 'ready'); ui.showToast('⏹ Durduruldu', 'warning')
 })
 
 // RESET
 document.getElementById('btn-reset')!.addEventListener('click', () => {
   resetSimulationState()
-  workspace.clear()
-  const gf = workspace.newBlock('green_flag')
-  gf.initSvg(); gf.render(); gf.moveBy(30, 30)
-  updateProgramFromBlockly()
-  showToast('🔄 Sıfırlandı', 'info')
+  blocklyMgr.clearAndReset()
+  ui.showToast('🔄 Sıfırlandı', 'info')
 })
 
-// Success / Failure buttons
-document.getElementById('success-next-btn')!.addEventListener('click', () => hideSuccess())
+// Failure retry
 document.getElementById('failure-retry-btn')!.addEventListener('click', () => {
-  hideFailure(); document.getElementById('btn-reset')!.click()
+  ui.hideFailure(); document.getElementById('btn-reset')!.click()
 })
 
 // LOAD SAMPLE CODE
 document.getElementById('btn-load-code')!.addEventListener('click', () => {
   if (isExecuting) return
-  workspace.clear()
-  const gf = workspace.newBlock('green_flag')
-  gf.initSvg(); gf.render(); gf.moveBy(30, 30)
+  blocklyMgr.loadSampleSolution()
+  ui.showToast('💡 Örnek kod yüklendi!', 'success')
+})
 
-  let cur = gf
-  const add = (type: string, fields?: any) => {
-    const b = workspace.newBlock(type)
-    if (fields) {
-      for (const f in fields) b.setFieldValue(fields[f], f)
-    }
-    b.initSvg(); b.render()
-    cur.nextConnection.connect(b.previousConnection)
-    cur = b
+// ═══════════════════════════════════════════
+// MISSION NAVIGATION
+// ═══════════════════════════════════════════
+function loadMissionUI() {
+  const mission = missionMgr.getCurrentMission()
+  const idx = missionMgr.getCurrentIndex()
+  ui.updateMission(idx + 1, mission.title, mission.description)
+
+  // Show hint
+  const hintEl = document.getElementById('mission-hint')
+  if (hintEl) {
+    hintEl.textContent = `💡 ${mission.hint}`
+    hintEl.style.display = 'block'
   }
 
-  // Full journey:
-  // Robot starts at (5,3) facing North
-  // Step 1: Go to button at (0,7): Forward 4 -> Turn Left -> Forward 5 -> Press Button
-  add('move_forward', { COUNT: 4 })    // (5,3) -> (5,7)
-  add('turn_left', { COUNT: 1 })    // now facing West
-  add('move_forward', { COUNT: 5 })    // (5,7) -> (0,7)
-  add('press_button')                  // opens door @ (0,7)
-  // Step 2: Go to charging station at (5,14) via (0,14)
-  // After button press: at (0,7), facing West.
-  // Turn right twice (180°) to face East, then right again to face North -> simpler:
-  add('turn_right', { COUNT: 1 })    // facing North
-  add('move_forward', { COUNT: 7 })    // (0,7) -> (0,14)
-  add('turn_right', { COUNT: 1 })    // facing East
-  add('move_forward', { COUNT: 5 })    // (0,14) -> (5,14)
-  add('charge')                        // charge up!
+  // Nav buttons
+  const prevBtn = document.getElementById('mission-prev') as HTMLButtonElement
+  const nextBtn = document.getElementById('mission-next') as HTMLButtonElement
+  if (prevBtn) prevBtn.disabled = idx === 0
+  if (nextBtn) nextBtn.disabled = idx >= missionMgr.getTotalMissions() - 1
 
-  updateProgramFromBlockly()
-  showToast('💡 Örnek kod yüklendi!', 'success')
+  updateMissionStarsDisplay()
+}
+
+function updateMissionStarsDisplay() {
+  const idx = missionMgr.getCurrentIndex()
+  const starsEl = document.getElementById('mission-stars')
+  if (!starsEl) return
+  const best = missionMgr.getBestScore(idx)
+  if (best) {
+    starsEl.textContent = '⭐'.repeat(best.stars) + '☆'.repeat(3 - best.stars)
+  } else {
+    starsEl.textContent = '☆☆☆'
+  }
+}
+
+function switchToMission(index: number) {
+  missionMgr.setMission(index)
+  resetSimulationState()
+  blocklyMgr.clearAndReset()
+  missionMgr.resetForMission()
+  loadMissionUI()
+}
+
+document.getElementById('mission-prev')?.addEventListener('click', () => {
+  if (isExecuting) return
+  const idx = missionMgr.getCurrentIndex()
+  if (idx > 0) switchToMission(idx - 1)
+})
+
+document.getElementById('mission-next')?.addEventListener('click', () => {
+  if (isExecuting) return
+  const idx = missionMgr.getCurrentIndex()
+  if (idx < missionMgr.getTotalMissions() - 1) switchToMission(idx + 1)
+})
+
+// Success: advance to next mission
+document.getElementById('success-next-btn')!.addEventListener('click', () => {
+  ui.hideSuccess()
+  const next = missionMgr.nextMission()
+  if (next) {
+    resetSimulationState()
+    blocklyMgr.clearAndReset()
+    missionMgr.resetForMission()
+    loadMissionUI()
+    ui.showToast(`Yeni görev: ${next.title}`, 'info')
+  } else {
+    ui.showToast('Tüm görevleri tamamladın! 🎉', 'success')
+  }
+})
+
+// ═══════════════════════════════════════════
+// CAMERA MODES
+// ═══════════════════════════════════════════
+const cameraModeSelect = document.getElementById('camera-mode-select') as HTMLSelectElement | null
+if (cameraModeSelect) {
+  cameraModeSelect.addEventListener('change', () => {
+    cameraMode = cameraModeSelect.value as typeof cameraMode
+    if (cameraMode === 'overview') {
+      controls.enabled = true
+      const pose = getPrimaryCameraPose()
+      animateCameraTo(pose.pos, pose.target, 800)
+    } else if (cameraMode === 'follow') {
+      controls.enabled = false
+    } else if (cameraMode === 'cinematic') {
+      controls.enabled = false
+      cinematicAngle = 0
+    }
+  })
+}
+
+// ═══════════════════════════════════════════
+// SPEED CONTROL
+// ═══════════════════════════════════════════
+const speedSlider = document.getElementById('speed-slider') as HTMLInputElement | null
+if (speedSlider) {
+  speedSlider.addEventListener('input', () => {
+    const val = parseInt(speedSlider.value, 10)
+    executor.setSpeed(val)
+  })
+}
+
+// ═══════════════════════════════════════════
+// STEP MODE
+// ═══════════════════════════════════════════
+let stepModeEnabled = false
+const stepToggleBtn = document.getElementById('btn-step-toggle')
+const stepNextBtn = document.getElementById('btn-step-next')
+
+stepToggleBtn?.addEventListener('click', () => {
+  stepModeEnabled = !stepModeEnabled
+  executor.setStepMode(stepModeEnabled)
+  stepToggleBtn.classList.toggle('active', stepModeEnabled)
+  if (stepNextBtn) stepNextBtn.style.display = stepModeEnabled ? '' : 'none'
+  ui.showToast(stepModeEnabled ? '👣 Adım modu açıldı' : '🏃 Normal mod', 'info')
+})
+
+stepNextBtn?.addEventListener('click', () => {
+  if (stepModeEnabled && isExecuting) {
+    executor.stepNext()
+  }
 })
 
 // ═══════════════════════════════════════════
@@ -1322,5 +1512,12 @@ document.getElementById('btn-load-code')!.addEventListener('click', () => {
 initScene()
 createGarage()
 initGame()
-initBlockly()
+blocklyMgr.init((newExecutor, totalCost) => {
+  executor = newExecutor
+  ui.updateEnergyEstimate(totalCost)
+  // Sync speed from slider
+  if (speedSlider) executor.setSpeed(parseInt(speedSlider.value, 10))
+  if (stepModeEnabled) executor.setStepMode(true)
+})
+loadMissionUI()
 renderLoop()

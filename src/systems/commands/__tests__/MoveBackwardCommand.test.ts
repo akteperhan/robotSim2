@@ -11,7 +11,7 @@ describe('MoveBackwardCommand', () => {
 
     const result = command.execute(robot, grid)
 
-    expect(result).toEqual({ success: true, batteryConsumed: 1 })
+    expect(result).toEqual({ success: true, batteryConsumed: 0.1 })
     expect(robot.getPosition()).toEqual({ x: 2, y: 1 })
   })
 

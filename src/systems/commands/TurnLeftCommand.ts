@@ -1,13 +1,14 @@
 import { ICommand, CommandType, CommandResult, Color } from '../../core/ICommand'
 import { Robot } from '../../entities/Robot'
 import { Grid } from '../Grid'
+import { BATTERY_COST } from '../../core/Constants'
 
 export class TurnLeftCommand implements ICommand {
   execute(robot: Robot, grid: Grid): CommandResult {
     robot.rotateLeft()
     return {
       success: true,
-      batteryConsumed: 0.5
+      batteryConsumed: BATTERY_COST.TURN_LEFT
     }
   }
 

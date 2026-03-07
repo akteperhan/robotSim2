@@ -1,6 +1,7 @@
 import { ICommand, CommandType, CommandResult, Color } from '../../core/ICommand'
 import { Robot } from '../../entities/Robot'
 import { Grid } from '../Grid'
+import { BATTERY_COST } from '../../core/Constants'
 
 export class MoveForwardCommand implements ICommand {
   execute(robot: Robot, grid: Grid): CommandResult {
@@ -17,7 +18,7 @@ export class MoveForwardCommand implements ICommand {
     robot.moveTo(targetPosition)
     return {
       success: true,
-      batteryConsumed: 1
+      batteryConsumed: BATTERY_COST.MOVE_FORWARD
     }
   }
 

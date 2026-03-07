@@ -1,4 +1,5 @@
 import { Position, Direction } from '../systems/Grid'
+import EventBus from '../systems/EventBus'
 
 export enum EyeExpression {
   NORMAL = 'NORMAL',
@@ -84,5 +85,6 @@ export class Robot {
 
   setEyeExpression(expression: EyeExpression): void {
     this.animationController.setEyeExpression(expression)
+    EventBus.emit('robot:expression', expression)
   }
 }

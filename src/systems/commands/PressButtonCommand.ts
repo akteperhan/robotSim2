@@ -2,6 +2,7 @@ import { ICommand, CommandType, CommandResult, Color } from '../../core/ICommand
 import { Robot } from '../../entities/Robot'
 import { Grid } from '../Grid'
 import { InteractableType } from '../../core/IInteractable'
+import { BATTERY_COST } from '../../core/Constants'
 
 export class PressButtonCommand implements ICommand {
   execute(robot: Robot, grid: Grid): CommandResult {
@@ -18,7 +19,7 @@ export class PressButtonCommand implements ICommand {
     nearbyButton.interact()
     return {
       success: true,
-      batteryConsumed: 1
+      batteryConsumed: BATTERY_COST.PRESS_BUTTON
     }
   }
 

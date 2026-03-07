@@ -11,6 +11,13 @@
   <link
     href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600;700&family=Orbitron:wght@400;500;600;700;800;900&display=swap"
     rel="stylesheet">
+  <script>
+    // Başlangıçta titreme (flicker) olmaması için hemen temayı uygula
+    const savedTheme = localStorage.getItem('bigbot-theme') || 'dark';
+    if (savedTheme === 'light') {
+      document.documentElement.classList.add('theme-light');
+    }
+  </script>
   <style>
     :root {
       --bg-dark: #121826;
@@ -33,6 +40,46 @@
       --radius: 12px;
       --radius-sm: 8px;
       --transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    /* Açık Tema (Light Mode) Değişkenleri */
+    :root.theme-light {
+      --bg-dark: #f0f4f8;
+      --bg-panel: #ffffff;
+      --bg-card: #e2e8f0;
+      --bg-hover: #cbd5e1;
+      --text-primary: #1e293b;
+      --text-secondary: #475569;
+      --text-muted: #64748b;
+      --border-color: #cbd5e1;
+      --shadow-lg: 0 10px 40px rgba(0, 0, 0, 0.08);
+      --accent-primary: #00ba96;
+      /* Biraz daha koyu yeşil okunabilirlik için */
+      --accent-secondary: #5a6fe0;
+    }
+
+    :root.theme-light #intro-overlay {
+      background: radial-gradient(circle at center, #ffffff 0%, #e2e8f0 80%, #cbd5e1 100%);
+    }
+
+    :root.theme-light #intro-overlay::before {
+      background: linear-gradient(rgba(255, 255, 255, 0) 50%, rgba(0, 0, 0, 0.03) 50%), linear-gradient(90deg, rgba(0, 212, 170, 0.05), rgba(102, 126, 234, 0.03), rgba(245, 166, 35, 0.05));
+    }
+
+    :root.theme-light .intro-title {
+      color: #0f172a;
+      text-shadow: 0 0 30px rgba(0, 212, 170, 0.4), 0 0 10px rgba(102, 126, 234, 0.3), 1px 1px 0px var(--accent-primary);
+    }
+
+    :root.theme-light .intro-story {
+      color: #1e293b;
+      background: linear-gradient(90deg, rgba(245, 166, 35, 0.15), rgba(245, 166, 35, 0.02));
+      box-shadow: inset 0 0 15px rgba(245, 166, 35, 0.1);
+    }
+
+    :root.theme-light .intro-start-btn {
+      color: #fff;
+      /* Buton içi metin her zaman beyaz/koyu kalsın */
     }
 
     * {
@@ -237,6 +284,62 @@
       color: #000;
     }
 
+    /* Tema Seçici UI */
+    .theme-switch-container {
+      display: flex;
+      justify-content: center;
+      gap: 15px;
+      margin-top: 30px;
+      opacity: 0;
+      animation: intro-fade-in 0.5s ease forwards;
+      animation-delay: 5s;
+    }
+
+    .theme-btn {
+      background: rgba(255, 255, 255, 0.1);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      color: var(--text-secondary);
+      padding: 10px 20px;
+      border-radius: 20px;
+      font-family: 'Inter', sans-serif;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: var(--transition);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .theme-btn:hover {
+      background: rgba(255, 255, 255, 0.15);
+      color: var(--text-primary);
+    }
+
+    .theme-btn.active {
+      background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary));
+      color: #fff;
+      border-color: transparent;
+      box-shadow: 0 4px 15px rgba(0, 212, 170, 0.3);
+    }
+
+    :root.theme-light .theme-btn {
+      background: rgba(0, 0, 0, 0.05);
+      border-color: rgba(0, 0, 0, 0.1);
+      color: var(--text-secondary);
+    }
+
+    :root.theme-light .theme-btn:hover {
+      background: rgba(0, 0, 0, 0.1);
+      color: var(--text-primary);
+    }
+
+    :root.theme-light .theme-btn.active {
+      background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary));
+      color: #fff;
+      border-color: transparent;
+    }
+
     @keyframes glow-pulse {
       0% {
         box-shadow: 0 10px 30px rgba(0, 212, 170, 0.4), inset 0 0 10px rgba(255, 255, 255, 0.2);
@@ -319,6 +422,19 @@
       margin-bottom: 30px;
     }
 
+    .success-stars {
+      font-size: 48px;
+      letter-spacing: 8px;
+      margin-bottom: 16px;
+      animation: stars-pop 0.8s ease;
+    }
+
+    @keyframes stars-pop {
+      0% { transform: scale(0); opacity: 0; }
+      50% { transform: scale(1.3); }
+      100% { transform: scale(1); opacity: 1; }
+    }
+
     .success-stats {
       display: flex;
       gap: 30px;
@@ -361,6 +477,139 @@
     .success-next-btn:hover {
       transform: translateY(-2px);
       box-shadow: 0 6px 25px rgba(0, 212, 170, 0.4);
+    }
+
+    /* ═══════════════════════════════════
+       LOG PANEL
+    ═══════════════════════════════════ */
+    #log-toggle {
+      position: fixed;
+      bottom: 16px;
+      right: 16px;
+      z-index: 80;
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      color: var(--text-secondary);
+      padding: 6px 14px;
+      border-radius: var(--radius-sm);
+      font-family: 'Inter', sans-serif;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: var(--transition);
+    }
+
+    #log-toggle:hover {
+      background: var(--bg-hover);
+      color: var(--text-primary);
+      border-color: var(--accent-secondary);
+    }
+
+    #log-panel {
+      position: fixed;
+      bottom: 50px;
+      right: 16px;
+      width: 320px;
+      max-height: 280px;
+      z-index: 80;
+      background: rgba(26, 29, 39, 0.95);
+      backdrop-filter: blur(10px);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius);
+      display: none;
+      flex-direction: column;
+      overflow: hidden;
+      box-shadow: var(--shadow-lg);
+    }
+
+    #log-panel.open {
+      display: flex;
+    }
+
+    .log-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 8px 12px;
+      border-bottom: 1px solid var(--border-color);
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--text-primary);
+    }
+
+    .log-header button {
+      background: none;
+      border: 1px solid var(--border-color);
+      color: var(--text-muted);
+      font-size: 10px;
+      padding: 2px 8px;
+      border-radius: 4px;
+      cursor: pointer;
+      transition: var(--transition);
+    }
+
+    .log-header button:hover {
+      color: var(--text-primary);
+      border-color: var(--accent-primary);
+    }
+
+    .log-list {
+      flex: 1;
+      overflow-y: auto;
+      padding: 6px 0;
+      max-height: 230px;
+    }
+
+    .log-entry {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 10px;
+      padding: 3px 12px;
+      color: var(--text-secondary);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      border-left: 2px solid transparent;
+    }
+
+    .log-entry.log-command {
+      border-left-color: var(--accent-primary);
+    }
+
+    .log-entry.log-event {
+      border-left-color: var(--accent-secondary);
+    }
+
+    .log-entry.log-error {
+      border-left-color: var(--accent-danger);
+      color: var(--accent-danger);
+    }
+
+    .log-entry.log-success {
+      border-left-color: var(--accent-success);
+      color: var(--accent-success);
+    }
+
+    .log-icon {
+      font-size: 10px;
+      min-width: 12px;
+    }
+
+    .log-time {
+      color: var(--text-muted);
+      min-width: 52px;
+    }
+
+    /* Blockly error block red pulse */
+    .blocklyErrorHighlight > .blocklyPath {
+      stroke: #fe5b6a !important;
+      stroke-width: 3px !important;
+      filter: drop-shadow(0 0 10px rgba(254, 91, 106, 0.7)) !important;
+      animation: block-error-pulse 0.6s ease-in-out 3 !important;
+    }
+
+    @keyframes block-error-pulse {
+      0%, 100% { filter: drop-shadow(0 0 6px rgba(254, 91, 106, 0.4)); }
+      50% { filter: drop-shadow(0 0 16px rgba(254, 91, 106, 0.9)); }
     }
 
     @keyframes success-bounce {
@@ -619,6 +868,99 @@
     #btn-load-code:hover {
       box-shadow: 0 0 15px rgba(102, 126, 234, 0.5);
       transform: translateY(-1px);
+    }
+
+    #btn-step-toggle {
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      color: var(--text-primary);
+    }
+
+    #btn-step-toggle.active {
+      background: linear-gradient(135deg, #f5a623, #e89318);
+      color: #0b1120;
+      border-color: #f5a623;
+      box-shadow: 0 0 12px rgba(245, 166, 35, 0.4);
+    }
+
+    #btn-step-next {
+      background: linear-gradient(135deg, #f5a623, #e89318);
+      color: #0b1120;
+      box-shadow: 0 2px 8px rgba(245, 166, 35, 0.3);
+    }
+
+    .speed-control {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      font-size: 14px;
+      margin-left: 8px;
+    }
+
+    .speed-control input[type="range"] {
+      -webkit-appearance: none;
+      width: 80px;
+      height: 6px;
+      background: var(--bg-card);
+      border-radius: 3px;
+      outline: none;
+      direction: rtl;
+    }
+
+    .speed-control input[type="range"]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      width: 14px;
+      height: 14px;
+      border-radius: 50%;
+      background: var(--accent-primary);
+      cursor: pointer;
+    }
+
+    .mission-nav {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      justify-content: center;
+    }
+
+    .mission-nav-btn {
+      background: rgba(255, 255, 255, 0.1);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      color: var(--text-primary);
+      border-radius: 6px;
+      width: 28px;
+      height: 28px;
+      font-size: 12px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: var(--transition);
+    }
+
+    .mission-nav-btn:hover {
+      background: rgba(255, 255, 255, 0.2);
+    }
+
+    .mission-nav-btn:disabled {
+      opacity: 0.3;
+      cursor: not-allowed;
+    }
+
+    .mission-hint {
+      font-size: 11px;
+      color: var(--accent-warning);
+      margin-top: 4px;
+      padding: 4px 8px;
+      background: rgba(245, 166, 35, 0.1);
+      border-radius: 4px;
+      border-left: 2px solid var(--accent-warning);
+    }
+
+    .mission-stars {
+      font-size: 16px;
+      margin-top: 4px;
+      letter-spacing: 2px;
     }
 
     .battery-widget {
@@ -982,6 +1324,81 @@
         opacity: 0;
       }
     }
+
+    /* ═══════════════════════════════════════════
+       RESPONSIVE
+    ═══════════════════════════════════════════ */
+    @media (max-width: 900px) {
+      #app {
+        flex-direction: column;
+      }
+
+      #coding-panel {
+        width: 100% !important;
+        height: 40vh;
+        min-width: unset;
+      }
+
+      #canvas-container {
+        height: 60vh;
+      }
+
+      #top-toolbar {
+        flex-wrap: wrap;
+        padding: 6px 8px;
+        gap: 4px;
+      }
+
+      .toolbar-center {
+        flex-wrap: wrap;
+        gap: 4px;
+      }
+
+      .toolbar-right {
+        flex-wrap: wrap;
+        gap: 4px;
+      }
+
+      .ctrl-btn {
+        padding: 6px 10px;
+        font-size: 11px;
+      }
+
+      .speed-control {
+        margin-left: 0;
+      }
+
+      .speed-control input[type="range"] {
+        width: 60px;
+      }
+
+      .mission-card {
+        max-width: 200px;
+      }
+
+      .garage-mode-wrap {
+        display: none;
+      }
+    }
+
+    @media (max-width: 600px) {
+      .toolbar-left .logo span {
+        display: none;
+      }
+
+      #toggle-panel-btn {
+        font-size: 11px;
+        padding: 4px 8px;
+      }
+
+      .success-title, .failure-title {
+        font-size: 24px;
+      }
+
+      .success-icon, .failure-icon {
+        font-size: 60px;
+      }
+    }
   </style>
 </head>
 
@@ -1000,6 +1417,11 @@
         robot sensin. Ama önce garajdan çıkmalı ve şarj olmalısın!"
       </div>
       <button class="intro-start-btn" id="intro-start-btn">🚀 GÖREVE BAŞLA</button>
+
+      <div class="theme-switch-container">
+        <button class="theme-btn" id="btn-theme-dark">🌙 Koyu Tema</button>
+        <button class="theme-btn" id="btn-theme-light">☀️ Açık Tema</button>
+      </div>
     </div>
   </div>
 
@@ -1008,6 +1430,7 @@
     <div class="success-icon">🎉</div>
     <div class="success-title">GÖREV TAMAMLANDI!</div>
     <div class="success-subtitle" id="success-message">Tebrikler! BIG-BOT şarj oldu.</div>
+    <div class="success-stars" id="success-stars"></div>
     <div class="success-stats">
       <div class="stat-item">
         <div class="stat-value" id="stat-commands">0</div>
@@ -1018,7 +1441,7 @@
         <div class="stat-label">Batarya</div>
       </div>
     </div>
-    <button class="success-next-btn" id="success-next-btn">DEVAM ET →</button>
+    <button class="success-next-btn" id="success-next-btn">SONRAKİ GÖREV →</button>
   </div>
 
   <!-- ═══ FAILURE OVERLAY ═══ -->
@@ -1040,9 +1463,16 @@
     </div>
     <div class="toolbar-center">
       <button class="ctrl-btn" id="btn-green-flag"><span>🚩</span> Başlat</button>
+      <button class="ctrl-btn" id="btn-step-toggle" title="Adım adım modunu aç/kapat">👣 Adım Modu</button>
+      <button class="ctrl-btn" id="btn-step-next" style="display:none" title="Sonraki adım">⏭ Adım</button>
       <button class="ctrl-btn" id="btn-stop">⏹ Durdur</button>
       <button class="ctrl-btn" id="btn-reset">↻ Sıfırla</button>
       <button class="ctrl-btn" id="btn-load-code">💡 Çözümü Yükle</button>
+      <div class="speed-control" title="Çalışma hızı">
+        <span>🐢</span>
+        <input type="range" id="speed-slider" min="100" max="2000" value="800" step="100">
+        <span>🐇</span>
+      </div>
     </div>
     <div class="toolbar-right">
       <div class="garage-mode-wrap">
@@ -1059,7 +1489,12 @@
         </div>
         <span class="battery-text" id="battery-text">5%</span>
       </div>
-      <button id="camera-reset">🎥 Kamera</button>
+      <button id="camera-reset">🎥 Sıfırla</button>
+      <select id="camera-mode-select" style="background:var(--bg-card);color:var(--text-primary);border:1px solid var(--border-color);border-radius:6px;font-size:12px;font-family:'Inter',sans-serif;padding:4px 8px;cursor:pointer;">
+        <option value="overview">Genel Bakış</option>
+        <option value="follow">Robot Takip</option>
+        <option value="cinematic">Sinematik</option>
+      </select>
     </div>
   </div>
 
@@ -1079,9 +1514,15 @@
     <div id="canvas-container">
       <div id="mission-overlay">
         <div class="mission-card" id="mission-card">
-          <div class="mission-label" id="mission-label">📋 Görev 1</div>
+          <div class="mission-nav">
+            <button class="mission-nav-btn" id="mission-prev" title="Önceki görev">◀</button>
+            <div class="mission-label" id="mission-label">📋 Görev 1</div>
+            <button class="mission-nav-btn" id="mission-next" title="Sonraki görev">▶</button>
+          </div>
           <div class="mission-title" id="mission-title">Butona Ulaş</div>
           <div class="mission-desc" id="mission-desc">Robotu butona kadar sürerek kapıyı aç.</div>
+          <div class="mission-hint" id="mission-hint" style="display:none"></div>
+          <div class="mission-stars" id="mission-stars"></div>
           <div class="mission-energy">
             <span>⚡ Tahmini Gereken: </span>
             <span id="energy-estimate">14%</span>
@@ -1102,6 +1543,41 @@
 
   <div id="toast-container"></div>
   <script type="module" src="/src/demo/main.ts"></script>
+  <script>
+    // Theme Switch Logic
+    document.addEventListener('DOMContentLoaded', () => {
+      const btnDark = document.getElementById('btn-theme-dark');
+      const btnLight = document.getElementById('btn-theme-light');
+
+      const currentTheme = localStorage.getItem('bigbot-theme') || 'dark';
+
+      if (currentTheme === 'light') {
+        btnLight.classList.add('active');
+        btnDark.classList.remove('active');
+      } else {
+        btnDark.classList.add('active');
+        btnLight.classList.remove('active');
+      }
+
+      btnDark.addEventListener('click', () => {
+        document.documentElement.classList.remove('theme-light');
+        localStorage.setItem('bigbot-theme', 'dark');
+        btnDark.classList.add('active');
+        btnLight.classList.remove('active');
+        // Dispatch event for 3D scene if needed
+        window.dispatchEvent(new CustomEvent('theme-changed', { detail: { theme: 'dark' } }));
+      });
+
+      btnLight.addEventListener('click', () => {
+        document.documentElement.classList.add('theme-light');
+        localStorage.setItem('bigbot-theme', 'light');
+        btnLight.classList.add('active');
+        btnDark.classList.remove('active');
+        // Dispatch event for 3D scene if needed
+        window.dispatchEvent(new CustomEvent('theme-changed', { detail: { theme: 'light' } }));
+      });
+    });
+  </script>
 </body>
 
 </html>

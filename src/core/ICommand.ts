@@ -22,7 +22,7 @@ export interface CommandResult {
 }
 
 export interface ICommand {
-  execute(robot: Robot, grid: Grid): CommandResult
+  execute(robot: Robot, grid: Grid): CommandResult | Promise<CommandResult>
   canExecute(robot: Robot, grid: Grid): boolean
   getType(): CommandType
   getDisplayColor(): Color
