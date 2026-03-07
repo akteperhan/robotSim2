@@ -20,7 +20,7 @@ export class ChargeCommand implements ICommand {
 
     // Wait for charging to complete (BatterySystem.startCharging is async)
     // The interact() call triggers the async charging, we wait a bit for it
-    await new Promise(resolve => setTimeout(resolve, 2200))
+    await new Promise(resolve => setTimeout(resolve, 3800))
 
     return {
       success: true,

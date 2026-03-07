@@ -7,6 +7,7 @@ interface Particle {
   maxLife: number
   color: THREE.Color
   size: number
+  type?: 'dust'
 }
 
 const MAX_PARTICLES = 500
@@ -133,6 +134,31 @@ export class ParticleSystem {
     }
   }
 
+  /** Emit ambient dust motes floating in the garage */
+  emitAmbientDust(center: THREE.Vector3, radius: number, height: number, count = 2) {
+    for (let i = 0; i < count && this.particles.length < MAX_PARTICLES; i++) {
+      const angle = Math.random() * Math.PI * 2
+      const r = Math.random() * radius
+      this.particles.push({
+        position: new THREE.Vector3(
+          center.x + Math.cos(angle) * r,
+          Math.random() * height + 0.3,
+          center.z + Math.sin(angle) * r
+        ),
+        velocity: new THREE.Vector3(
+          (Math.random() - 0.5) * 0.04,
+          0.01 + Math.random() * 0.03,
+          (Math.random() - 0.5) * 0.04
+        ),
+        life: 0,
+        maxLife: 4.0 + Math.random() * 4.0,
+        color: new THREE.Color(0.85, 0.82, 0.72),
+        size: 0.015 + Math.random() * 0.02,
+        type: 'dust'
+      })
+    }
+  }
+
   update(dt: number) {
     for (let i = this.particles.length - 1; i >= 0; i--) {
       const p = this.particles[i]
@@ -141,7 +167,11 @@ export class ParticleSystem {
         this.particles.splice(i, 1)
         continue
       }
-      p.velocity.y -= 4.0 * dt // gravity
+      if (p.type === 'dust') {
+        p.velocity.y += 0.02 * dt // gentle upward drift
+      } else {
+        p.velocity.y -= 4.0 * dt // gravity
+      }
       p.position.addScaledVector(p.velocity, dt)
     }
 

@@ -47,6 +47,7 @@ let stats: Stats
 let robot: Robot, robotMesh: THREE.Group, grid: Grid, battery: BatterySystem, executor: ProgramExecutor
 let button: Button, door: GarageDoor, chargingPad: ChargingPad
 let doorPanels: THREE.Mesh[] = [], doorLines: THREE.Mesh[] = [], doorHandle: THREE.Mesh
+let doorMeshGroup: THREE.Group
 let buttonMesh: THREE.Group | null = null
 let wheelMeshes: THREE.Mesh[] = [], chargePadMesh: THREE.Group
 let mainAmbientLight: THREE.AmbientLight | null = null
@@ -67,10 +68,20 @@ let robotEyeLights: THREE.PointLight[] = []
 let robotChargeRingMat: THREE.MeshStandardMaterial | null = null
 let robotChargeBaseIntensity = 0.6
 let robotChargeBar: THREE.Mesh | null = null
+let robotFloatingBar: THREE.Mesh | null = null
+let robotFloatingBarBg: THREE.Mesh | null = null
+let robotFloatingPctSprite: THREE.Sprite | null = null
+let robotFloatingPctCanvas: HTMLCanvasElement | null = null
+let robotFloatingPctTexture: THREE.CanvasTexture | null = null
 let antennaBallMat: THREE.MeshStandardMaterial | null = null
 let robotPupils: THREE.Mesh[] = []
 let robotAntennaMesh: THREE.Mesh | null = null
 let robotChargePort: THREE.Object3D | null = null
+let doorFrameLedStrips: THREE.Mesh[] = []
+let doorFrameLedMat: THREE.MeshStandardMaterial | null = null
+let ventFanBlade: THREE.Mesh | null = null
+let photoSensorLaser: THREE.Mesh | null = null
+let photoSensorLaserMat: THREE.MeshStandardMaterial | null = null
 let chargingCableAnchor: THREE.Object3D | null = null
 let chargingCableLine: THREE.Line | null = null
 let isCableConnected = false
@@ -167,7 +178,7 @@ function initScene() {
   renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance', logarithmicDepthBuffer: true })
   renderer.setSize(c.clientWidth, c.clientHeight)
   renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5))
-  renderer.shadowMap.enabled = true
+  renderer.shadowMap.enabled = false
   renderer.shadowMap.type = THREE.PCFSoftShadowMap
   renderer.toneMapping = THREE.ACESFilmicToneMapping; renderer.toneMappingExposure = BASE_EXPOSURE
   renderer.outputColorSpace = THREE.SRGBColorSpace
@@ -215,6 +226,11 @@ function createGarage() {
   garageGroup = result.garageGroup
   garageRoofGroup = result.garageRoofGroup
   garageRoofMaterials = result.garageRoofMaterials
+  doorFrameLedStrips = result.doorFrameLedStrips
+  doorFrameLedMat = result.doorFrameLedMat
+  ventFanBlade = result.ventFanBlade
+  photoSensorLaser = result.photoSensorLaser
+  photoSensorLaserMat = result.photoSensorLaserMat
 
   scene.add(garageGroup)
   applyGarageMode(garageMode, false, false)
@@ -338,6 +354,61 @@ function createRobot(pos: Position): THREE.Group {
   aBall.position.y = 1.34; g.add(aBall)
   g.add(new THREE.PointLight(0x00E5FF, 0.5, 2.5).translateY(1.34))
 
+  // ── FLOATING CHARGE BAR (above robot) — bigger & with icon ──
+  const floatingBarGroup = new THREE.Group()
+  floatingBarGroup.position.set(0, 1.75, 0)
+
+  // Background track (wider & taller)
+  robotFloatingBarBg = new THREE.Mesh(
+    new THREE.PlaneGeometry(1.2, 0.18),
+    new THREE.MeshBasicMaterial({ color: 0x0d1520, transparent: true, opacity: 0.9, depthTest: false })
+  )
+  robotFloatingBarBg.renderOrder = 999
+  floatingBarGroup.add(robotFloatingBarBg)
+
+  // Fill bar (wider & taller)
+  robotFloatingBar = new THREE.Mesh(
+    new THREE.PlaneGeometry(1.14, 0.13),
+    new THREE.MeshBasicMaterial({ color: 0xff7043, transparent: true, opacity: 0.95, depthTest: false })
+  )
+  robotFloatingBar.renderOrder = 1000
+  robotFloatingBar.position.z = 0.001
+  floatingBarGroup.add(robotFloatingBar)
+
+  // Battery icon sprite (left of bar)
+  const batIconCanvas = document.createElement('canvas')
+  batIconCanvas.width = 64; batIconCanvas.height = 64
+  const bctx = batIconCanvas.getContext('2d')!
+  bctx.font = 'bold 48px Arial'
+  bctx.textAlign = 'center'
+  bctx.textBaseline = 'middle'
+  bctx.fillStyle = '#ffe082'
+  bctx.fillText('\u26A1', 32, 32)
+  const batIconTex = new THREE.CanvasTexture(batIconCanvas)
+  batIconTex.minFilter = THREE.LinearFilter
+  const batIconSprite = new THREE.Sprite(
+    new THREE.SpriteMaterial({ map: batIconTex, transparent: true, depthTest: false })
+  )
+  batIconSprite.scale.set(0.3, 0.3, 1)
+  batIconSprite.position.set(-0.75, 0, 0.001)
+  batIconSprite.renderOrder = 1001
+  floatingBarGroup.add(batIconSprite)
+
+  // Percentage text sprite (bigger)
+  robotFloatingPctCanvas = document.createElement('canvas')
+  robotFloatingPctCanvas.width = 256
+  robotFloatingPctCanvas.height = 96
+  robotFloatingPctTexture = new THREE.CanvasTexture(robotFloatingPctCanvas)
+  robotFloatingPctTexture.minFilter = THREE.LinearFilter
+  const pctMat = new THREE.SpriteMaterial({ map: robotFloatingPctTexture, transparent: true, depthTest: false })
+  robotFloatingPctSprite = new THREE.Sprite(pctMat)
+  robotFloatingPctSprite.scale.set(0.8, 0.3, 1)
+  robotFloatingPctSprite.position.y = 0.22
+  robotFloatingPctSprite.renderOrder = 1001
+  floatingBarGroup.add(robotFloatingPctSprite)
+
+  g.add(floatingBarGroup)
+
   // ── PANEL ÇİZGİLERİ — Mekanik detay hissi ──
   const panelLineMat = new THREE.MeshStandardMaterial({ color: 0x5a9ab5, roughness: 0.4 })
   // Yatay panel derzleri
@@ -446,106 +517,169 @@ function createChargingStation(pos: Position): THREE.Group {
   const alloyMat = new THREE.MeshStandardMaterial({ color: 0xdde4ee, roughness: 0.16, metalness: 0.9 })
   const panelMat = new THREE.MeshStandardMaterial({ color: 0x101721, roughness: 0.22, metalness: 0.42 })
 
-  // Ground platform + docking ring
-  const platform = new THREE.Mesh(new RoundedBoxGeometry(2.1, 0.1, 2.3, 5, 0.06), graphiteMat)
+  // Ground platform + docking ring (1.5x bigger)
+  const platform = new THREE.Mesh(new RoundedBoxGeometry(3.0, 0.12, 3.2, 5, 0.06), graphiteMat)
   platform.position.y = 0.05
   platform.receiveShadow = true
   g.add(platform)
   const dockingRing = new THREE.Mesh(
-    new THREE.TorusGeometry(0.78, 0.065, 20, 56),
+    new THREE.TorusGeometry(1.1, 0.08, 20, 56),
     new THREE.MeshStandardMaterial({ color: 0x4dd0e1, emissive: 0x26c6da, emissiveIntensity: 1.05, roughness: 0.2, metalness: 0.5 })
   )
   dockingRing.rotation.x = Math.PI / 2
-  dockingRing.position.y = 0.11
+  dockingRing.position.y = 0.12
   g.add(dockingRing)
   const centerPad = new THREE.Mesh(
-    new THREE.CylinderGeometry(0.55, 0.62, 0.06, 48),
+    new THREE.CylinderGeometry(0.8, 0.9, 0.06, 48),
     new THREE.MeshStandardMaterial({ color: 0x1f2a33, roughness: 0.4, metalness: 0.45 })
   )
   centerPad.position.y = 0.08
   g.add(centerPad)
   chargingSurfaceMat = new THREE.MeshStandardMaterial({ color: 0x4de5ff, emissive: 0x26c6da, emissiveIntensity: 0.8, roughness: 0.1 })
   const centerGlow = new THREE.Mesh(
-    new THREE.CylinderGeometry(0.44, 0.48, 0.02, 40),
+    new THREE.CylinderGeometry(0.65, 0.7, 0.02, 40),
     chargingSurfaceMat
   )
   centerGlow.position.y = 0.12
   g.add(centerGlow)
 
-  // Rear power cabinet
-  const powerBody = new THREE.Mesh(new RoundedBoxGeometry(0.7, 1.95, 0.42, 5, 0.06), alloyMat)
-  powerBody.position.set(0, 1.0, -1.15)
+  // Rear power cabinet (bigger)
+  const powerBody = new THREE.Mesh(new RoundedBoxGeometry(1.0, 2.4, 0.6, 5, 0.06), alloyMat)
+  powerBody.position.set(0, 1.2, -1.45)
   powerBody.castShadow = true
   g.add(powerBody)
-  const servicePanel = new THREE.Mesh(new RoundedBoxGeometry(0.58, 1.2, 0.04, 4, 0.02), panelMat)
-  servicePanel.position.set(0, 1.08, -0.92)
+  const servicePanel = new THREE.Mesh(new RoundedBoxGeometry(0.85, 1.5, 0.04, 4, 0.02), panelMat)
+  servicePanel.position.set(0, 1.25, -1.13)
   g.add(servicePanel)
 
   // Status display
   const statusBar = new THREE.Mesh(
-    new RoundedBoxGeometry(0.4, 0.12, 0.015, 3, 0.01),
+    new RoundedBoxGeometry(0.6, 0.15, 0.015, 3, 0.01),
     new THREE.MeshStandardMaterial({ color: 0x69f0ae, emissive: 0x69f0ae, emissiveIntensity: 2.1, roughness: 0.08 })
   )
-  statusBar.position.set(0, 1.52, -0.9)
+  statusBar.position.set(0, 1.85, -1.1)
   g.add(statusBar)
   const statusStripe = new THREE.Mesh(
-    new THREE.BoxGeometry(0.46, 0.03, 0.02),
+    new THREE.BoxGeometry(0.7, 0.03, 0.02),
     new THREE.MeshStandardMaterial({ color: 0x4dd0e1, emissive: 0x4dd0e1, emissiveIntensity: 1.4, roughness: 0.1 })
   )
-  statusStripe.position.set(0, 1.84, -1.02)
+  statusStripe.position.set(0, 2.2, -1.3)
   g.add(statusStripe)
 
-  // Gantry frame
+  // Gantry frame (bigger)
   const frameMat = new THREE.MeshStandardMaterial({ color: 0x5f6f82, roughness: 0.34, metalness: 0.66 })
-  const frameLeft = new THREE.Mesh(new THREE.BoxGeometry(0.18, 2.4, 0.18), frameMat)
-  frameLeft.position.set(-1.0, 1.2, -0.1); g.add(frameLeft)
-  const frameRight = new THREE.Mesh(new THREE.BoxGeometry(0.18, 2.4, 0.18), frameMat)
-  frameRight.position.set(1.0, 1.2, -0.1); g.add(frameRight)
-  const frameTop = new THREE.Mesh(new THREE.BoxGeometry(2.18, 0.16, 0.2), frameMat)
-  frameTop.position.set(0, 2.38, -0.1); g.add(frameTop)
+  const frameLeft = new THREE.Mesh(new THREE.BoxGeometry(0.22, 2.8, 0.22), frameMat)
+  frameLeft.position.set(-1.5, 1.4, -0.1); g.add(frameLeft)
+  const frameRight = new THREE.Mesh(new THREE.BoxGeometry(0.22, 2.8, 0.22), frameMat)
+  frameRight.position.set(1.5, 1.4, -0.1); g.add(frameRight)
+  const frameTop = new THREE.Mesh(new THREE.BoxGeometry(3.22, 0.18, 0.24), frameMat)
+  frameTop.position.set(0, 2.78, -0.1); g.add(frameTop)
 
   // Cable reel + connector dock
-  const reel = new THREE.Mesh(new THREE.TorusGeometry(0.2, 0.05, 16, 32),
+  const reel = new THREE.Mesh(new THREE.TorusGeometry(0.25, 0.06, 16, 32),
     new THREE.MeshStandardMaterial({ color: 0x20252d, roughness: 0.72, metalness: 0.45 }))
-  reel.position.set(0.52, 0.8, -1.0); reel.rotation.y = Math.PI / 2
+  reel.position.set(0.65, 0.9, -1.25); reel.rotation.y = Math.PI / 2
   g.add(reel)
   const dockNozzle = new THREE.Mesh(
-    new RoundedBoxGeometry(0.12, 0.18, 0.09, 3, 0.015),
+    new RoundedBoxGeometry(0.15, 0.22, 0.11, 3, 0.015),
     new THREE.MeshStandardMaterial({ color: 0x25303c, roughness: 0.28, metalness: 0.65 })
   )
-  dockNozzle.position.set(0.66, 0.42, -0.96)
+  dockNozzle.position.set(0.82, 0.5, -1.2)
   g.add(dockNozzle)
   chargingCableAnchor = new THREE.Object3D()
-  chargingCableAnchor.position.set(0.66, 0.42, -0.84)
+  chargingCableAnchor.position.set(0.82, 0.5, -1.05)
   g.add(chargingCableAnchor)
 
-  // Overhead canopy
+  // Overhead canopy (bigger)
   const canopy = new THREE.Mesh(
-    new RoundedBoxGeometry(2.7, 0.12, 3.2, 5, 0.03),
+    new RoundedBoxGeometry(3.8, 0.14, 4.2, 5, 0.03),
     new THREE.MeshStandardMaterial({ color: 0x3b4a5e, roughness: 0.25, metalness: 0.72 })
   )
-  canopy.position.y = 2.64
+  canopy.position.y = 3.0
   g.add(canopy)
   const canopyLed = new THREE.Mesh(
-    new THREE.BoxGeometry(2.4, 0.03, 0.05),
+    new THREE.BoxGeometry(3.4, 0.03, 0.05),
     new THREE.MeshStandardMaterial({ color: 0x7bdff2, emissive: 0x7bdff2, emissiveIntensity: 1.65, roughness: 0.08 })
   )
-  canopyLed.position.set(0, 2.58, 1.54)
+  canopyLed.position.set(0, 2.93, 2.04)
   g.add(canopyLed)
   const canopyLedBack = canopyLed.clone()
-  canopyLedBack.position.z = -1.54
+  canopyLedBack.position.z = -2.04
   g.add(canopyLedBack)
 
-  // Local lighting
-  const spotDown = new THREE.SpotLight(0x7de9ff, 2.0, 6.5, Math.PI / 4.8, 0.45)
-  spotDown.position.set(0, 2.52, 0.1)
+  // ── Icon sprite (above text) — large & glowing ──
+  const iconCanvas = document.createElement('canvas')
+  iconCanvas.width = 256; iconCanvas.height = 256
+  const ictx = iconCanvas.getContext('2d')!
+  // Outer glow circle
+  const grad = ictx.createRadialGradient(128, 128, 30, 128, 128, 120)
+  grad.addColorStop(0, 'rgba(255, 213, 79, 0.5)')
+  grad.addColorStop(1, 'rgba(255, 213, 79, 0)')
+  ictx.fillStyle = grad
+  ictx.fillRect(0, 0, 256, 256)
+  // Lightning bolt
+  ictx.shadowColor = '#ffd54f'
+  ictx.shadowBlur = 40
+  ictx.font = 'bold 160px Arial'
+  ictx.textAlign = 'center'
+  ictx.textBaseline = 'middle'
+  ictx.fillStyle = '#ffe082'
+  ictx.fillText('\u26A1', 128, 128)
+  ictx.shadowBlur = 0
+  const iconTex = new THREE.CanvasTexture(iconCanvas)
+  iconTex.minFilter = THREE.LinearFilter
+  const iconSprite = new THREE.Sprite(
+    new THREE.SpriteMaterial({ map: iconTex, transparent: true, depthTest: false })
+  )
+  iconSprite.scale.set(2.5, 2.5, 1)
+  iconSprite.position.set(0, 5.8, 0)
+  iconSprite.renderOrder = 999
+  g.add(iconSprite)
+
+  // ── "ŞARJ İSTASYONU" text sprite — bold & prominent ──
+  const labelCanvas = document.createElement('canvas')
+  labelCanvas.width = 1024; labelCanvas.height = 128
+  const ctx = labelCanvas.getContext('2d')!
+  // Background — brighter, more visible
+  ctx.fillStyle = 'rgba(0, 40, 60, 0.75)'
+  ctx.roundRect(12, 8, 1000, 112, 18)
+  ctx.fill()
+  ctx.strokeStyle = 'rgba(100, 255, 230, 0.8)'
+  ctx.lineWidth = 4
+  ctx.roundRect(12, 8, 1000, 112, 18)
+  ctx.stroke()
+  // Text — very large, bright white with strong glow
+  ctx.shadowColor = '#00ffcc'
+  ctx.shadowBlur = 30
+  ctx.font = 'bold 72px Arial'
+  ctx.textAlign = 'center'
+  ctx.textBaseline = 'middle'
+  ctx.fillStyle = '#ffffff'
+  ctx.fillText('ŞARJ İSTASYONU', 512, 64)
+  // Second pass for extra brightness
+  ctx.shadowBlur = 10
+  ctx.fillText('ŞARJ İSTASYONU', 512, 64)
+  ctx.shadowBlur = 0
+  const labelTex = new THREE.CanvasTexture(labelCanvas)
+  labelTex.minFilter = THREE.LinearFilter
+  const labelSprite = new THREE.Sprite(
+    new THREE.SpriteMaterial({ map: labelTex, transparent: true, depthTest: false })
+  )
+  labelSprite.scale.set(5.5, 0.7, 1)
+  labelSprite.position.set(0, 4.5, 0)
+  labelSprite.renderOrder = 999
+  g.add(labelSprite)
+
+  // Local lighting (adjusted for bigger size)
+  const spotDown = new THREE.SpotLight(0x7de9ff, 2.5, 8.0, Math.PI / 4.5, 0.45)
+  spotDown.position.set(0, 2.9, 0.1)
   spotDown.target.position.set(0, 0, 0.05)
   g.add(spotDown)
   g.add(spotDown.target)
-  g.add(new THREE.PointLight(0x69f0ae, 1.0, 7).translateY(0.6))
+  g.add(new THREE.PointLight(0x69f0ae, 1.2, 9).translateY(0.6))
   chargingAmbientGlowMat = new THREE.MeshBasicMaterial({ color: 0x7de9ff, transparent: true, opacity: 0.06 })
-  const glowSphere = new THREE.Mesh(new THREE.SphereGeometry(0.95, 24, 18), chargingAmbientGlowMat)
-  glowSphere.position.y = 0.55
+  const glowSphere = new THREE.Mesh(new THREE.SphereGeometry(1.4, 24, 18), chargingAmbientGlowMat)
+  glowSphere.position.y = 0.6
   g.add(glowSphere)
 
   if (chargingCableLine) scene.remove(chargingCableLine)
@@ -553,11 +687,18 @@ function createChargingStation(pos: Position): THREE.Group {
   const cableGeometry = new THREE.BufferGeometry().setFromPoints(cablePoints)
   chargingCableLine = new THREE.Line(
     cableGeometry,
-    new THREE.LineBasicMaterial({ color: 0x16181f, transparent: true, opacity: 0.9 })
+    new THREE.LineBasicMaterial({ color: 0x00e6b8, transparent: true, opacity: 0.9, linewidth: 2 })
   )
   chargingCableLine.visible = false
   chargingCableLine.frustumCulled = false
   scene.add(chargingCableLine)
+  // Glow cable (slightly wider offset for glow effect)
+  const glowCableGeom = new THREE.BufferGeometry().setFromPoints(cablePoints.map(p => p.clone()))
+  const glowCable = new THREE.Line(glowCableGeom, new THREE.LineBasicMaterial({ color: 0x00e6b8, transparent: true, opacity: 0.3 }))
+  glowCable.visible = false
+  glowCable.frustumCulled = false
+  chargingCableLine.userData.glowLine = glowCable
+  scene.add(glowCable)
 
   g.rotation.y = Math.PI
   g.position.set(pos.x, 0, pos.y); scene.add(g); return g
@@ -569,7 +710,8 @@ function createChargingStation(pos: Position): THREE.Group {
 function createDoor(): THREE.Group {
   const doorGroup = new THREE.Group()
   doorPanels = []; doorLines = []
-  const doorW = GRID_W - 0.3
+  const doorCX = (GRID_W - 1) / 2  // true geometric center between walls
+  const doorW = GRID_W + 0.6       // flush with wall inner faces
   const numPanels = Math.ceil(WALL_H / DOOR_PANEL_H)
 
   // Industrial sectional door — alternating panel colors for depth
@@ -590,12 +732,12 @@ function createDoor(): THREE.Group {
       clippingPlanes: [doorClipPlane], clipShadows: true
     })
     const p = new THREE.Mesh(new RoundedBoxGeometry(doorW, DOOR_PANEL_H - 0.01, 0.08, 2, 0.01), panelMat)
-    p.position.set(GRID_CENTER_X, DOOR_PANEL_H / 2 + i * DOOR_PANEL_H, DOOR_Z)
+    p.position.set(doorCX, DOOR_PANEL_H / 2 + i * DOOR_PANEL_H, DOOR_Z)
     p.castShadow = true; doorGroup.add(p); doorPanels.push(p)
 
     // Panel divider lines
     const l = new THREE.Mesh(new THREE.BoxGeometry(doorW, 0.012, 0.09), lineMat)
-    l.position.set(GRID_CENTER_X, i * DOOR_PANEL_H + DOOR_PANEL_H, DOOR_Z)
+    l.position.set(doorCX, i * DOOR_PANEL_H + DOOR_PANEL_H, DOOR_Z)
     doorGroup.add(l); doorLines.push(l)
 
     // Frosted window inserts on top panels
@@ -607,7 +749,7 @@ function createDoor(): THREE.Group {
       })
       // 4 window panes per panel
       for (let w = 0; w < 4; w++) {
-        const wx = GRID_CENTER_X - doorW * 0.35 + w * (doorW * 0.7 / 3)
+        const wx = doorCX - doorW * 0.35 + w * (doorW * 0.7 / 3)
         const win = new THREE.Mesh(new THREE.BoxGeometry(doorW * 0.15, DOOR_PANEL_H * 0.6, 0.01), windowMat)
         win.position.set(wx, DOOR_PANEL_H / 2 + i * DOOR_PANEL_H, DOOR_Z + 0.045)
         doorGroup.add(win)
@@ -621,17 +763,17 @@ function createDoor(): THREE.Group {
         clippingPlanes: [doorClipPlane], clipShadows: true
       })
       const embossL = new THREE.Mesh(new THREE.BoxGeometry(doorW * 0.42, DOOR_PANEL_H * 0.55, 0.005), embossMat)
-      embossL.position.set(GRID_CENTER_X - doorW * 0.26, DOOR_PANEL_H / 2 + i * DOOR_PANEL_H, DOOR_Z + 0.042)
+      embossL.position.set(doorCX - doorW * 0.26, DOOR_PANEL_H / 2 + i * DOOR_PANEL_H, DOOR_Z + 0.042)
       doorGroup.add(embossL)
       const embossR = new THREE.Mesh(new THREE.BoxGeometry(doorW * 0.42, DOOR_PANEL_H * 0.55, 0.005), embossMat)
-      embossR.position.set(GRID_CENTER_X + doorW * 0.26, DOOR_PANEL_H / 2 + i * DOOR_PANEL_H, DOOR_Z + 0.042)
+      embossR.position.set(doorCX + doorW * 0.26, DOOR_PANEL_H / 2 + i * DOOR_PANEL_H, DOOR_Z + 0.042)
       doorGroup.add(embossR)
     }
   }
 
   // Side rails / tracks
   const railMat = new THREE.MeshStandardMaterial({ color: 0x37474f, roughness: 0.3, metalness: 0.8 })
-  for (const rx of [GRID_CENTER_X - doorW / 2 - 0.06, GRID_CENTER_X + doorW / 2 + 0.06]) {
+  for (const rx of [doorCX - doorW / 2 - 0.06, doorCX + doorW / 2 + 0.06]) {
     // Vertical track
     const rail = new THREE.Mesh(new THREE.BoxGeometry(0.06, WALL_H + 0.1, 0.10), railMat)
     rail.position.set(rx, WALL_H / 2, DOOR_Z)
@@ -650,17 +792,17 @@ function createDoor(): THREE.Group {
       color: 0x263238, roughness: 0.25, metalness: 0.85,
       clippingPlanes: [doorClipPlane], clipShadows: true
     }))
-  doorHandle.position.set(GRID_CENTER_X - doorW * 0.33, 0.9, DOOR_Z + 0.1); doorGroup.add(doorHandle)
+  doorHandle.position.set(doorCX - doorW * 0.33, 0.9, DOOR_Z + 0.1); doorGroup.add(doorHandle)
   // Handle grip bar
   const grip = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.02, 0.06),
     new THREE.MeshStandardMaterial({ color: 0x455a64, roughness: 0.3, metalness: 0.8,
       clippingPlanes: [doorClipPlane], clipShadows: true }))
-  grip.position.set(GRID_CENTER_X - doorW * 0.33, 0.95, DOOR_Z + 0.14); doorGroup.add(grip)
+  grip.position.set(doorCX - doorW * 0.33, 0.95, DOOR_Z + 0.14); doorGroup.add(grip)
 
   // Bottom weather seal (rubber strip)
   const sealMat = new THREE.MeshStandardMaterial({ color: 0x1a1a1a, roughness: 0.9, metalness: 0.0 })
   const seal = new THREE.Mesh(new THREE.BoxGeometry(doorW + 0.1, 0.03, 0.12), sealMat)
-  seal.position.set(GRID_CENTER_X, 0.015, DOOR_Z)
+  seal.position.set(doorCX, 0.015, DOOR_Z)
   doorGroup.add(seal)
 
   scene.add(doorGroup); return doorGroup
@@ -689,8 +831,8 @@ function animateDoorOpening() {
   // Glow plane
   if (doorGlowPlane) scene.remove(doorGlowPlane)
   const glowMat = new THREE.MeshBasicMaterial({ color: 0xfff8e1, transparent: true, opacity: 0, side: THREE.DoubleSide })
-  doorGlowPlane = new THREE.Mesh(new THREE.PlaneGeometry(GRID_W, WALL_H), glowMat)
-  doorGlowPlane.position.set(GRID_CENTER_X, WALL_H / 2, DOOR_ROW + 0.1); scene.add(doorGlowPlane)
+  doorGlowPlane = new THREE.Mesh(new THREE.PlaneGeometry(GRID_W + 0.6, WALL_H), glowMat)
+  doorGlowPlane.position.set((GRID_W - 1) / 2, WALL_H / 2, DOOR_ROW + 0.1); scene.add(doorGlowPlane)
 
   // Volumetric SpotLights — fan-shaped light beams flooding into garage
   doorVolumetricLights.forEach(l => scene.remove(l))
@@ -723,19 +865,7 @@ function animateDoorOpening() {
     doorFloorStrips.push(strip)
   })
 
-  // Dust particles — start emitting floating dust through the light beams
-  if (doorDustInterval) clearInterval(doorDustInterval)
-  let dustWaves = 0
-  doorDustInterval = setInterval(() => {
-    particles.emitDoorDust(
-      new THREE.Vector3(GRID_CENTER_X, 0, DOOR_ROW),
-      GRID_W * 0.7, WALL_H, 12
-    )
-    dustWaves++
-    if (dustWaves >= 6) {
-      if (doorDustInterval) { clearInterval(doorDustInterval); doorDustInterval = null }
-    }
-  }, 400)
+  // Door dust removed — user found them visually distracting
 
   const animate = () => {
     if (animationVersion !== doorAnimationVersion) return
@@ -777,12 +907,24 @@ function animateDoorOpening() {
       else mat.opacity = 0.35 * (1 - (t - 0.7) / 0.3)
     })
 
+    // LED strip: red → green transition
+    if (doorFrameLedMat) {
+      const r = THREE.MathUtils.lerp(1.0, 0.0, ease)
+      const g = THREE.MathUtils.lerp(0.0, 1.0, ease)
+      doorFrameLedMat.color.setRGB(r, g, 0)
+      doorFrameLedMat.emissive.setRGB(r, g, 0)
+    }
+    // Photo sensor laser: visible briefly then off
+    if (photoSensorLaser) photoSensorLaser.visible = ease < 0.1
+
     renderer.toneMappingExposure = BASE_EXPOSURE + ease * DOOR_OPEN_EXPOSURE_BOOST
     if (skyLight) skyLight.intensity = ease * 0.95
 
     if (t < 1) requestAnimationFrame(animate)
     else {
       if (doorGlowPlane) { scene.remove(doorGlowPlane); doorGlowPlane = null }
+      // Hide entire door group so no remnants look like an awning
+      if (doorMeshGroup) doorMeshGroup.visible = false
       // Clean up floor strips
       doorFloorStrips.forEach(s => scene.remove(s))
       doorFloorStrips = []
@@ -821,6 +963,7 @@ function resetDoorVisualState() {
   doorFloorStrips = []
   if (doorDustInterval) { clearInterval(doorDustInterval); doorDustInterval = null }
 
+  if (doorMeshGroup) doorMeshGroup.visible = true
   doorPanels.forEach((p, i) => {
     p.position.set(GRID_CENTER_X, DOOR_PANEL_H / 2 + i * DOOR_PANEL_H, DOOR_Z)
     p.rotation.set(0, 0, 0)
@@ -839,6 +982,13 @@ function resetDoorVisualState() {
     buttonMesh.position.y = 0
   }
 
+  // Reset door mechanism visuals
+  if (doorFrameLedMat) {
+    doorFrameLedMat.color.setRGB(1, 0, 0)
+    doorFrameLedMat.emissive.setRGB(1, 0, 0)
+  }
+  if (photoSensorLaser) photoSensorLaser.visible = true
+
   renderer.toneMappingExposure = BASE_EXPOSURE
   if (skyLight) skyLight.intensity = 0
 }
@@ -847,8 +997,12 @@ function resetSimulationState() {
   executor.stop()
   battery.stopCharging()
   setChargingCableConnected(false)
+  isChargingActive = false
   chargePulseUntil = 0
   isExecuting = false
+  // Remove mission complete overlay if still showing
+  const mcOverlay = document.getElementById('mission-complete-overlay')
+  if (mcOverlay) mcOverlay.remove()
 
   ui.hideSuccess()
   ui.hideFailure()
@@ -953,7 +1107,11 @@ function isRobotOnChargingPad(): boolean {
 function setChargingCableConnected(connected: boolean) {
   isCableConnected = connected
   if (connected) cableConnectStart = performance.now()
-  if (chargingCableLine) chargingCableLine.visible = connected
+  if (chargingCableLine) {
+    chargingCableLine.visible = connected
+    const glow = chargingCableLine.userData.glowLine as THREE.Line | undefined
+    if (glow) glow.visible = connected
+  }
 }
 
 function updateChargingCableGeometry(start: THREE.Vector3, end: THREE.Vector3) {
@@ -972,12 +1130,20 @@ function updateChargingCableGeometry(start: THREE.Vector3, end: THREE.Vector3) {
     ))
   }
   (chargingCableLine.geometry as THREE.BufferGeometry).setFromPoints(points)
+  // Update glow line too
+  const glow = chargingCableLine.userData.glowLine as THREE.Line | undefined
+  if (glow) {
+    const glowPoints = points.map(p => p.clone().add(new THREE.Vector3(0, 0.02, 0)))
+    ;(glow.geometry as THREE.BufferGeometry).setFromPoints(glowPoints)
+  }
 }
 
 function updateChargingCable() {
   if (!chargingCableLine || !chargingCableAnchor || !robotChargePort) return
   if (!isCableConnected) {
     chargingCableLine.visible = false
+    const gl = chargingCableLine.userData.glowLine as THREE.Line | undefined
+    if (gl) gl.visible = false
     return
   }
   if (!isRobotOnChargingPad()) {
@@ -992,6 +1158,13 @@ function updateChargingCable() {
   const end = start.clone().lerp(target, eased)
   updateChargingCableGeometry(start, end)
   chargingCableLine.visible = true
+  const glowL = chargingCableLine.userData.glowLine as THREE.Line | undefined
+  if (glowL) {
+    glowL.visible = true
+    // Pulse glow opacity during active charging
+    const glowMat = glowL.material as THREE.LineBasicMaterial
+    glowMat.opacity = isChargingActive ? 0.3 + Math.sin(performance.now() * 0.008) * 0.2 : 0.15
+  }
 }
 
 function updateRobotChargeIndicator(level: number) {
@@ -1019,6 +1192,30 @@ function updateRobotChargeIndicator(level: number) {
     barMat.color.setHex(color)
     barMat.emissive.setHex(color)
     barMat.emissiveIntensity = intensity + 0.25
+  }
+
+  // Floating bar above robot (wider bar)
+  if (robotFloatingBar) {
+    const barMat = robotFloatingBar.material as THREE.MeshBasicMaterial
+    const t = Math.max(0.02, pct / 100)
+    robotFloatingBar.scale.x = t
+    robotFloatingBar.position.x = -0.57 * (1 - t)
+    barMat.color.setHex(color)
+  }
+
+  // Percentage text (bigger canvas)
+  if (robotFloatingPctCanvas && robotFloatingPctTexture) {
+    const ctx = robotFloatingPctCanvas.getContext('2d')!
+    ctx.clearRect(0, 0, 256, 96)
+    ctx.shadowColor = '#00ffcc'
+    ctx.shadowBlur = 8
+    ctx.font = 'bold 56px Arial'
+    ctx.textAlign = 'center'
+    ctx.textBaseline = 'middle'
+    ctx.fillStyle = '#ffffff'
+    ctx.fillText(`${Math.round(pct)}%`, 128, 48)
+    ctx.shadowBlur = 0
+    robotFloatingPctTexture.needsUpdate = true
   }
 }
 
@@ -1060,17 +1257,87 @@ function updateGarageRoofVisual() {
   })
 }
 
+let isChargingActive = false
+
+function showMissionCompleteOverlay() {
+  // Create a full-screen DOM overlay for "GÖREV TAMAMLANDI"
+  const overlay = document.createElement('div')
+  overlay.id = 'mission-complete-overlay'
+  overlay.innerHTML = `
+    <div class="mc-content">
+      <div class="mc-icon">&#9889;</div>
+      <div class="mc-title">GÖREV TAMAMLANDI!</div>
+      <div class="mc-subtitle">Batarya %100 — BIG-BOT hazır!</div>
+    </div>
+  `
+  overlay.style.cssText = `
+    position: fixed; inset: 0; z-index: 9999;
+    display: flex; align-items: center; justify-content: center;
+    pointer-events: none;
+    animation: mc-fade-in 0.5s ease-out forwards;
+  `
+  const style = document.createElement('style')
+  style.textContent = `
+    @keyframes mc-fade-in { from { opacity: 0; transform: scale(0.7); } to { opacity: 1; transform: scale(1); } }
+    @keyframes mc-fade-out { from { opacity: 1; transform: scale(1); } to { opacity: 0; transform: scale(1.1); } }
+    @keyframes mc-glow-pulse { 0%,100% { text-shadow: 0 0 20px rgba(0,230,184,0.6), 0 0 40px rgba(0,230,184,0.3); } 50% { text-shadow: 0 0 40px rgba(0,230,184,0.9), 0 0 80px rgba(0,230,184,0.5); } }
+    @keyframes mc-icon-bounce { 0%,100% { transform: scale(1); } 50% { transform: scale(1.2); } }
+    .mc-content {
+      text-align: center;
+      background: radial-gradient(ellipse at center, rgba(0,30,40,0.85) 0%, rgba(0,10,20,0.7) 70%, transparent 100%);
+      padding: 40px 80px; border-radius: 20px;
+      border: 2px solid rgba(0,230,184,0.4);
+    }
+    .mc-icon { font-size: 64px; margin-bottom: 12px; animation: mc-icon-bounce 0.8s ease-in-out infinite; }
+    .mc-title {
+      font-family: 'Inter', Arial, sans-serif; font-size: 42px; font-weight: 900;
+      color: #00e6b8; letter-spacing: 4px;
+      animation: mc-glow-pulse 1.5s ease-in-out infinite;
+    }
+    .mc-subtitle {
+      font-family: 'Inter', Arial, sans-serif; font-size: 18px; color: #b0bec5;
+      margin-top: 10px; letter-spacing: 2px;
+    }
+  `
+  document.head.appendChild(style)
+  document.body.appendChild(overlay)
+
+  // Auto-remove after 3.5 seconds
+  setTimeout(() => {
+    overlay.style.animation = 'mc-fade-out 0.6s ease-in forwards'
+    setTimeout(() => {
+      overlay.remove()
+      style.remove()
+    }, 600)
+  }, 3500)
+}
+
 function playChargingAnimation() {
   soundManager.playCharging()
   setChargingCableConnected(true)
-  chargePulseUntil = performance.now() + 2200
+  isChargingActive = true
+  chargePulseUntil = performance.now() + 3700
+  // Robot eyes go happy during charging
+  EventBus.emit('robot:expression', EyeExpression.HAPPY)
+
+  // Camera: smoothly animate to a close-up view of the robot charging
+  const rp = robotMesh.position
+  animateCameraTo(
+    { x: rp.x + 3, y: rp.y + 3.5, z: rp.z + 4 },
+    { x: rp.x, y: rp.y + 0.5, z: rp.z },
+    1200
+  )
+
   const mat = chargingSurfaceMat
   if (!mat) return
   const st = Date.now()
+  const dur = 3500
   const pulse = () => {
-    const t = (Date.now() - st) / 2000
-    if (t > 1) { mat.emissiveIntensity = 0.6; return }
-    mat.emissiveIntensity = 0.6 + Math.sin(t * Math.PI * 8) * 0.8
+    const t = (Date.now() - st) / dur
+    if (t > 1) { mat.emissiveIntensity = 0.6; isChargingActive = false; return }
+    // Intensifying pulse: starts slow, gets faster as charge fills
+    const freq = 4 + t * 12
+    mat.emissiveIntensity = 0.6 + Math.sin(t * Math.PI * freq) * (0.4 + t * 0.6)
     requestAnimationFrame(pulse)
   }; pulse()
 }
@@ -1087,7 +1354,7 @@ function initGame() {
   robotMesh = createRobot(robot.getPosition())
   buttonMesh = createButton3D(BUTTON_POS)
   chargePadMesh = createChargingStation(CHARGE_POS)
-  createDoor()
+  doorMeshGroup = createDoor()
   const env = createOutdoorScene(scene, { GRID_W, GRID_H, DOOR_ROW, GRID_CENTER_X })
   skyLight = env.skyLight
   envAnimatedObjects = env.animatedObjects
@@ -1150,6 +1417,7 @@ function initGame() {
 
   EventBus.on('battery:dead', () => {
     setChargingCableConnected(false)
+    isChargingActive = false
     chargePulseUntil = 0
     isExecuting = false; gameState = GameState.FAILED
     blocklyMgr.clearHighlight()
@@ -1159,16 +1427,20 @@ function initGame() {
 
   EventBus.on('battery:full', () => {
     setChargingCableConnected(false)
+    isChargingActive = false
     chargePulseUntil = 0
-    ui.updateBatteryUI(100); ui.showToast('🔋 Batarya %100 dolu!', 'success')
+    ui.updateBatteryUI(100)
     gameState = GameState.COMPLETE
     blocklyMgr.clearHighlight()
+
+    // Show "GÖREV TAMAMLANDI" floating text above robot
+    showMissionCompleteOverlay()
 
     // Celebration: jump, happy expression, spin, confetti
     EventBus.emit('robot:expression', EyeExpression.HAPPY)
     if (particles) {
-      particles.emitConfetti(robotMesh.position.clone(), 50)
-      particles.emitChargeSparks(robotMesh.position.clone().add(new THREE.Vector3(0, 1, 0)), 30)
+      particles.emitConfetti(robotMesh.position.clone(), 60)
+      particles.emitChargeSparks(robotMesh.position.clone().add(new THREE.Vector3(0, 1, 0)), 40)
     }
     logPanel.addEntry('success', 'Batarya %100 dolu! Görev tamamlandı!')
     const jumpDur = 1200;
@@ -1188,9 +1460,14 @@ function initGame() {
     };
     jumpAnim();
 
+    // Burst confetti again mid-jump
     setTimeout(() => {
-      ui.showSuccess('HAZIRSIN! ŞEHİR SENİ BEKLİYOR 🏙️', executor.getCommands().length, 100)
-    }, 1200)
+      if (particles) particles.emitConfetti(robotMesh.position.clone().add(new THREE.Vector3(0, 1.5, 0)), 40)
+    }, 600)
+
+    setTimeout(() => {
+      ui.showSuccess('GÖREV TAMAMLANDI! ŞEHİR SENİ BEKLİYOR!', executor.getCommands().length, 100)
+    }, 1400)
   })
 
   EventBus.on('program:stopped', () => {
@@ -1283,6 +1560,13 @@ function renderLoop() {
   updateGarageRoofVisual()
   updateChargingCable()
   if (particles) particles.update(0.016)
+  // Fan rotation
+  if (ventFanBlade) ventFanBlade.rotation.z += 0.02
+  // Ambient dust removed — user found them visually distracting ("baloncuklar")
+  // Laser pulse
+  if (photoSensorLaserMat) {
+    photoSensorLaserMat.opacity = 0.4 + Math.sin(time * 4) * 0.2
+  }
   if (robotMesh) {
     // Antenna pulse + wobble (more prominent rhythmic pulse)
     if (antennaBallMat) {
@@ -1315,19 +1599,37 @@ function renderLoop() {
     }
     // Idle bob
     if (!isExecuting) robotMesh.position.y = Math.sin(time * 1.5) * 0.01
+    // Billboard floating bar toward camera
+    if (robotFloatingBarBg && camera) {
+      const barGroup = robotFloatingBarBg.parent
+      if (barGroup) {
+        barGroup.quaternion.copy(camera.quaternion)
+      }
+    }
+    // Floating bar glow pulse during charging
+    if (robotFloatingBar && isChargingActive) {
+      const barMat = robotFloatingBar.material as THREE.MeshBasicMaterial
+      const pulse = 0.7 + Math.sin(time * 8) * 0.3
+      barMat.opacity = pulse
+    } else if (robotFloatingBar) {
+      (robotFloatingBar.material as THREE.MeshBasicMaterial).opacity = 0.95
+    }
   }
   if (robotChargeRingMat) {
     const isCharging = chargePulseUntil > performance.now()
     const pulseBoost = isCharging ? 0.45 + Math.sin(time * 14) * 0.35 : 0
     robotChargeRingMat.emissiveIntensity = robotChargeBaseIntensity + pulseBoost
-    // Continuous charge sparks during charging
-    if (isCharging && particles && Math.random() < 0.3) {
-      particles.emitChargeSparks(new THREE.Vector3(CHARGE_POS.x, 0.4, CHARGE_POS.y), 3)
+    // Continuous charge sparks during charging — more frequent & from robot too
+    if (isCharging && particles) {
+      if (Math.random() < 0.4) particles.emitChargeSparks(new THREE.Vector3(CHARGE_POS.x, 0.4, CHARGE_POS.y), 3)
+      if (Math.random() < 0.15 && robotMesh) particles.emitChargeSparks(robotMesh.position.clone().add(new THREE.Vector3(0, 0.8, 0)), 2)
     }
   }
   // Charging pad glow pulse
   if (chargingAmbientGlowMat) {
-    chargingAmbientGlowMat.opacity = 0.06 + Math.sin(time * 2) * 0.04
+    const baseGlow = isChargingActive ? 0.12 : 0.06
+    const glowAmp = isChargingActive ? 0.08 : 0.04
+    chargingAmbientGlowMat.opacity = baseGlow + Math.sin(time * 2) * glowAmp
   }
 
   // === Animate Sky Objects ===
@@ -1630,9 +1932,7 @@ function applyQualityPreset(preset: 'high' | 'performance') {
   if (preset === 'high') {
     // Cap at 1.5 — almost indistinguishable from 2.0 but 44% fewer pixels
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5))
-    renderer.shadowMap.enabled = true
     if (sun) {
-      sun.castShadow = true
       sun.shadow.mapSize.set(2048, 2048)
       sun.shadow.radius = 3
       sun.shadow.map?.dispose()
@@ -1641,11 +1941,6 @@ function applyQualityPreset(preset: 'high' | 'performance') {
     if (scene?.fog) (scene.fog as THREE.FogExp2).density = 0.004
   } else {
     renderer.setPixelRatio(1)
-    // Disable shadows entirely — biggest single perf win
-    renderer.shadowMap.enabled = false
-    if (sun) {
-      sun.castShadow = false
-    }
     if (scene?.fog) (scene.fog as THREE.FogExp2).density = 0.002
   }
 
@@ -1662,6 +1957,22 @@ document.querySelectorAll('.quality-btn').forEach(btn => {
     btn.classList.add('active')
     applyQualityPreset(quality)
   })
+})
+
+// Shadow toggle
+let shadowEnabled = false
+const shadowToggleBtn = document.getElementById('btn-shadow-toggle')
+if (shadowToggleBtn) {
+  shadowToggleBtn.textContent = '🌑 Kapalı'
+  shadowToggleBtn.classList.remove('active')
+}
+shadowToggleBtn?.addEventListener('click', () => {
+  shadowEnabled = !shadowEnabled
+  const sun = scene?.getObjectByName('env_sun') as THREE.DirectionalLight | undefined
+  renderer.shadowMap.enabled = shadowEnabled
+  if (sun) sun.castShadow = shadowEnabled
+  shadowToggleBtn.textContent = shadowEnabled ? '🌑 Açık' : '🌑 Kapalı'
+  shadowToggleBtn.classList.toggle('active', shadowEnabled)
 })
 
 // ═══════════════════════════════════════════

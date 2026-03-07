@@ -392,9 +392,9 @@ export class BlocklyManager {
     add('move_forward', { COUNT: 5 })
     add('press_button')
     add('turn_right', { COUNT: 1 })
-    add('move_forward', { COUNT: 7 })
+    add('move_forward', { COUNT: 17 })
     add('turn_right', { COUNT: 1 })
-    add('move_forward', { COUNT: 5 })
+    add('move_forward', { COUNT: 2 })
     add('charge')
 
     this.updateProgramFromBlockly()

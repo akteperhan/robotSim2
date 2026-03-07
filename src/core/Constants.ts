@@ -4,9 +4,9 @@ import { Position } from '../systems/Grid'
 // GRID & LAYOUT
 // ═══════════════════════════════════════════
 export const GRID_W = 12
-export const GRID_H = 16
-export const GARAGE_DEPTH = 12
-export const DOOR_ROW = 12
+export const GRID_H = 26
+export const GARAGE_DEPTH = 16
+export const DOOR_ROW = 16
 export const GRID_CENTER_X = Math.floor((GRID_W - 1) / 2)
 export const WALL_H = 3.0
 export const DOOR_PANEL_H = 0.16
@@ -17,7 +17,7 @@ export const DOOR_Z = DOOR_ROW - 0.1
 // ═══════════════════════════════════════════
 export const ROBOT_START: Position = { x: GRID_CENTER_X, y: 3 }
 export const BUTTON_POS: Position = { x: 0, y: 7 }
-export const CHARGE_POS: Position = { x: GRID_CENTER_X, y: 14 }
+export const CHARGE_POS: Position = { x: 2, y: 24 }
 
 // ═══════════════════════════════════════════
 // CAMERA

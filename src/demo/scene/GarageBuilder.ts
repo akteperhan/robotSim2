@@ -58,16 +58,11 @@ export function createGarage(config: GarageConfig) {
     // ═══════════════════════════════════════════
     const wallMat = new THREE.MeshStandardMaterial({ color: 0xd5dce6, roughness: 0.7, metalness: 0.05 })
     const wallPanelMat = new THREE.MeshStandardMaterial({ color: 0xc0c8d4, roughness: 0.65, metalness: 0.08 })
-    const floorMat = new THREE.MeshStandardMaterial({ color: 0x5a6274, roughness: 0.7, metalness: 0.15 })
+    const floorMat = new THREE.MeshStandardMaterial({ color: 0x5a6274, roughness: 0.55, metalness: 0.25 })
     // baseBandMat and skirting in original both use { color: 0x37474f, roughness: 0.5, metalness: 0.3 }
     const darkBandMat = new THREE.MeshStandardMaterial({ color: 0x37474f, roughness: 0.5, metalness: 0.3 })
     const toolMat = new THREE.MeshStandardMaterial({ color: 0x42a5f5, roughness: 0.3, metalness: 0.8 })
     const contactShadowMat = new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.2, depthWrite: false })
-    // ductMat and conduit share { color: 0x78909c } but different roughness/metalness.
-    // Original ductMat: roughness 0.3, metalness 0.7
-    // Original conduit: roughness 0.25, metalness 0.75
-    // Close enough to unify:
-    const ductMat = new THREE.MeshStandardMaterial({ color: 0x78909c, roughness: 0.3, metalness: 0.7 })
     // Original edgeMat + conduitMat: color 0x78909c, roughness 0.20/0.25, metalness 0.75
     const metalEdgeMat = new THREE.MeshStandardMaterial({ color: 0x78909c, roughness: 0.20, metalness: 0.75 })
 
@@ -82,16 +77,6 @@ export function createGarage(config: GarageConfig) {
     const perimeterLaneGeom = new THREE.BoxGeometry(garageW + 0.15, 0.04, sideDepth - 0.2)
     perimeterLaneGeom.translate(config.GRID_CENTER_X, -0.07, midZ)
     collect('perimeterLane', perimeterLaneMat, perimeterLaneGeom, false, true)
-
-    // Arrow Shape template
-    const arrowShape = new THREE.Shape()
-    arrowShape.moveTo(0, 0.3)
-    arrowShape.lineTo(0.2, -0.3)
-    arrowShape.lineTo(0, -0.12)
-    arrowShape.lineTo(-0.2, -0.3)
-    arrowShape.lineTo(0, 0.3)
-    const arrowGeoTemplate = new THREE.ExtrudeGeometry(arrowShape, { depth: 0.02, bevelEnabled: false })
-    arrowGeoTemplate.center()
 
     // ═══════════════════════════════════════════
     // GRID
@@ -119,7 +104,7 @@ export function createGarage(config: GarageConfig) {
     // ═══════════════════════════════════════════
     // TILES
     // ═══════════════════════════════════════════
-    const tileNormalMat = new THREE.MeshStandardMaterial({ color: 0x8a94a8, roughness: 0.30, metalness: 0.35 })
+    const tileNormalMat = new THREE.MeshStandardMaterial({ color: 0x8a94a8, roughness: 0.25, metalness: 0.40 })
     const tileEdgeMat = new THREE.MeshStandardMaterial({ color: 0x7a8498, roughness: 0.35, metalness: 0.30 })
     const tileStartMat = new THREE.MeshStandardMaterial({ color: 0x4caf50, emissive: 0x4caf50, emissiveIntensity: 0.4, roughness: 0.3, metalness: 0.2 })
     const tileButtonMat = new THREE.MeshStandardMaterial({ color: 0xff9800, emissive: 0xff9800, emissiveIntensity: 0.4, roughness: 0.3, metalness: 0.2 })
@@ -134,7 +119,6 @@ export function createGarage(config: GarageConfig) {
 
     const startFrameMat = new THREE.MeshStandardMaterial({ color: 0x66bb6a, emissive: 0x66bb6a, emissiveIntensity: 0.8, roughness: 0.3 })
     const buttonFrameMat = new THREE.MeshStandardMaterial({ color: 0xffa726, emissive: 0xffa726, emissiveIntensity: 0.8, roughness: 0.3 })
-    const arrowMatInterior = new THREE.MeshStandardMaterial({ color: 0xFFD700, emissive: 0xFFD700, emissiveIntensity: 1.0, roughness: 0.35 })
 
     for (let x = 0; x < config.GRID_W; x++) {
         for (let z = 0; z < config.GARAGE_DEPTH; z++) {
@@ -173,22 +157,6 @@ export function createGarage(config: GarageConfig) {
                 }
             }
 
-            const isCenterPath = x === config.GRID_CENTER_X && z >= 3 && z <= 7
-            const isTurnPath = z === 7 && x <= config.GRID_CENTER_X && x > buttonX
-
-            if (isCenterPath || isTurnPath) {
-                const ag = arrowGeoTemplate.clone()
-                ag.rotateX(-Math.PI / 2)
-                if (isTurnPath && !isCenterPath) {
-                    ag.rotateZ(Math.PI / 2)
-                } else if (isCenterPath && z === 7) {
-                    ag.rotateZ(Math.PI / 2)
-                } else {
-                    ag.rotateZ(Math.PI)
-                }
-                ag.translate(x, 0.015, z)
-                collect('arrows', arrowMatInterior, ag)
-            }
         }
     }
 
@@ -222,26 +190,6 @@ export function createGarage(config: GarageConfig) {
         const cg = new THREE.BoxGeometry(0.01, 0.12, 0.18)
         cg.translate(-0.56, 0.22, z)
         collect('coordPlaques', coordMat, cg)
-    }
-
-    // ═══════════════════════════════════════════
-    // OUTDOOR ARROWS
-    // ═══════════════════════════════════════════
-    const chargeY = chargeZ
-    const arrowMatOut = new THREE.MeshStandardMaterial({ color: 0x00E5FF, emissive: 0x00E5FF, emissiveIntensity: 1.2, roughness: 0.3 })
-    for (let oz = config.DOOR_ROW; oz <= chargeY; oz++) {
-        const ag = arrowGeoTemplate.clone()
-        ag.rotateX(-Math.PI / 2)
-        ag.rotateZ(Math.PI)
-        ag.translate(0, 0.015, oz)
-        collect('arrowsOut', arrowMatOut, ag)
-    }
-    for (let ox = 1; ox <= chargeX; ox++) {
-        const ag = arrowGeoTemplate.clone()
-        ag.rotateX(-Math.PI / 2)
-        ag.rotateZ(-Math.PI / 2)
-        ag.translate(ox, 0.015, chargeY)
-        collect('arrowsOut', arrowMatOut, ag)
     }
 
     // ═══════════════════════════════════════════
@@ -329,29 +277,14 @@ export function createGarage(config: GarageConfig) {
         collect('screenGrid', screenGridMat, vg)
     }
 
-    // Screen LED indicators (green + blue — different mats, separate keys)
-    const screenLed1Mat = new THREE.MeshStandardMaterial({ color: 0x4caf50, emissive: 0x4caf50, emissiveIntensity: 3.0 })
-    const sl1g = new THREE.SphereGeometry(0.025, 16, 12)
-    sl1g.translate(config.GRID_CENTER_X - 2.2 + 0.85, 2.62, -0.52)
-    collect('screenLed1', screenLed1Mat, sl1g)
-
-    const screenLed2Mat = new THREE.MeshStandardMaterial({ color: 0x29b6f6, emissive: 0x29b6f6, emissiveIntensity: 3.0 })
-    const sl2g = new THREE.SphereGeometry(0.025, 16, 12)
-    sl2g.translate(config.GRID_CENTER_X + 2.2 + 0.85, 2.62, -0.52)
-    collect('screenLed2', screenLed2Mat, sl2g)
-
-    // Status bars (unique random widths + colors → 4 separate meshes + 1 merged dots)
+    // Status bars (unique random widths + colors)
     const barColors = [0x29b6f6, 0x66bb6a, 0xffa726, 0x29b6f6]
-    const statusDotMat = new THREE.MeshStandardMaterial({ color: 0x90a4ae, emissive: 0x90a4ae, emissiveIntensity: 0.5 })
     barColors.forEach((bc, bi) => {
         const barW = 0.4 + Math.random() * 1.0
         const barMat = new THREE.MeshStandardMaterial({ color: bc, emissive: bc, emissiveIntensity: 1.2, roughness: 0.3 })
         const bg = new THREE.BoxGeometry(barW, 0.08, 0.005)
         bg.translate(config.GRID_CENTER_X + 2.2 - 0.8 + barW / 2, 2.25 - bi * 0.18, -0.49)
         collect('statusBar_' + bi, barMat, bg)
-        const dg = new THREE.SphereGeometry(0.02, 16, 12)
-        dg.translate(config.GRID_CENTER_X + 2.2 - 0.85, 2.25 - bi * 0.18, -0.49)
-        collect('statusDots', statusDotMat, dg)
     })
 
     // ═══════════════════════════════════════════
@@ -400,19 +333,6 @@ export function createGarage(config: GarageConfig) {
     // ═══════════════════════════════════════════
     // INDUSTRIAL DETAILS
     // ═══════════════════════════════════════════
-    // Ducts
-    const d1g = new THREE.CylinderGeometry(0.08, 0.08, sideDepth - 1, 20)
-    d1g.rotateX(Math.PI / 2)
-    d1g.translate(2, config.WALL_H - 0.08, midZ)
-    collect('ducts', ductMat, d1g)
-    const d2g = new THREE.CylinderGeometry(0.06, 0.06, sideDepth - 1, 16)
-    d2g.rotateX(Math.PI / 2)
-    d2g.translate(config.GRID_W - 2, config.WALL_H - 0.10, midZ)
-    collect('ducts', ductMat, d2g)
-    // Conduit (close enough to ductMat to merge)
-    const conduitGeom = new THREE.BoxGeometry(garageW - 0.5, 0.06, 0.07)
-    conduitGeom.translate(config.GRID_CENTER_X, config.WALL_H - 0.35, -0.53)
-    collect('ducts', ductMat, conduitGeom)
 
     // Vent grate
     const ventGrateMat = new THREE.MeshStandardMaterial({ color: 0x5a6070, roughness: 0.4, metalness: 0.5 })
@@ -526,10 +446,6 @@ export function createGarage(config: GarageConfig) {
     lsg.rotateX(Math.PI)
     lsg.translate(config.GRID_W - 0.62, 1.52, 3.6)
     collect('lampShade', lampShadeMat, lsg)
-    const lampBulbMat = new THREE.MeshStandardMaterial({ color: 0xfff9c4, emissive: 0xfff176, emissiveIntensity: 3.0 })
-    const lbulbg = new THREE.SphereGeometry(0.03, 16, 12)
-    lbulbg.translate(config.GRID_W - 0.62, 1.48, 3.6)
-    collect('lampBulb', lampBulbMat, lbulbg)
     const deskLight = new THREE.PointLight(0xfff4e0, 6, 4)
     deskLight.position.set(config.GRID_W - 0.62, 1.46, 3.6)
     garageGroup.add(deskLight)
@@ -568,11 +484,6 @@ export function createGarage(config: GarageConfig) {
     csb1g.rotateX(-Math.PI / 2)
     csb1g.translate(config.GRID_W - 0.60, 0.005, 0.4)
     collect('contactShadows', contactShadowMat, csb1g)
-    const br1g = new THREE.TorusGeometry(0.23, 0.015, 16, 24)
-    br1g.rotateX(Math.PI / 2)
-    br1g.translate(config.GRID_W - 0.60, 0.55, 0.4)
-    collect('toolBlue', toolMat, br1g)
-
     // ═══════════════════════════════════════════
     // WALL POSTERS
     // ═══════════════════════════════════════════
@@ -603,14 +514,6 @@ export function createGarage(config: GarageConfig) {
     const msg = new THREE.BoxGeometry(0.065, 0.22, 0.28)
     msg.translate(-0.50, 1.65, 6.5)
     collect('miniScreen', miniScreenMat, msg)
-    // Panel LEDs (3 different colors → 3 keys)
-    const ledColors = [0x4caf50, 0xffc107, 0xf44336]
-    ledColors.forEach((lc, li) => {
-        const mat = new THREE.MeshStandardMaterial({ color: lc, emissive: lc, emissiveIntensity: 2.0 })
-        const lg = new THREE.SphereGeometry(0.015, 16, 12)
-        lg.translate(-0.49, 1.35 + li * 0.06, 6.35)
-        collect('panelLed_' + li, mat, lg)
-    })
     // Panel buttons (same mat, can merge all 3)
     const panelBtnMat = new THREE.MeshStandardMaterial({ color: 0x90a4ae, roughness: 0.3, metalness: 0.8 })
     for (let bi = 0; bi < 3; bi++) {
@@ -627,10 +530,6 @@ export function createGarage(config: GarageConfig) {
     const cug = new RoundedBoxGeometry(0.35, 0.6, 0.25, 3, 0.02)
     cug.translate(chargeX + 0.7, 0.30, chargeZ)
     collect('chargeUnit', chargeUnitMat, cug)
-    const chargeLedMat = new THREE.MeshStandardMaterial({ color: 0x00e676, emissive: 0x00e676, emissiveIntensity: 3.0 })
-    const clg = new THREE.SphereGeometry(0.02, 16, 12)
-    clg.translate(chargeX + 0.53, 0.45, chargeZ)
-    collect('chargeLed', chargeLedMat, clg)
     const chargeCableMat = new THREE.MeshStandardMaterial({ color: 0x1a1a1a, roughness: 0.8 })
     const ccg = new THREE.CylinderGeometry(0.008, 0.008, 0.5, 16)
     ccg.rotateZ(Math.PI / 3)
@@ -686,22 +585,6 @@ export function createGarage(config: GarageConfig) {
     rfg.translate(config.GRID_CENTER_X, config.WALL_H + 0.36, midZ)
     collectRoof('roof', roofMat, rfg, false, true)
 
-    const trussMat = new THREE.MeshStandardMaterial({ color: 0x8088a0, roughness: 0.35, metalness: 0.68 })
-    garageRoofMaterials.push(trussMat)
-    for (let i = 0; i < 3; i++) {
-        const z = 1.2 + i * 2.8
-        const tg = new THREE.BoxGeometry(garageW + 0.2, 0.08, 0.08)
-        tg.translate(config.GRID_CENTER_X, config.WALL_H + 0.22, z)
-        collectRoof('trusses', trussMat, tg)
-    }
-
-    const skylightMat = new THREE.MeshStandardMaterial({ color: 0xb3e5fc, emissive: 0x80deea, emissiveIntensity: 0.5, transparent: true, opacity: 0.88, roughness: 0.08, metalness: 0.15 })
-    garageRoofMaterials.push(skylightMat)
-    for (const x of [config.GRID_CENTER_X - 2.0, config.GRID_CENTER_X, config.GRID_CENTER_X + 2.0]) {
-        const pg = new THREE.BoxGeometry(1.2, 0.04, sideDepth - 0.8)
-        pg.translate(x, config.WALL_H + 0.29, midZ)
-        collectRoof('skylights', skylightMat, pg)
-    }
 
     // ═══════════════════════════════════════════
     // EXTERIOR: AC UNITS
@@ -747,16 +630,6 @@ export function createGarage(config: GarageConfig) {
         dg.translate(config.GRID_CENTER_X - 2 + dx * 2, 0.04, -1.0)
         collect('drains', drainMat, dg)
     }
-
-    // Security lamp
-    const secLampMat = new THREE.MeshStandardMaterial({ color: 0xfff176, emissive: 0xffeb3b, emissiveIntensity: 1.8 })
-    const slg = new THREE.SphereGeometry(0.12, 16, 12)
-    slg.translate(-0.55, config.WALL_H - 0.6, -0.55)
-    collect('secLamp', secLampMat, slg)
-    const lampHousingMat = new THREE.MeshStandardMaterial({ color: 0x333333, roughness: 0.4, metalness: 0.6 })
-    const lhg = new THREE.BoxGeometry(0.22, 0.22, 0.16)
-    lhg.translate(-0.55, config.WALL_H - 0.6, -0.48)
-    collect('lampHousing', lampHousingMat, lhg)
 
     // Roof edge profiles
     const feg = new THREE.BoxGeometry(garageW + 0.85, 0.10, 0.12)
@@ -832,13 +705,173 @@ export function createGarage(config: GarageConfig) {
         shg.rotateX(Math.PI)
         shg.translate(lmpX, config.WALL_H - 0.28, config.DOOR_ROW - 0.22)
         collect('wallLampShades', wallLampShadeMat, shg)
-        const wlbg = new THREE.SphereGeometry(0.05, 16, 12)
-        wlbg.translate(lmpX, config.WALL_H - 0.35, config.DOOR_ROW - 0.22)
-        collect('wallLampBulbs', wallLampGlowMat, wlbg)
         const extLight = new THREE.PointLight(0xfff4e0, 1.5, 5)
         extLight.position.set(lmpX, config.WALL_H - 0.3, config.DOOR_ROW - 0.15)
         garageGroup.add(extLight)
     }
+
+    // ═══════════════════════════════════════════
+    // FAZ 1: DOOR MECHANISM
+    // ═══════════════════════════════════════════
+    const doorZ = config.DOOR_ROW - 0.1
+
+    // Motor housing — above door opening
+    const motorG = new THREE.BoxGeometry(1.2, 0.35, 0.25)
+    motorG.translate(config.GRID_CENTER_X, config.WALL_H + 0.05, doorZ - 0.15)
+    collect('motorBox', darkBandMat, motorG)
+    const drumG = new THREE.CylinderGeometry(0.12, 0.12, 1.0, 16)
+    drumG.rotateZ(Math.PI / 2)
+    drumG.translate(config.GRID_CENTER_X, config.WALL_H + 0.05, doorZ - 0.15)
+    collect('motorBox', darkBandMat, drumG)
+    for (const dx of [-0.52, 0.52]) {
+        const gearG = new THREE.CylinderGeometry(0.08, 0.08, 0.04, 16)
+        gearG.rotateZ(Math.PI / 2)
+        gearG.translate(config.GRID_CENTER_X + dx, config.WALL_H + 0.05, doorZ - 0.15)
+        collect('motorBox', darkBandMat, gearG)
+    }
+
+    // Photoelectric sensors — static bodies (collected) + animated laser (separate)
+    const sensorBodyMat = new THREE.MeshStandardMaterial({ color: 0x444444, roughness: 0.4, metalness: 0.6 })
+    const sensorLensMat = new THREE.MeshStandardMaterial({ color: 0xff0000, emissive: 0xff0000, emissiveIntensity: 2.0, roughness: 0.2 })
+    for (const sx of [-0.40, config.GRID_W - 0.60]) {
+        const sbG = new THREE.CylinderGeometry(0.03, 0.03, 0.06, 12)
+        sbG.translate(sx, 0.3, doorZ)
+        collect('sensorBodies', sensorBodyMat, sbG)
+    }
+    const photoSensorLaserMat = new THREE.MeshStandardMaterial({
+        color: 0xff0000, emissive: 0xff0000, emissiveIntensity: 3.0,
+        transparent: true, opacity: 0.6, roughness: 0.2
+    })
+    const laserG = new THREE.BoxGeometry(garageW + 0.14, 0.003, 0.003)
+    const photoSensorLaser = new THREE.Mesh(laserG, photoSensorLaserMat)
+    photoSensorLaser.position.set(config.GRID_CENTER_X, 0.3, doorZ)
+    garageGroup.add(photoSensorLaser)
+
+    // ═══════════════════════════════════════════
+    // FAZ 2: DOOR FRAME DETAILS
+    // ═══════════════════════════════════════════
+    // Emergency stop button — left wall
+    const eStopYellowMat = new THREE.MeshStandardMaterial({ color: 0xFFD600, roughness: 0.5, metalness: 0.1 })
+    const eStopRedMat = new THREE.MeshStandardMaterial({ color: 0xD32F2F, roughness: 0.4, metalness: 0.2 })
+    const eStopBlackMat = new THREE.MeshStandardMaterial({ color: 0x222222, roughness: 0.5, metalness: 0.4 })
+    const estpG = new THREE.BoxGeometry(0.02, 0.14, 0.14)
+    estpG.translate(-0.55, 1.2, 10.5)
+    collect('eStop', eStopYellowMat, estpG)
+    const ecolG = new THREE.CylinderGeometry(0.04, 0.04, 0.02, 16)
+    ecolG.rotateZ(Math.PI / 2)
+    ecolG.translate(-0.53, 1.2, 10.5)
+    collect('eStopCollar', eStopBlackMat, ecolG)
+
+    // Door frame LED strips — animated (separate meshes, shared material)
+    const doorFrameLedMat = new THREE.MeshStandardMaterial({
+        color: 0xff0000, emissive: 0xff0000, emissiveIntensity: 1.5,
+        roughness: 0.2, metalness: 0.1
+    })
+    const doorFrameZ = config.DOOR_ROW - 0.40
+    const ledTopStrip = new THREE.Mesh(
+        new THREE.BoxGeometry(garageW + 0.2, 0.03, 0.03), doorFrameLedMat
+    )
+    ledTopStrip.position.set(config.GRID_CENTER_X, config.WALL_H + 0.05, doorFrameZ)
+    garageGroup.add(ledTopStrip)
+    const ledLeftStrip = new THREE.Mesh(
+        new THREE.BoxGeometry(0.03, config.WALL_H, 0.03), doorFrameLedMat
+    )
+    ledLeftStrip.position.set(-0.48, config.WALL_H / 2, doorFrameZ)
+    garageGroup.add(ledLeftStrip)
+    const ledRightStrip = new THREE.Mesh(
+        new THREE.BoxGeometry(0.03, config.WALL_H, 0.03), doorFrameLedMat
+    )
+    ledRightStrip.position.set(config.GRID_W - 0.52, config.WALL_H / 2, doorFrameZ)
+    garageGroup.add(ledRightStrip)
+    const doorFrameLedStrips = [ledTopStrip, ledLeftStrip, ledRightStrip]
+
+    // Motion sensor — above door
+    const motionSensorMat = new THREE.MeshStandardMaterial({ color: 0xeeeeee, roughness: 0.4, metalness: 0.1 })
+    const motionLensMat = new THREE.MeshStandardMaterial({ color: 0x880000, roughness: 0.3, metalness: 0.2 })
+    const msG = new RoundedBoxGeometry(0.18, 0.08, 0.06, 2, 0.01)
+    msG.translate(config.GRID_CENTER_X, config.WALL_H + 0.10, doorZ - 0.35)
+    collect('motionSensor', motionSensorMat, msG)
+    // ═══════════════════════════════════════════
+    // FAZ 3: FLOOR DETAILS
+    // ═══════════════════════════════════════════
+    // Oil stains
+    const oilStainMat = new THREE.MeshStandardMaterial({
+        color: 0x111111, transparent: true, opacity: 0.35,
+        roughness: 0.2, metalness: 0.3, depthWrite: false
+    })
+    const oil1G = new THREE.CircleGeometry(0.6, 24)
+    oil1G.rotateX(-Math.PI / 2)
+    oil1G.translate(3.5, 0.005, 4.0)
+    collect('oilStains', oilStainMat, oil1G)
+    const oil2G = new THREE.CircleGeometry(0.35, 20)
+    oil2G.rotateX(-Math.PI / 2)
+    oil2G.translate(7.0, 0.005, 6.5)
+    collect('oilStains', oilStainMat, oil2G)
+
+    // Tire marks
+    const tireMarkMat = new THREE.MeshStandardMaterial({
+        color: 0x222222, transparent: true, opacity: 0.2,
+        roughness: 0.3, metalness: 0.1, depthWrite: false
+    })
+    for (const tx of [config.GRID_CENTER_X - 1.2, config.GRID_CENTER_X + 1.2]) {
+        const tmG = new THREE.PlaneGeometry(0.18, 8.0)
+        tmG.rotateX(-Math.PI / 2)
+        tmG.translate(tx, 0.006, 7.0)
+        collect('tireMarks', tireMarkMat, tmG)
+    }
+
+    // ═══════════════════════════════════════════
+    // FAZ 5: INTERIOR DETAILS
+    // ═══════════════════════════════════════════
+    // Fire extinguisher — right wall
+    const fireExtRedMat = new THREE.MeshStandardMaterial({ color: 0xCC0000, roughness: 0.5, metalness: 0.2 })
+    const fireExtGrayMat = new THREE.MeshStandardMaterial({ color: 0x888888, roughness: 0.4, metalness: 0.6 })
+    const feBodG = new THREE.CylinderGeometry(0.06, 0.06, 0.45, 12)
+    feBodG.translate(config.GRID_W - 0.44, 0.35, 6.0)
+    collect('fireExt', fireExtRedMat, feBodG)
+    const feCapG = new THREE.CylinderGeometry(0.03, 0.03, 0.06, 12)
+    feCapG.translate(config.GRID_W - 0.44, 0.60, 6.0)
+    collect('fireExtCap', fireExtGrayMat, feCapG)
+    const feNozG = new THREE.CylinderGeometry(0.008, 0.008, 0.12, 8)
+    feNozG.rotateZ(-Math.PI / 6)
+    feNozG.translate(config.GRID_W - 0.38, 0.65, 6.0)
+    collect('fireExtCap', fireExtGrayMat, feNozG)
+    const feBrkG = new THREE.BoxGeometry(0.08, 0.18, 0.03)
+    feBrkG.translate(config.GRID_W - 0.38, 0.35, 6.0)
+    collect('fireExtCap', fireExtGrayMat, feBrkG)
+
+    // First aid cabinet — left wall
+    const firstAidMat = new THREE.MeshStandardMaterial({ color: 0xeeeeee, roughness: 0.5, metalness: 0.1 })
+    const greenCrossMat = new THREE.MeshStandardMaterial({ color: 0x2E7D32, emissive: 0x2E7D32, emissiveIntensity: 0.3, roughness: 0.4 })
+    const faBoxG = new RoundedBoxGeometry(0.02, 0.3, 0.22, 2, 0.005)
+    faBoxG.translate(-0.53, 2.0, 4.5)
+    collect('firstAid', firstAidMat, faBoxG)
+    const faCrossVG = new THREE.BoxGeometry(0.005, 0.14, 0.04)
+    faCrossVG.translate(-0.515, 2.0, 4.5)
+    collect('firstAidCross', greenCrossMat, faCrossVG)
+    const faCrossHG = new THREE.BoxGeometry(0.005, 0.04, 0.14)
+    faCrossHG.translate(-0.515, 2.0, 4.5)
+    collect('firstAidCross', greenCrossMat, faCrossHG)
+
+    // Ventilation fan — back wall (static housing collected, animated blade separate)
+    const fanHousingMat = new THREE.MeshStandardMaterial({ color: 0x666666, roughness: 0.4, metalness: 0.5 })
+    const fanBladeMat = new THREE.MeshStandardMaterial({ color: 0x444444, roughness: 0.5, metalness: 0.4 })
+    for (let bi = 0; bi < 3; bi++) {
+        const barG = new THREE.BoxGeometry(0.44, 0.02, 0.02)
+        barG.rotateZ(bi * Math.PI / 3)
+        barG.translate(1.5, 2.3, -0.52)
+        collect('fanHousing', fanHousingMat, barG)
+    }
+    const bladeGeoms: THREE.BufferGeometry[] = []
+    for (let fi = 0; fi < 4; fi++) {
+        const bg = new THREE.BoxGeometry(0.16, 0.04, 0.01)
+        bg.translate(0.10, 0, 0)
+        bg.rotateZ((fi * Math.PI) / 2)
+        bladeGeoms.push(normalize(bg))
+    }
+    const ventFanBlade = new THREE.Mesh(mergeGeometries(bladeGeoms, false)!, fanBladeMat)
+    ventFanBlade.position.set(1.5, 2.3, -0.51)
+    garageGroup.add(ventFanBlade)
 
     // ═══════════════════════════════════════════
     // MERGE ALL COLLECTED GEOMETRIES → garageGroup
@@ -868,5 +901,10 @@ export function createGarage(config: GarageConfig) {
 
     garageGroup.add(garageRoofGroup)
 
-    return { garageGroup, garageRoofGroup, garageRoofMaterials }
+    return {
+        garageGroup, garageRoofGroup, garageRoofMaterials,
+        doorFrameLedStrips, doorFrameLedMat,
+        ventFanBlade,
+        photoSensorLaser, photoSensorLaserMat
+    }
 }

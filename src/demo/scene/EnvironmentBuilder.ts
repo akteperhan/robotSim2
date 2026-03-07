@@ -126,6 +126,40 @@ export function createOutdoorScene(
         scene.add(flock); animatedObjects.birds.push(flock)
     }
 
+    // === Airplanes ===
+    const planeMat = new THREE.MeshStandardMaterial({ color: 0xfafafa, roughness: 0.3, metalness: 0.2 })
+    const planeTailMat = new THREE.MeshStandardMaterial({ color: 0x1565c0, roughness: 0.4 })
+    const planeWinMat = new THREE.MeshStandardMaterial({ color: 0x90CAF9, roughness: 0.2, metalness: 0.1 })
+    for (let pi = 0; pi < 2; pi++) {
+        const planeGroup = new THREE.Group()
+        // Fuselage
+        const fuse = new THREE.Mesh(new THREE.CylinderGeometry(0.15, 0.12, 1.8, 12), planeMat)
+        fuse.rotation.z = Math.PI / 2; planeGroup.add(fuse)
+        // Nose cone
+        const nose = new THREE.Mesh(new THREE.ConeGeometry(0.15, 0.4, 12), planeMat)
+        nose.rotation.z = -Math.PI / 2; nose.position.x = 1.1; planeGroup.add(nose)
+        // Wings
+        const wingGeo = new THREE.BoxGeometry(0.8, 0.04, 2.4)
+        const wing = new THREE.Mesh(wingGeo, planeMat)
+        wing.position.set(-0.1, 0, 0); planeGroup.add(wing)
+        // Tail vertical
+        const tailV = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.5, 0.05), planeTailMat)
+        tailV.position.set(-0.85, 0.25, 0); planeGroup.add(tailV)
+        // Tail horizontal
+        const tailH = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.04, 0.7), planeMat)
+        tailH.position.set(-0.85, 0.08, 0); planeGroup.add(tailH)
+        // Windows
+        for (let wi = 0; wi < 5; wi++) {
+            const w = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.06, 0.01), planeWinMat)
+            w.position.set(0.4 - wi * 0.22, 0.08, 0.15); planeGroup.add(w)
+        }
+        planeGroup.position.set(-50 + pi * 40, 22 + pi * 5, 15 + pi * 20)
+        planeGroup.rotation.y = 0.15 + pi * 0.1
+        planeGroup.scale.setScalar(1.5 + pi * 0.5)
+        scene.add(planeGroup)
+        animatedObjects.planes.push(planeGroup)
+    }
+
     // === DIORAMA BASE PLATFORM ===
     const platformMat = new THREE.MeshStandardMaterial({ color: 0x2a2a2a, roughness: 0.9, metalness: 0.05 })
     const platformGeom = new THREE.BoxGeometry(50, 0.3, 60)

@@ -27,7 +27,7 @@ export class BatterySystem {
   async startCharging(): Promise<void> {
     this.isCharging = true
     const startLevel = this.currentLevel
-    const chargeDuration = 2000 // 2 seconds
+    const chargeDuration = 3500 // 3.5 seconds for visible bar filling
     const startTime = Date.now()
 
     while (this.isCharging && this.currentLevel < this.maxLevel) {
