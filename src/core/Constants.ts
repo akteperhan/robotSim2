@@ -22,9 +22,9 @@ export const CHARGE_POS: Position = { x: GRID_CENTER_X, y: 14 }
 // ═══════════════════════════════════════════
 // CAMERA
 // ═══════════════════════════════════════════
-export const CAM_POS = { x: 16, y: 11, z: 17 }
+export const CAM_POS = { x: 14, y: 14, z: 20 }
 export const CAM_TARGET = { x: GRID_CENTER_X, y: 1.0, z: 6.1 }
-export const BASE_EXPOSURE = 0.66
+export const BASE_EXPOSURE = 1.0
 export const DOOR_OPEN_EXPOSURE_BOOST = 0.34
 
 // ═══════════════════════════════════════════

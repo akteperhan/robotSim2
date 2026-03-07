@@ -734,13 +734,13 @@
       top: 0;
       left: 0;
       right: 0;
-      height: 60px;
+      height: 40px;
       background: linear-gradient(90deg, #101522 0%, #1a2235 50%, #101522 100%);
       border-bottom: 1px solid rgba(255, 255, 255, 0.05);
       display: flex;
       align-items: center;
       justify-content: space-between;
-      padding: 0 20px;
+      padding: 0 12px;
       z-index: 100;
       box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
     }
@@ -748,56 +748,56 @@
     .toolbar-left {
       display: flex;
       align-items: center;
-      gap: 12px;
+      gap: 8px;
     }
 
     .toolbar-center {
       display: flex;
       align-items: center;
-      gap: 8px;
+      gap: 5px;
     }
 
     .toolbar-right {
       display: flex;
       align-items: center;
-      gap: 12px;
+      gap: 8px;
     }
 
     .logo {
       display: flex;
       align-items: center;
-      gap: 8px;
+      gap: 5px;
       font-weight: 800;
-      font-size: 18px;
+      font-size: 14px;
       color: var(--accent-primary);
       letter-spacing: -0.5px;
     }
 
     .logo-icon {
-      width: 32px;
-      height: 32px;
+      width: 26px;
+      height: 26px;
       background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary));
-      border-radius: 8px;
+      border-radius: 6px;
       display: flex;
       align-items: center;
       justify-content: center;
-      font-size: 18px;
+      font-size: 14px;
     }
 
     #toggle-panel-btn {
       background: var(--bg-card);
       border: 1px solid var(--border-color);
       color: var(--text-primary);
-      padding: 8px 14px;
+      padding: 4px 8px;
       border-radius: var(--radius-sm);
       font-family: 'Inter', sans-serif;
-      font-size: 13px;
+      font-size: 11px;
       font-weight: 600;
       cursor: pointer;
       transition: var(--transition);
       display: flex;
       align-items: center;
-      gap: 6px;
+      gap: 4px;
     }
 
     #toggle-panel-btn:hover {
@@ -807,18 +807,18 @@
 
     .ctrl-btn {
       border: none;
-      padding: 8px 18px;
+      padding: 4px 10px;
       border-radius: var(--radius-sm);
       font-family: 'Inter', sans-serif;
-      font-size: 13px;
+      font-size: 11px;
       font-weight: 700;
       cursor: pointer;
       transition: var(--transition);
       display: flex;
       align-items: center;
-      gap: 6px;
+      gap: 3px;
       text-transform: uppercase;
-      letter-spacing: 0.5px;
+      letter-spacing: 0.3px;
     }
 
     .ctrl-btn:active {
@@ -893,14 +893,13 @@
       display: flex;
       align-items: center;
       gap: 4px;
-      font-size: 14px;
-      margin-left: 8px;
+      font-size: 12px;
     }
 
     .speed-control input[type="range"] {
       -webkit-appearance: none;
       width: 80px;
-      height: 6px;
+      height: 5px;
       background: var(--bg-card);
       border-radius: 3px;
       outline: none;
@@ -909,12 +908,156 @@
 
     .speed-control input[type="range"]::-webkit-slider-thumb {
       -webkit-appearance: none;
-      width: 14px;
-      height: 14px;
+      width: 12px;
+      height: 12px;
       border-radius: 50%;
       background: var(--accent-primary);
       cursor: pointer;
     }
+
+    /* ═══ FLOATING TOOLBOX ═══ */
+    #toolbox-toggle {
+      position: absolute;
+      top: 60px;
+      right: 8px;
+      width: 36px;
+      height: 36px;
+      border-radius: 10px;
+      background: rgba(16, 21, 34, 0.85);
+      backdrop-filter: blur(8px);
+      border: 1px solid rgba(126, 149, 255, 0.25);
+      color: var(--text-primary);
+      font-size: 16px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 50;
+      transition: all 0.2s;
+      box-shadow: 0 2px 12px rgba(0,0,0,0.4);
+    }
+    #toolbox-toggle:hover {
+      background: rgba(126, 149, 255, 0.2);
+      border-color: var(--accent-primary);
+      box-shadow: 0 0 16px rgba(0, 230, 184, 0.2);
+    }
+    #toolbox-toggle.open {
+      background: var(--accent-primary);
+      color: #0b1120;
+      border-color: var(--accent-primary);
+    }
+
+    #toolbox-panel {
+      position: absolute;
+      top: 60px;
+      right: 50px;
+      background: rgba(16, 21, 34, 0.92);
+      backdrop-filter: blur(12px);
+      border: 1px solid rgba(126, 149, 255, 0.2);
+      border-radius: 12px;
+      padding: 0;
+      z-index: 49;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.6);
+      display: none;
+      width: 280px;
+      max-height: calc(100% - 16px);
+      overflow-y: auto;
+    }
+    #toolbox-panel.open { display: block; }
+
+    .tb-section {
+      padding: 10px 14px;
+      border-bottom: 1px solid rgba(255,255,255,0.06);
+    }
+    .tb-section:last-child { border-bottom: none; }
+
+    .tb-section-title {
+      font-size: 9px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: var(--accent-primary);
+      margin-bottom: 8px;
+      opacity: 0.7;
+    }
+
+    .tb-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      margin-bottom: 6px;
+    }
+    .tb-row:last-child { margin-bottom: 0; }
+
+    .tb-label {
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--text-secondary);
+      white-space: nowrap;
+    }
+
+    .tb-btn-group {
+      display: flex;
+      gap: 4px;
+    }
+
+    .tb-btn {
+      padding: 4px 10px;
+      font-size: 11px;
+      font-weight: 600;
+      border: 1px solid var(--border-color);
+      border-radius: 6px;
+      background: var(--bg-card);
+      color: var(--text-secondary);
+      cursor: pointer;
+      transition: all 0.15s;
+      font-family: 'Inter', sans-serif;
+    }
+    .tb-btn:hover { background: var(--bg-hover); }
+    .tb-btn.active {
+      background: var(--accent-primary);
+      color: #fff;
+      border-color: var(--accent-primary);
+    }
+
+    .quality-presets {
+      display: flex;
+      gap: 4px;
+    }
+    .quality-btn {
+      padding: 4px 10px;
+      font-size: 11px;
+      font-weight: 600;
+      border: 1px solid var(--border-color);
+      border-radius: 6px;
+      background: var(--bg-card);
+      color: var(--text-secondary);
+      cursor: pointer;
+      transition: all 0.15s;
+      font-family: 'Inter', sans-serif;
+    }
+    .quality-btn:hover { background: var(--bg-hover); }
+    .quality-btn.active {
+      background: var(--accent-primary);
+      color: #fff;
+      border-color: var(--accent-primary);
+    }
+
+    #toolbox-panel .speed-control input[type="range"] { width: 90px; }
+
+    #toolbox-panel select {
+      background: var(--bg-card);
+      color: var(--text-primary);
+      border: 1px solid var(--border-color);
+      border-radius: 6px;
+      font-size: 11px;
+      font-family: 'Inter', sans-serif;
+      padding: 4px 8px;
+      cursor: pointer;
+      outline: none;
+    }
+    #toolbox-panel select:hover { border-color: var(--accent-primary); }
 
     .mission-nav {
       display: flex;
@@ -1082,7 +1225,7 @@
       height: 100vh;
       display: flex;
       flex-direction: row;
-      padding-top: 56px;
+      padding-top: 40px;
     }
 
     #coding-panel {
@@ -1344,41 +1487,20 @@
       }
 
       #top-toolbar {
-        flex-wrap: wrap;
-        padding: 6px 8px;
-        gap: 4px;
-      }
-
-      .toolbar-center {
-        flex-wrap: wrap;
-        gap: 4px;
-      }
-
-      .toolbar-right {
-        flex-wrap: wrap;
-        gap: 4px;
+        height: 36px;
+        padding: 0 8px;
       }
 
       .ctrl-btn {
-        padding: 6px 10px;
-        font-size: 11px;
-      }
-
-      .speed-control {
-        margin-left: 0;
-      }
-
-      .speed-control input[type="range"] {
-        width: 60px;
+        padding: 3px 8px;
+        font-size: 10px;
       }
 
       .mission-card {
         max-width: 200px;
       }
 
-      .garage-mode-wrap {
-        display: none;
-      }
+      #toolbox-panel { width: 240px; }
     }
 
     @media (max-width: 600px) {
@@ -1463,25 +1585,10 @@
     </div>
     <div class="toolbar-center">
       <button class="ctrl-btn" id="btn-green-flag"><span>🚩</span> Başlat</button>
-      <button class="ctrl-btn" id="btn-step-toggle" title="Adım adım modunu aç/kapat">👣 Adım Modu</button>
-      <button class="ctrl-btn" id="btn-step-next" style="display:none" title="Sonraki adım">⏭ Adım</button>
       <button class="ctrl-btn" id="btn-stop">⏹ Durdur</button>
       <button class="ctrl-btn" id="btn-reset">↻ Sıfırla</button>
-      <button class="ctrl-btn" id="btn-load-code">💡 Çözümü Yükle</button>
-      <div class="speed-control" title="Çalışma hızı">
-        <span>🐢</span>
-        <input type="range" id="speed-slider" min="100" max="2000" value="800" step="100">
-        <span>🐇</span>
-      </div>
     </div>
     <div class="toolbar-right">
-      <div class="garage-mode-wrap">
-        <span>🏭</span>
-        <select id="garage-mode-select">
-          <option value="open">Açık Tavan</option>
-          <option value="closed">Kapalı Tavan Sürüş</option>
-        </select>
-      </div>
       <div class="battery-widget">
         <span>🔋</span>
         <div class="battery-bar-mini">
@@ -1489,12 +1596,6 @@
         </div>
         <span class="battery-text" id="battery-text">5%</span>
       </div>
-      <button id="camera-reset">🎥 Sıfırla</button>
-      <select id="camera-mode-select" style="background:var(--bg-card);color:var(--text-primary);border:1px solid var(--border-color);border-radius:6px;font-size:12px;font-family:'Inter',sans-serif;padding:4px 8px;cursor:pointer;">
-        <option value="overview">Genel Bakış</option>
-        <option value="follow">Robot Takip</option>
-        <option value="cinematic">Sinematik</option>
-      </select>
     </div>
   </div>
 
@@ -1512,6 +1613,73 @@
     </div>
 
     <div id="canvas-container">
+      <!-- ═══ FLOATING TOOLBOX ═══ -->
+      <button id="toolbox-toggle" title="Araç Kutusu">🛠</button>
+      <div id="toolbox-panel">
+        <div class="tb-section">
+          <div class="tb-section-title">Çalıştırma</div>
+          <div class="tb-row">
+            <span class="tb-label">Hız</span>
+            <div class="speed-control">
+              <span>🐢</span>
+              <input type="range" id="speed-slider" min="100" max="2000" value="800" step="100">
+              <span>🐇</span>
+            </div>
+          </div>
+          <div class="tb-row">
+            <button class="ctrl-btn" id="btn-step-toggle" title="Adım adım modunu aç/kapat">👣 Adım Modu</button>
+            <button class="ctrl-btn" id="btn-step-next" style="display:none" title="Sonraki adım">⏭ Adım</button>
+            <button class="ctrl-btn" id="btn-load-code">💡 Çözümü Yükle</button>
+          </div>
+        </div>
+        <div class="tb-section">
+          <div class="tb-section-title">Kamera</div>
+          <div class="tb-row">
+            <select id="camera-mode-select">
+              <option value="overview">Genel Bakış</option>
+              <option value="follow">Robot Takip</option>
+              <option value="cinematic">Sinematik</option>
+            </select>
+            <button class="tb-btn" id="camera-reset">🎥 Sıfırla</button>
+          </div>
+        </div>
+        <div class="tb-section">
+          <div class="tb-section-title">Sahne</div>
+          <div class="tb-row">
+            <span class="tb-label">Garaj</span>
+            <select id="garage-mode-select">
+              <option value="open">Açık Tavan</option>
+              <option value="closed">Kapalı Tavan Sürüş</option>
+            </select>
+          </div>
+        </div>
+        <div class="tb-section">
+          <div class="tb-section-title">Grafik Ayarları</div>
+          <div class="tb-row">
+            <span class="tb-label">Kalite</span>
+            <div class="quality-presets">
+              <button class="quality-btn active" data-quality="high">Kalite 1</button>
+              <button class="quality-btn" data-quality="performance">Kalite 2</button>
+            </div>
+          </div>
+          <div class="tb-row">
+            <span class="tb-label">Işık</span>
+            <div class="speed-control">
+              <span>🌑</span>
+              <input type="range" id="light-slider" min="0" max="200" value="100" step="5">
+              <span>☀️</span>
+            </div>
+          </div>
+          <div class="tb-row">
+            <span class="tb-label">Çözünürlük</span>
+            <div class="speed-control">
+              <span>SD</span>
+              <input type="range" id="resolution-slider" min="50" max="200" value="100" step="10">
+              <span>HD</span>
+            </div>
+          </div>
+        </div>
+      </div>
       <div id="mission-overlay">
         <div class="mission-card" id="mission-card">
           <div class="mission-nav">
@@ -1576,6 +1744,33 @@
         // Dispatch event for 3D scene if needed
         window.dispatchEvent(new CustomEvent('theme-changed', { detail: { theme: 'light' } }));
       });
+
+      // Floating toolbox toggle
+      const tbToggle = document.getElementById('toolbox-toggle');
+      const tbPanel = document.getElementById('toolbox-panel');
+      if (tbToggle && tbPanel) {
+        tbToggle.addEventListener('click', (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          e.stopImmediatePropagation();
+          const open = tbPanel.classList.toggle('open');
+          tbToggle.classList.toggle('open', open);
+        });
+        // Close on click outside
+        document.addEventListener('click', (e) => {
+          if (!tbPanel.contains(e.target) && !tbToggle.contains(e.target)) {
+            tbPanel.classList.remove('open');
+            tbToggle.classList.remove('open');
+          }
+        });
+        // Also close when clicking canvas (OrbitControls captures events)
+        document.addEventListener('pointerdown', (e) => {
+          if (e.target.tagName === 'CANVAS' && tbPanel.classList.contains('open')) {
+            tbPanel.classList.remove('open');
+            tbToggle.classList.remove('open');
+          }
+        });
+      }
     });
   </script>
 </body>

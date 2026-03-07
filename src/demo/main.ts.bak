@@ -53,7 +53,6 @@ let mainAmbientLight: THREE.AmbientLight | null = null
 let chargingSurfaceMat: THREE.MeshStandardMaterial | null = null
 let chargingAmbientGlowMat: THREE.MeshBasicMaterial | null = null
 let isExecuting = false, isPanelOpen = true
-let lightMultiplier = 1.0
 let skyLight: THREE.HemisphereLight
 let doorClipPlane: THREE.Plane
 let doorGlowPlane: THREE.Mesh | null = null
@@ -110,7 +109,7 @@ function applyGarageMode(mode: GarageMode, animate = false, notify = false) {
     mat.opacity = 1
   })
   if (mainAmbientLight) {
-    mainAmbientLight.intensity = (mode === 'closed' ? 1.5 : 0.35) * lightMultiplier
+    mainAmbientLight.intensity = mode === 'closed' ? 4.5 : 4.5
     mainAmbientLight.color.setHex(0xffffff)
   }
   if (controls) {
@@ -153,20 +152,21 @@ function initScene() {
   stats.showPanel(0)
   document.body.appendChild(stats.dom)
   stats.dom.style.position = 'absolute'
-  stats.dom.style.top = '42px'
+  stats.dom.style.top = '60px'
   stats.dom.style.right = '10px'
   stats.dom.style.left = 'unset'
 
   const skyTex = createSkyGradient()
   scene.background = skyTex
-  scene.environment = skyTex
+  scene.environment = skyTex  // EnvMap — cam/metal yüzeylerde gökyüzü yansıması
   scene.fog = new THREE.FogExp2(0xd4e4f0, 0.004)
+
   camera = new THREE.PerspectiveCamera(45, c.clientWidth / c.clientHeight, 0.1, 500)
   camera.position.set(CAM_POS.x, CAM_POS.y, CAM_POS.z)
 
   renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance', logarithmicDepthBuffer: true })
   renderer.setSize(c.clientWidth, c.clientHeight)
-  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5))
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.0))
   renderer.shadowMap.enabled = true
   renderer.shadowMap.type = THREE.PCFSoftShadowMap
   renderer.toneMapping = THREE.ACESFilmicToneMapping; renderer.toneMappingExposure = BASE_EXPOSURE
@@ -176,12 +176,15 @@ function initScene() {
 
   controls = new OrbitControls(camera, renderer.domElement)
   controls.enableDamping = true; controls.dampingFactor = 0.05
-  controls.minDistance = 3; controls.maxDistance = 55; controls.maxPolarAngle = Math.PI / 2.05
+  controls.minDistance = 3; controls.maxDistance = 32; controls.maxPolarAngle = Math.PI / 2.05
   controls.target.set(CAM_TARGET.x, CAM_TARGET.y, CAM_TARGET.z); controls.update()
 
-  // Lights — kept minimal since EnvironmentBuilder adds outdoorSun + hemisphere
-  mainAmbientLight = new THREE.AmbientLight(0xfff5e6, 0.35)
+  // Lights
+  mainAmbientLight = new THREE.AmbientLight(0xffffff, 1.5)
   scene.add(mainAmbientLight)
+  const practicalBounce = new THREE.PointLight(0x8cb0ff, 0.2, 12)
+  practicalBounce.position.set(GRID_CENTER_X, 1.2, 2.5)
+  scene.add(practicalBounce)
 
   // Init particle system
   particles = new ParticleSystem(scene)
@@ -572,96 +575,31 @@ function createDoor(): THREE.Group {
   const doorW = GRID_W - 0.3
   const numPanels = Math.ceil(WALL_H / DOOR_PANEL_H)
 
-  // Industrial sectional door — alternating panel colors for depth
-  const panelColorA = 0x78909c
-  const panelColorB = 0x6b7d8a
+  const panelMat = new THREE.MeshStandardMaterial({
+    color: 0x6e6e7e, roughness: 0.35, metalness: 0.65,
+    clippingPlanes: [doorClipPlane], clipShadows: true
+  })
   const lineMat = new THREE.MeshStandardMaterial({
-    color: 0x455a64, roughness: 0.4, metalness: 0.7,
+    color: 0x555565, roughness: 0.5, metalness: 0.7,
     clippingPlanes: [doorClipPlane], clipShadows: true
   })
 
-  // Top 3 panels get frosted window inserts
-  const windowThreshold = numPanels - 3
-
   for (let i = 0; i < numPanels; i++) {
-    const panelColor = i % 2 === 0 ? panelColorA : panelColorB
-    const panelMat = new THREE.MeshStandardMaterial({
-      color: panelColor, roughness: 0.45, metalness: 0.5,
-      clippingPlanes: [doorClipPlane], clipShadows: true
-    })
     const p = new THREE.Mesh(new RoundedBoxGeometry(doorW, DOOR_PANEL_H - 0.01, 0.08, 2, 0.01), panelMat)
     p.position.set(GRID_CENTER_X, DOOR_PANEL_H / 2 + i * DOOR_PANEL_H, DOOR_Z)
     p.castShadow = true; doorGroup.add(p); doorPanels.push(p)
 
-    // Panel divider lines
     const l = new THREE.Mesh(new THREE.BoxGeometry(doorW, 0.012, 0.09), lineMat)
     l.position.set(GRID_CENTER_X, i * DOOR_PANEL_H + DOOR_PANEL_H, DOOR_Z)
     doorGroup.add(l); doorLines.push(l)
-
-    // Frosted window inserts on top panels
-    if (i >= windowThreshold) {
-      const windowMat = new THREE.MeshStandardMaterial({
-        color: 0xb3e5fc, emissive: 0x80deea, emissiveIntensity: 0.15,
-        roughness: 0.1, metalness: 0.1, transparent: true, opacity: 0.7,
-        clippingPlanes: [doorClipPlane], clipShadows: true
-      })
-      // 4 window panes per panel
-      for (let w = 0; w < 4; w++) {
-        const wx = GRID_CENTER_X - doorW * 0.35 + w * (doorW * 0.7 / 3)
-        const win = new THREE.Mesh(new THREE.BoxGeometry(doorW * 0.15, DOOR_PANEL_H * 0.6, 0.01), windowMat)
-        win.position.set(wx, DOOR_PANEL_H / 2 + i * DOOR_PANEL_H, DOOR_Z + 0.045)
-        doorGroup.add(win)
-      }
-    }
-
-    // Embossed rectangle detail on lower panels (industrial look)
-    if (i < windowThreshold && i > 0) {
-      const embossMat = new THREE.MeshStandardMaterial({
-        color: panelColor, roughness: 0.55, metalness: 0.45,
-        clippingPlanes: [doorClipPlane], clipShadows: true
-      })
-      const embossL = new THREE.Mesh(new THREE.BoxGeometry(doorW * 0.42, DOOR_PANEL_H * 0.55, 0.005), embossMat)
-      embossL.position.set(GRID_CENTER_X - doorW * 0.26, DOOR_PANEL_H / 2 + i * DOOR_PANEL_H, DOOR_Z + 0.042)
-      doorGroup.add(embossL)
-      const embossR = new THREE.Mesh(new THREE.BoxGeometry(doorW * 0.42, DOOR_PANEL_H * 0.55, 0.005), embossMat)
-      embossR.position.set(GRID_CENTER_X + doorW * 0.26, DOOR_PANEL_H / 2 + i * DOOR_PANEL_H, DOOR_Z + 0.042)
-      doorGroup.add(embossR)
-    }
   }
 
-  // Side rails / tracks
-  const railMat = new THREE.MeshStandardMaterial({ color: 0x37474f, roughness: 0.3, metalness: 0.8 })
-  for (const rx of [GRID_CENTER_X - doorW / 2 - 0.06, GRID_CENTER_X + doorW / 2 + 0.06]) {
-    // Vertical track
-    const rail = new THREE.Mesh(new THREE.BoxGeometry(0.06, WALL_H + 0.1, 0.10), railMat)
-    rail.position.set(rx, WALL_H / 2, DOOR_Z)
-    doorGroup.add(rail)
-    // Track brackets
-    for (let b = 0; b < 4; b++) {
-      const bracket = new THREE.Mesh(new THREE.BoxGeometry(0.10, 0.04, 0.04), railMat)
-      bracket.position.set(rx, 0.4 + b * 0.7, DOOR_Z - 0.06)
-      doorGroup.add(bracket)
-    }
-  }
-
-  // Handle — larger, more industrial
-  doorHandle = new THREE.Mesh(new RoundedBoxGeometry(0.14, 0.38, 0.14, 2, 0.02),
+  doorHandle = new THREE.Mesh(new RoundedBoxGeometry(0.1, 0.32, 0.12, 2, 0.02),
     new THREE.MeshStandardMaterial({
-      color: 0x263238, roughness: 0.25, metalness: 0.85,
+      color: 0x333340, roughness: 0.3, metalness: 0.8,
       clippingPlanes: [doorClipPlane], clipShadows: true
     }))
   doorHandle.position.set(GRID_CENTER_X - doorW * 0.33, 0.9, DOOR_Z + 0.1); doorGroup.add(doorHandle)
-  // Handle grip bar
-  const grip = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.02, 0.06),
-    new THREE.MeshStandardMaterial({ color: 0x455a64, roughness: 0.3, metalness: 0.8,
-      clippingPlanes: [doorClipPlane], clipShadows: true }))
-  grip.position.set(GRID_CENTER_X - doorW * 0.33, 0.95, DOOR_Z + 0.14); doorGroup.add(grip)
-
-  // Bottom weather seal (rubber strip)
-  const sealMat = new THREE.MeshStandardMaterial({ color: 0x1a1a1a, roughness: 0.9, metalness: 0.0 })
-  const seal = new THREE.Mesh(new THREE.BoxGeometry(doorW + 0.1, 0.03, 0.12), sealMat)
-  seal.position.set(GRID_CENTER_X, 0.015, DOOR_Z)
-  doorGroup.add(seal)
 
   scene.add(doorGroup); return doorGroup
 }
@@ -798,8 +736,8 @@ function animateDoorOpening() {
 
       gameState = GameState.DOOR_OPENED
 
-      // Cinematic camera: zoom to show outside (raised higher to avoid buildings)
-      animateCameraTo({ x: GRID_CENTER_X + 3, y: 9, z: DOOR_ROW + 8 }, { x: GRID_CENTER_X, y: 1, z: DOOR_ROW + 2 }, 1500, () => {
+      // Cinematic camera: zoom to show outside
+      animateCameraTo({ x: GRID_CENTER_X + 2.2, y: 5.8, z: DOOR_ROW + 6.4 }, { x: GRID_CENTER_X, y: 1, z: DOOR_ROW + 1.5 }, 1500, () => {
         ui.updateMission(2, 'Şarj İstasyonu', 'Robotu dışarıdaki yeşil şarj alanına götür ve şarj et.')
         ui.showToast('Yeni görev: Şarj istasyonuna ulaş! ⚡', 'info')
         const pose = getPrimaryCameraPose()
@@ -1273,9 +1211,6 @@ function initGame() {
 // RENDER LOOP
 // ═══════════════════════════════════════════
 let time = 0
-// Pre-allocated temporaries to avoid GC in render loop
-const _tmpVec3A = new THREE.Vector3()
-const _tmpVec3B = new THREE.Vector3()
 function renderLoop() {
   stats.begin()
   requestAnimationFrame(renderLoop); time += 0.016; controls.update()
@@ -1295,8 +1230,9 @@ function renderLoop() {
     }
     // Eye tracking — pupils look toward camera + occasional scanning
     if (robotPupils.length === 2 && camera) {
-      robotMesh.getWorldPosition(_tmpVec3A)
-      const toCam = _tmpVec3B.copy(camera.position).sub(_tmpVec3A).normalize()
+      const robotWorldPos = new THREE.Vector3()
+      robotMesh.getWorldPosition(robotWorldPos)
+      const toCam = camera.position.clone().sub(robotWorldPos).normalize()
       const maxAngle = 0.04
       let targetX = THREE.MathUtils.clamp(toCam.x * maxAngle, -maxAngle, maxAngle)
       let targetY = THREE.MathUtils.clamp(toCam.y * 0.02, -0.02, 0.02)
@@ -1355,10 +1291,9 @@ function renderLoop() {
   // Camera modes
   if (cameraMode === 'follow' && robotMesh) {
     const rp = robotMesh.position
-    _tmpVec3A.set(rp.x - 2, rp.y + 3.5, rp.z - 3)
-    camera.position.lerp(_tmpVec3A, 0.05)
-    _tmpVec3B.set(rp.x, rp.y + 0.5, rp.z)
-    controls.target.lerp(_tmpVec3B, 0.05)
+    const followPos = new THREE.Vector3(rp.x - 2, rp.y + 3.5, rp.z - 3)
+    camera.position.lerp(followPos, 0.05)
+    controls.target.lerp(new THREE.Vector3(rp.x, rp.y + 0.5, rp.z), 0.05)
     controls.update()
   } else if (cameraMode === 'cinematic') {
     cinematicAngle += 0.003
@@ -1583,86 +1518,6 @@ if (speedSlider) {
     executor.setSpeed(val)
   })
 }
-
-// ═══════════════════════════════════════════
-// LIGHT CONTROL
-// ═══════════════════════════════════════════
-function applyLightMultiplier() {
-  const baseAmbient = garageMode === 'closed' ? 1.5 : 0.35
-  if (mainAmbientLight) mainAmbientLight.intensity = baseAmbient * lightMultiplier
-  if (skyLight) skyLight.intensity = 0.5 * lightMultiplier
-  const sun = scene?.getObjectByName('env_sun') as THREE.DirectionalLight | undefined
-  if (sun) sun.intensity = 1.2 * lightMultiplier
-}
-
-const lightSlider = document.getElementById('light-slider') as HTMLInputElement | null
-if (lightSlider) {
-  lightSlider.addEventListener('input', () => {
-    lightMultiplier = parseInt(lightSlider.value, 10) / 100
-    applyLightMultiplier()
-  })
-}
-
-// ═══════════════════════════════════════════
-// RESOLUTION CONTROL
-// ═══════════════════════════════════════════
-const resolutionSlider = document.getElementById('resolution-slider') as HTMLInputElement | null
-if (resolutionSlider) {
-  resolutionSlider.addEventListener('input', () => {
-    const scale = parseInt(resolutionSlider.value, 10) / 100
-    const c = document.getElementById('canvas-container')!
-    const baseDPR = currentQuality === 'high' ? Math.min(window.devicePixelRatio, 1.5) : 1
-    renderer.setPixelRatio(scale * baseDPR)
-    renderer.setSize(c.clientWidth, c.clientHeight)
-  })
-}
-
-// ═══════════════════════════════════════════
-// QUALITY PRESETS
-// ═══════════════════════════════════════════
-let currentQuality: 'high' | 'performance' = 'high'
-
-function applyQualityPreset(preset: 'high' | 'performance') {
-  currentQuality = preset
-  const c = document.getElementById('canvas-container')!
-  const sun = scene?.getObjectByName('env_sun') as THREE.DirectionalLight | undefined
-
-  if (preset === 'high') {
-    // Cap at 1.5 — almost indistinguishable from 2.0 but 44% fewer pixels
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5))
-    renderer.shadowMap.enabled = true
-    if (sun) {
-      sun.castShadow = true
-      sun.shadow.mapSize.set(2048, 2048)
-      sun.shadow.radius = 3
-      sun.shadow.map?.dispose()
-      sun.shadow.map = null as any
-    }
-    if (scene?.fog) (scene.fog as THREE.FogExp2).density = 0.004
-  } else {
-    renderer.setPixelRatio(1)
-    // Disable shadows entirely — biggest single perf win
-    renderer.shadowMap.enabled = false
-    if (sun) {
-      sun.castShadow = false
-    }
-    if (scene?.fog) (scene.fog as THREE.FogExp2).density = 0.002
-  }
-
-  renderer.setSize(c.clientWidth, c.clientHeight)
-
-  // Sync resolution slider
-  if (resolutionSlider) resolutionSlider.value = '100'
-}
-
-document.querySelectorAll('.quality-btn').forEach(btn => {
-  btn.addEventListener('click', () => {
-    const quality = (btn as HTMLElement).dataset.quality as 'high' | 'performance'
-    document.querySelectorAll('.quality-btn').forEach(b => b.classList.remove('active'))
-    btn.classList.add('active')
-    applyQualityPreset(quality)
-  })
-})
 
 // ═══════════════════════════════════════════
 // STEP MODE
