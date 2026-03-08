@@ -1123,8 +1123,9 @@ function animateDoorOpening() {
   cameraMode = 'overview'
 
   // Animate camera to watch the door opening from a cinematic angle
+  // Tavanı aşmaması ve görsele benzemesi için daha asimetrik/geniş açı kullanıldı.
   animateCameraTo(
-    { x: GRID_CENTER_X + 4, y: 5, z: DOOR_ROW - 3 },
+    { x: GRID_CENTER_X, y: 3.8, z: DOOR_ROW - 12 },
     { x: GRID_CENTER_X, y: 1.5, z: DOOR_ROW },
     1200
   )
