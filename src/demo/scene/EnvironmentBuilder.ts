@@ -52,15 +52,15 @@ export function createOutdoorScene(
     sky.scale.setScalar(480)
     sky.position.set(config.GRID_CENTER_X, 0, config.DOOR_ROW + 10)
     const skyUniforms = (sky.material as THREE.ShaderMaterial).uniforms as Record<string, THREE.IUniform<unknown>>
-    ;(skyUniforms['turbidity'] as THREE.IUniform<number>).value = 2.0
-    ;(skyUniforms['rayleigh'] as THREE.IUniform<number>).value = 0.4
-    ;(skyUniforms['mieCoefficient'] as THREE.IUniform<number>).value = 0.003
-    ;(skyUniforms['mieDirectionalG'] as THREE.IUniform<number>).value = 0.95
+        ; (skyUniforms['turbidity'] as THREE.IUniform<number>).value = 2.0
+        ; (skyUniforms['rayleigh'] as THREE.IUniform<number>).value = 0.4
+        ; (skyUniforms['mieCoefficient'] as THREE.IUniform<number>).value = 0.003
+        ; (skyUniforms['mieDirectionalG'] as THREE.IUniform<number>).value = 0.95
     const sunDir = new THREE.Vector3()
     const elevation = 50, azimuth = 180
     sunDir.setFromSphericalCoords(1, THREE.MathUtils.degToRad(90 - elevation), THREE.MathUtils.degToRad(azimuth))
-    ;(skyUniforms['sunPosition'] as THREE.IUniform<THREE.Vector3>).value.copy(sunDir)
-    ;(sky.material as THREE.ShaderMaterial).depthWrite = false
+        ; (skyUniforms['sunPosition'] as THREE.IUniform<THREE.Vector3>).value.copy(sunDir)
+        ; (sky.material as THREE.ShaderMaterial).depthWrite = false
     sky.name = 'env_sky'
     scene.add(sky)
 
@@ -591,12 +591,7 @@ export function createOutdoorScene(
             hubGeom.applyMatrix4(carMatrix)
             collect('carHub', hubMat, hubGeom)
         }
-        const shadowGeom = new THREE.CircleGeometry(0.8, 12)
-        shadowGeom.scale(1, 1.8, 1)
-        shadowGeom.rotateX(-Math.PI / 2)
-        shadowGeom.translate(0, 0.01, 0)
-        shadowGeom.applyMatrix4(carMatrix)
-        collect('carShadow', carShadowMat, shadowGeom)
+        // shadowGeom removed per user request
     }
 
     addCar(-1.8, config.DOOR_ROW + 6, 0, 0)
@@ -644,11 +639,7 @@ export function createOutdoorScene(
             collect('treeCrown_' + crownIdx, crownMat, cg, true)
         }
 
-        // Shadow
-        const shadowGeom = new THREE.CircleGeometry(0.6, 10)
-        shadowGeom.rotateX(-Math.PI / 2)
-        shadowGeom.translate(tx, 0.01, tz)
-        collect('treeShadow', treeShadowMat, shadowGeom)
+        // Shadow removed per user request
     }
 
     const leftTreeZ = [config.DOOR_ROW + 5, config.DOOR_ROW + 10, config.DOOR_ROW + 16, config.DOOR_ROW + 22]
@@ -737,7 +728,7 @@ export function createOutdoorScene(
     const lampGlowMat = new THREE.MeshStandardMaterial({ color: 0xfff4e0, emissive: 0xfff4e0, emissiveIntensity: 1.2, roughness: 0.2 })
 
     for (const [lx, lz] of [[-2.5, config.DOOR_ROW + 8], [config.GRID_W + 1.5, config.DOOR_ROW + 14],
-        [-2.5, config.DOOR_ROW + 20], [config.GRID_W + 1.5, config.DOOR_ROW + 24]] as [number, number][]) {
+    [-2.5, config.DOOR_ROW + 20], [config.GRID_W + 1.5, config.DOOR_ROW + 24]] as [number, number][]) {
         // Tall pole
         const poleGeom = new THREE.CylinderGeometry(0.035, 0.05, 5.0, 12)
         poleGeom.translate(lx, 2.5, lz)
@@ -835,11 +826,11 @@ export function applyThemeToEnvironment(scene: THREE.Scene, _theme: 'light' | 'd
     const sky = scene.getObjectByName('env_sky') as Sky | undefined
     if (sky) {
         const u = (sky.material as THREE.ShaderMaterial).uniforms as Record<string, THREE.IUniform<unknown>>
-        ;(u['turbidity'] as THREE.IUniform<number>).value = 2.0
-        ;(u['rayleigh'] as THREE.IUniform<number>).value = 0.4
-        ;(u['mieCoefficient'] as THREE.IUniform<number>).value = 0.003
-        ;(u['mieDirectionalG'] as THREE.IUniform<number>).value = 0.95
-        ;(u['sunPosition'] as THREE.IUniform<THREE.Vector3>).value.copy(sunDir)
+            ; (u['turbidity'] as THREE.IUniform<number>).value = 2.0
+            ; (u['rayleigh'] as THREE.IUniform<number>).value = 0.4
+            ; (u['mieCoefficient'] as THREE.IUniform<number>).value = 0.003
+            ; (u['mieDirectionalG'] as THREE.IUniform<number>).value = 0.95
+            ; (u['sunPosition'] as THREE.IUniform<THREE.Vector3>).value.copy(sunDir)
     }
 
     const sun = scene.getObjectByName('env_sun') as THREE.DirectionalLight | undefined

@@ -272,6 +272,7 @@ function createGarage() {
       if (isCharge) mat = chargeTileMat
 
       const tile = new THREE.Mesh(new THREE.BoxGeometry(0.92, 0.04, 0.92), mat)
+      tile.name = 'outdoor_tile'
       tile.position.set(x, -0.02, z)
       tile.receiveShadow = true
       scene.add(tile)
@@ -1083,8 +1084,10 @@ function createDoor(): THREE.Group {
     }))
   doorHandle.position.set(doorCX - doorW * 0.33, 0.9, DOOR_Z + 0.08); doorGroup.add(doorHandle)
   const grip = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.02, 0.06),
-    new THREE.MeshStandardMaterial({ color: 0x455a64, roughness: 0.3, metalness: 0.8,
-      clippingPlanes: [doorClipPlane], clipShadows: true }))
+    new THREE.MeshStandardMaterial({
+      color: 0x455a64, roughness: 0.3, metalness: 0.8,
+      clippingPlanes: [doorClipPlane], clipShadows: true
+    }))
   grip.position.set(doorCX - doorW * 0.33, 0.95, DOOR_Z + 0.12); doorGroup.add(grip)
 
   // ── Bottom Weather Seal ──
@@ -1174,7 +1177,7 @@ function animateDoorOpening() {
     // Realistic shutter easing: slow start, accelerate, slow at end
     const ease = t < 0.15 ? (t / 0.15) * (t / 0.15) * 0.15
       : t < 0.85 ? 0.15 + (t - 0.15) / 0.7 * 0.7
-      : 0.85 + (1 - Math.pow(1 - (t - 0.85) / 0.15, 2)) * 0.15
+        : 0.85 + (1 - Math.pow(1 - (t - 0.85) / 0.15, 2)) * 0.15
 
     // Realistic roller shutter: panels rise from bottom, stack/coil at the top
     const n = doorPanels.length
@@ -1497,7 +1500,7 @@ function updateChargingCableGeometry(start: THREE.Vector3, end: THREE.Vector3) {
   const glow = chargingCableLine.userData.glowLine as THREE.Line | undefined
   if (glow) {
     const glowPoints = points.map(p => p.clone().add(new THREE.Vector3(0, 0.02, 0)))
-    ;(glow.geometry as THREE.BufferGeometry).setFromPoints(glowPoints)
+      ; (glow.geometry as THREE.BufferGeometry).setFromPoints(glowPoints)
   }
 }
 
@@ -1913,6 +1916,8 @@ function initGame() {
       grid.setWalkable({ x, y }, false)
     }
   }
+
+  applyReflectionState()
 
   // Events
   EventBus.on('battery:updated', (l: number) => { ui.updateBatteryUI(l); updateRobotChargeIndicator(l) })
@@ -2747,7 +2752,37 @@ shadowToggleBtn?.addEventListener('click', () => {
   shadowToggleBtn.classList.toggle('active', shadowEnabled)
 })
 
-// ═══════════════════════════════════════════
+// Reflection toggle
+let reflectionEnabled = false
+const reflectionToggleBtn = document.getElementById('btn-reflection-toggle')
+
+function applyReflectionState() {
+  const updateMaterial = (child: THREE.Object3D) => {
+    if (child.name === 'fps_heavy_light') {
+      child.visible = reflectionEnabled
+    }
+    if (child instanceof THREE.Mesh && child.material instanceof THREE.MeshStandardMaterial) {
+      if (child.name.startsWith('tile_') || child.name.startsWith('outdoor_tile')) {
+        child.material.roughness = reflectionEnabled ? 0.25 : 0.9
+        child.material.metalness = reflectionEnabled ? 0.40 : 0.05
+        child.material.needsUpdate = true
+      }
+    }
+  }
+  if (garageGroup) garageGroup.traverse(updateMaterial)
+  scene.traverse(updateMaterial)
+}
+
+if (reflectionToggleBtn) {
+  reflectionToggleBtn.textContent = '🌑 Kapalı'
+  reflectionToggleBtn.classList.remove('active')
+}
+reflectionToggleBtn?.addEventListener('click', () => {
+  reflectionEnabled = !reflectionEnabled
+  applyReflectionState()
+  reflectionToggleBtn.textContent = reflectionEnabled ? '✨ Açık' : '🌑 Kapalı'
+  reflectionToggleBtn.classList.toggle('active', reflectionEnabled)
+})
 // STEP MODE
 // ═══════════════════════════════════════════
 let stepModeEnabled = false

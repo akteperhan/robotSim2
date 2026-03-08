@@ -189,9 +189,7 @@ export function createGarage(config: GarageConfig) {
             collect(i % 2 === 0 ? 'safetyYellow' : 'safetyBlack', i % 2 === 0 ? safetyYellowMat : safetyBlackMat, sg)
         }
     }
-    addChevronStripes((config.GRID_W - 1) / 2, -0.3, config.GRID_W - 1, 0.15, 24)
-    addChevronStripes(-0.3, (config.GARAGE_DEPTH - 1) / 2, 0.15, config.GARAGE_DEPTH - 1, 1)
-    addChevronStripes(config.GRID_W - 0.7, (config.GARAGE_DEPTH - 1) / 2, 0.15, config.GARAGE_DEPTH - 1, 1)
+    // addChevronStripes calls removed per user request
 
     // ═══════════════════════════════════════════
     // COORDINATE PLAQUES
@@ -415,9 +413,13 @@ export function createGarage(config: GarageConfig) {
 
     // Fill lights
     const fill1 = new THREE.PointLight(0xfff4e0, 6.0, 30)
+    fill1.name = 'fps_heavy_light'
+    fill1.visible = false
     fill1.position.set(garageCenterX, config.WALL_H - 0.5, config.GARAGE_DEPTH / 3)
     garageGroup.add(fill1)
     const fill2 = new THREE.PointLight(0xfff4e0, 6.0, 30)
+    fill2.name = 'fps_heavy_light'
+    fill2.visible = false
     fill2.position.set(garageCenterX, config.WALL_H - 0.5, (config.GARAGE_DEPTH / 3) * 2)
     garageGroup.add(fill2)
 
@@ -533,20 +535,7 @@ export function createGarage(config: GarageConfig) {
     // ═══════════════════════════════════════════
     // FIRE SUPPRESSION PIPE + SPRINKLERS
     // ═══════════════════════════════════════════
-    const firePipe = new THREE.CylinderGeometry(0.02, 0.02, garageW - 1, 8)
-    firePipe.rotateZ(Math.PI / 2)
-    firePipe.translate(garageCenterX, config.WALL_H - 0.25, 6)
-    collect('firePipe', firePipeMat, firePipe)
-
-    // Sprinkler heads
-    for (const sx of [garageCenterX - 3, garageCenterX, garageCenterX + 3]) {
-        const stem = new THREE.CylinderGeometry(0.006, 0.006, 0.06, 8)
-        stem.translate(sx, config.WALL_H - 0.31, 6)
-        collect('sprinkler', firePipeMat, stem)
-        const disc = new THREE.CylinderGeometry(0.025, 0.025, 0.005, 12)
-        disc.translate(sx, config.WALL_H - 0.34, 6)
-        collect('sprinkler', firePipeMat, disc)
-    }
+    // Removed per user request
 
     // ═══════════════════════════════════════════
     // PEGBOARD WITH TOOLS — back wall
@@ -585,10 +574,7 @@ export function createGarage(config: GarageConfig) {
     const epG = new THREE.BoxGeometry(0.04, 0.55, 0.38)
     epG.translate(-0.52, 1.6, 8.5)
     collect('elPanel', elPanelMat, epG)
-    // Caution stripe
-    const cautionG = new THREE.BoxGeometry(0.045, 0.08, 0.38)
-    cautionG.translate(-0.52, 1.95, 8.5)
-    collect('cautionStripe', safetyYellowMat, cautionG)
+    // Caution stripe removed per user request
 
     // ═══════════════════════════════════════════
     // WORKSHOP: SHELVES (muted industrial)
@@ -692,6 +678,8 @@ export function createGarage(config: GarageConfig) {
     lsg.translate(config.GRID_W - 0.62, 1.52, 3.6)
     collect('lampShade', lampShadeMat, lsg)
     const deskLight = new THREE.PointLight(0xfff4e0, 6, 4)
+    deskLight.name = 'fps_heavy_light'
+    deskLight.visible = false
     deskLight.position.set(config.GRID_W - 0.62, 1.46, 3.6)
     garageGroup.add(deskLight)
 
@@ -702,11 +690,6 @@ export function createGarage(config: GarageConfig) {
     const bcg = new RoundedBoxGeometry(0.48, 1.0, 0.55, 4, 0.04)
     bcg.translate(config.GRID_W - 0.65, 0.50, 4.8)
     collect('bigCabinet', bigCabinetMat, bcg)
-    const cscg = new THREE.CircleGeometry(0.4, 24)
-    cscg.scale(1, 1.3, 1)
-    cscg.rotateX(-Math.PI / 2)
-    cscg.translate(config.GRID_W - 0.65, 0.005, 4.8)
-    collect('contactShadows', contactShadowMat, cscg)
 
     const drawerMat = new THREE.MeshStandardMaterial({ color: 0x5a0a0a, roughness: 0.5, metalness: 0.5 })
     const toolHandleMat = new THREE.MeshStandardMaterial({ color: 0x606870, roughness: 0.3, metalness: 0.7 })
@@ -726,10 +709,6 @@ export function createGarage(config: GarageConfig) {
     const b1g = new THREE.CylinderGeometry(0.22, 0.24, 0.70, 16)
     b1g.translate(config.GRID_W - 0.60, 0.35, 0.4)
     collect('barrels', barrelMat1, b1g)
-    const csb1g = new THREE.CircleGeometry(0.28, 24)
-    csb1g.rotateX(-Math.PI / 2)
-    csb1g.translate(config.GRID_W - 0.60, 0.005, 0.4)
-    collect('contactShadows', contactShadowMat, csb1g)
 
     // ═══════════════════════════════════════════
     // WALL POSTERS
@@ -783,35 +762,15 @@ export function createGarage(config: GarageConfig) {
     blG.translate(chargeX + 0.70, 0.50, chargeZ + 0.13)
     collect('bolt', boltMat, blG)
 
-    // ═══════════════════════════════════════════
-    // START POINT CIRCLE
-    // ═══════════════════════════════════════════
-    const robotStartX = config.GRID_CENTER_X, robotStartZ = 3
-    const startCircleMat = new THREE.MeshStandardMaterial({
-        color: 0x4caf50, emissive: 0x4caf50, emissiveIntensity: 0.3,
-        transparent: true, opacity: 0.5, roughness: 0.3, metalness: 0.1
-    })
-    const scg = new THREE.RingGeometry(0.35, 0.42, 32)
-    scg.rotateX(-Math.PI / 2)
-    scg.translate(robotStartX + 0.5, 0.015, robotStartZ + 0.5)
-    collect('startCircle', startCircleMat, scg)
-    const sig = new THREE.CircleGeometry(0.15, 32)
-    sig.rotateX(-Math.PI / 2)
-    sig.translate(robotStartX + 0.5, 0.016, robotStartZ + 0.5)
-    collect('startCircle', startCircleMat, sig)
-    const startArrowShape = new THREE.Shape()
-    startArrowShape.moveTo(0, 0.12); startArrowShape.lineTo(0.06, 0.02); startArrowShape.lineTo(-0.06, 0.02); startArrowShape.closePath()
-    const sag = new THREE.ShapeGeometry(startArrowShape)
-    sag.rotateX(-Math.PI / 2)
-    sag.translate(robotStartX + 0.5, 0.017, robotStartZ + 0.25)
-    collect('startCircle', startCircleMat, sag)
-
+    // START POINT CIRCLE removed per user request
     // ── Ceiling local lights ──
     let lightIdx = 0
     for (const lz of cLightZ) {
         for (const lx of cLightX) {
             if (lightIdx % 3 === 0) {
                 const localLight = new THREE.PointLight(0xfff4e0, 6, 5)
+                localLight.name = 'fps_heavy_light'
+                localLight.visible = false
                 localLight.position.set(lx, config.WALL_H - 0.3, lz)
                 garageGroup.add(localLight)
             }
@@ -938,6 +897,8 @@ export function createGarage(config: GarageConfig) {
         shg.translate(lmpX, config.WALL_H - 0.28, config.DOOR_ROW - 0.22)
         collect('wallLampShades', wallLampMat, shg)
         const extLight = new THREE.PointLight(0xfff4e0, 1.5, 5)
+        extLight.name = 'fps_heavy_light'
+        extLight.visible = false
         extLight.position.set(lmpX, config.WALL_H - 0.3, config.DOOR_ROW - 0.15)
         garageGroup.add(extLight)
     }
@@ -1021,33 +982,7 @@ export function createGarage(config: GarageConfig) {
     msG.translate(garageCenterX, config.WALL_H + 0.10, doorZ - 0.35)
     collect('motionSensor', motionSensorMat, msG)
 
-    // ═══════════════════════════════════════════
-    // FLOOR DETAILS
-    // ═══════════════════════════════════════════
-    const oilStainMat = new THREE.MeshStandardMaterial({
-        color: 0x111111, transparent: true, opacity: 0.35,
-        roughness: 0.2, metalness: 0.3, depthWrite: false
-    })
-    const oil1G = new THREE.CircleGeometry(0.6, 24)
-    oil1G.rotateX(-Math.PI / 2)
-    oil1G.translate(3.5, 0.005, 4.0)
-    collect('oilStains', oilStainMat, oil1G)
-    const oil2G = new THREE.CircleGeometry(0.35, 20)
-    oil2G.rotateX(-Math.PI / 2)
-    oil2G.translate(7.0, 0.005, 6.5)
-    collect('oilStains', oilStainMat, oil2G)
-
-    const tireMarkMat = new THREE.MeshStandardMaterial({
-        color: 0x222222, transparent: true, opacity: 0.2,
-        roughness: 0.3, metalness: 0.1, depthWrite: false
-    })
-    for (const tx of [garageCenterX - 1.2, garageCenterX + 1.2]) {
-        const tmG = new THREE.PlaneGeometry(0.18, 8.0)
-        tmG.rotateX(-Math.PI / 2)
-        tmG.translate(tx, 0.006, 7.0)
-        collect('tireMarks', tireMarkMat, tmG)
-    }
-
+    // FLOOR DETAILS removed per user request
     // ═══════════════════════════════════════════
     // INTERIOR DETAILS
     // ═══════════════════════════════════════════
