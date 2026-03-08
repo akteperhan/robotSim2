@@ -2,66 +2,54 @@ import { MissionDefinition } from './MissionDefinition'
 
 export const MISSIONS: MissionDefinition[] = [
   // ═══════════════════════════════════════════
-  // CHAPTER 1: GARAJ TEMELLERİ
+  // CHAPTER 1: GARAJ TEMELLERİ (PDF Hikayesi)
   // ═══════════════════════════════════════════
   {
     id: 'ch1-01',
     chapter: 1,
     chapterName: 'Garaj Temelleri',
-    title: 'İlk Adımlar',
-    description: 'Robotu 3 adım ileri götür.',
-    hint: '"İleri Git" bloğunu kullan ve adım sayısını 3 yap.',
-    optimalCommands: 1,
-    winCondition: { type: 'reach_position', targetPosition: { x: 5, y: 6 } },
-    availableBlocks: ['move_forward'],
-    doorStartsOpen: false
-  },
-  {
-    id: 'ch1-02',
-    chapter: 1,
-    chapterName: 'Garaj Temelleri',
-    title: 'Dönüş Zamanı',
-    description: 'Robotu sola döndür ve 3 adım ilerle.',
-    hint: 'Önce "Sola Dön" bloğunu, sonra "İleri Git" bloğunu kullan.',
-    optimalCommands: 2,
-    winCondition: { type: 'reach_position', targetPosition: { x: 2, y: 3 } },
-    availableBlocks: ['move_forward', 'turn_left', 'turn_right'],
-    doorStartsOpen: false
-  },
-  {
-    id: 'ch1-03',
-    chapter: 1,
-    chapterName: 'Garaj Temelleri',
-    title: 'Tarayıcıya Ulaş',
-    description: 'Robotu duvardaki mavi tarayıcı paneline kadar sür.',
-    hint: 'İleri git, sola dön, sonra tekrar ileri git. Tarayıcı (0,7) konumunda.',
+    title: 'Adım 1: Garaj Kapısını Aç',
+    description: 'Robot garajın içinde kapalı. Kapının yanında duvarda kocaman, parlak SARI BİR BUTON var. Kapı kilitli. Robotu butona kadar sür.',
+    hint: 'İleri git, sola dön ve tekrar ileri git.',
     optimalCommands: 3,
     winCondition: { type: 'reach_position', targetPosition: { x: 0, y: 7 } },
     availableBlocks: ['move_forward', 'turn_left', 'turn_right'],
     doorStartsOpen: false
   },
   {
-    id: 'ch1-04',
+    id: 'ch1-02',
     chapter: 1,
     chapterName: 'Garaj Temelleri',
-    title: 'Kapıyı Aç',
-    description: 'Tarayıcı paneline git ve butona basarak garaj kapısını aç.',
-    hint: 'Tarayıcıya ulaştıktan sonra "Butona Bas" bloğunu ekle.',
+    title: 'Adım 2: Sistemi Aktif Et',
+    description: 'Robot butonun önüne geldi. Şimdi etkileşime girmeli. Butona basılmazsa kapı açılmaz. Robot butona basmalı.',
+    hint: '"Butona Bas" bloğunu kullanarak garaj kapısını aç.',
     optimalCommands: 4,
     winCondition: { type: 'open_door' },
     availableBlocks: ['move_forward', 'turn_left', 'turn_right', 'press_button'],
     doorStartsOpen: false
   },
   {
-    id: 'ch1-05',
+    id: 'ch1-03',
     chapter: 1,
     chapterName: 'Garaj Temelleri',
-    title: 'Şarj İstasyonu',
-    description: 'Kapıyı aç, dışarı çık ve şarj istasyonuna ulaşarak şarj ol.',
-    hint: 'Butona bastıktan sonra kapıdan çık, sağa dön, ilerle ve şarj bloğunu kullan.',
+    title: 'Adım 3: Enerjiye Ulaş',
+    description: 'Pil bitmek üzere (%2... %1...). Kapı açıldı, dışarıda parlayan yeşil bir Şarj Alanı var. Açılan kapıdan geç ve tam üzerine park et.',
+    hint: 'Butona bastıktan sonra dışarı çıkıp şarj alanına ulaş.',
+    optimalCommands: 9,
+    winCondition: { type: 'reach_position', targetPosition: { x: 2, y: 15 } }, // Charge pad position is 2, 15
+    availableBlocks: ['move_forward', 'turn_left', 'turn_right', 'press_button'],
+    doorStartsOpen: false
+  },
+  {
+    id: 'ch1-04',
+    chapter: 1,
+    chapterName: 'Garaj Temelleri',
+    title: 'Adım 4: Final Görevi (Şarj Ol)',
+    description: 'Şarj alanına ulaştın. Şarj butonunu / bloğunu kullanarak bataryanı %100 yap!',
+    hint: 'Şarj istasyonuna vardıktan sonra şarj işlemini tetikle.',
     optimalCommands: 9,
     winCondition: { type: 'charge_full' },
-    availableBlocks: null,
+    availableBlocks: ['move_forward', 'turn_left', 'turn_right', 'press_button', 'charge'], // charge bloğunu bu aşamada veriyoruz
     doorStartsOpen: false
   },
   // ═══════════════════════════════════════════

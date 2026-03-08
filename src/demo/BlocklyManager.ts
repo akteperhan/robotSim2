@@ -24,7 +24,7 @@ export class BlocklyManager {
   private defineBlocks() {
     Blockly.Blocks['green_flag'] = {
       init: function (this: Blockly.Block) {
-        this.appendDummyInput().appendField('🚩 Yeşil Bayrak Tıklandığında')
+        this.appendDummyInput().appendField('🚀 Çalıştır Tıklandığında')
         this.setNextStatement(true, null)
         this.setColour(65)
         this.setDeletable(false)

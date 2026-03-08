@@ -136,85 +136,71 @@ export class SoundManager {
         osc2.stop(ctx.currentTime + 0.25)
     }
 
-    // ─── DOOR OPENING: Motor hum + chain rattle + metallic slide ───
+    // ─── DOOR OPENING: Fun ambulance/police siren + mechanical whir ───
     playDoorOpen() {
         if (!this.enabled) return
         const ctx = this.getContext()
         const now = ctx.currentTime
 
-        // Electric motor hum (continuous)
+        // Eğlenceli Siren (Ambulans/Polis tarzı yavaş inip çıkan frekans)
+        const siren = ctx.createOscillator()
+        const sirenGain = ctx.createGain()
+        siren.connect(sirenGain)
+        sirenGain.connect(ctx.destination)
+        siren.type = 'sine'
+
+        // Siren frekansı LFO ile dalgalanır
+        const lfo = ctx.createOscillator()
+        const lfoGain = ctx.createGain()
+        lfo.type = 'square' // Keskin geçiş veya 'sine' kullanılabilir (ambulans için square daha iyidir ama sine daha yumuşak)
+        lfo.frequency.setValueAtTime(3.0, now) // 3 Hz hızında inip çıkma
+        lfoGain.gain.setValueAtTime(300, now) // 300 Hz dalgalanma genliği
+
+        siren.frequency.setValueAtTime(600, now) // Merkez frekans
+        lfo.connect(lfoGain)
+        lfoGain.connect(siren.frequency) // Siren frekansını LFO modüle eder
+
+        sirenGain.gain.setValueAtTime(0, now)
+        sirenGain.gain.linearRampToValueAtTime(0.12, now + 0.2) // Yüksel
+        sirenGain.gain.linearRampToValueAtTime(0.12, now + 2.0)
+        sirenGain.gain.linearRampToValueAtTime(0, now + 2.5) // Kapanırken sustur
+
+        siren.start(now)
+        lfo.start(now)
+        siren.stop(now + 2.5)
+        lfo.stop(now + 2.5)
+
+        // Eğlenceli ve hafif bir mekanik vızıldama (arka planda kapının kalktığını hissettirsin)
         const motor = ctx.createOscillator()
         const motorGain = ctx.createGain()
         motor.connect(motorGain)
         motorGain.connect(ctx.destination)
-        motor.type = 'sawtooth'
-        motor.frequency.setValueAtTime(55, now)
-        motor.frequency.linearRampToValueAtTime(75, now + 0.3)
-        motor.frequency.linearRampToValueAtTime(65, now + 2.0)
-        motor.frequency.linearRampToValueAtTime(45, now + 2.3)
+        motor.type = 'triangle'
+        motor.frequency.setValueAtTime(100, now)
+        motor.frequency.linearRampToValueAtTime(180, now + 1.0)
+        motor.frequency.linearRampToValueAtTime(250, now + 2.0)
         motorGain.gain.setValueAtTime(0, now)
-        motorGain.gain.linearRampToValueAtTime(0.07, now + 0.2)
-        motorGain.gain.linearRampToValueAtTime(0.05, now + 1.8)
-        motorGain.gain.linearRampToValueAtTime(0, now + 2.4)
+        motorGain.gain.linearRampToValueAtTime(0.04, now + 0.3)
+        motorGain.gain.linearRampToValueAtTime(0.02, now + 2.2)
+        motorGain.gain.linearRampToValueAtTime(0, now + 2.5)
         motor.start(now)
-        motor.stop(now + 2.4)
+        motor.stop(now + 2.5)
 
-        // Chain rattle — rapid metallic clicks with varying pitch
-        for (let i = 0; i < 16; i++) {
-            const t = now + 0.1 + i * 0.14
-            const click = ctx.createOscillator()
-            const cGain = ctx.createGain()
-            const cFilter = ctx.createBiquadFilter()
-            click.connect(cFilter)
-            cFilter.connect(cGain)
-            cGain.connect(ctx.destination)
-            cFilter.type = 'bandpass'
-            cFilter.frequency.setValueAtTime(2000 + Math.random() * 1500, t)
-            cFilter.Q.setValueAtTime(8, t)
-            click.type = 'square'
-            click.frequency.setValueAtTime(150 + Math.random() * 200, t)
-            cGain.gain.setValueAtTime(0.025, t)
-            cGain.gain.linearRampToValueAtTime(0, t + 0.02)
-            click.start(t)
-            click.stop(t + 0.03)
-        }
-
-        // Metallic slide — filtered noise sweep
-        const bufLen = ctx.sampleRate * 2.5
-        const buf = ctx.createBuffer(1, bufLen, ctx.sampleRate)
-        const data = buf.getChannelData(0)
-        for (let i = 0; i < bufLen; i++) data[i] = (Math.random() * 2 - 1)
-        const noise = ctx.createBufferSource()
-        noise.buffer = buf
-        const bp = ctx.createBiquadFilter()
-        bp.type = 'bandpass'
-        bp.frequency.setValueAtTime(400, now)
-        bp.frequency.linearRampToValueAtTime(800, now + 1.0)
-        bp.frequency.linearRampToValueAtTime(300, now + 2.2)
-        bp.Q.setValueAtTime(3, now)
-        const nGain = ctx.createGain()
-        noise.connect(bp)
-        bp.connect(nGain)
-        nGain.connect(ctx.destination)
-        nGain.gain.setValueAtTime(0, now)
-        nGain.gain.linearRampToValueAtTime(0.04, now + 0.3)
-        nGain.gain.linearRampToValueAtTime(0.025, now + 1.8)
-        nGain.gain.linearRampToValueAtTime(0, now + 2.4)
-        noise.start(now)
-        noise.stop(now + 2.5)
-
-        // Final thud when door reaches top
-        const thud = ctx.createOscillator()
-        const thudGain = ctx.createGain()
-        thud.connect(thudGain)
-        thudGain.connect(ctx.destination)
-        thud.type = 'sine'
-        thud.frequency.setValueAtTime(80, now + 2.2)
-        thud.frequency.linearRampToValueAtTime(40, now + 2.4)
-        thudGain.gain.setValueAtTime(0.12, now + 2.2)
-        thudGain.gain.linearRampToValueAtTime(0, now + 2.5)
-        thud.start(now + 2.2)
-        thud.stop(now + 2.5)
+        // Final "Ta-da" veya eğlenceli bitiş sesi
+        const tada = ctx.createOscillator()
+        const tadaGain = ctx.createGain()
+        tada.connect(tadaGain)
+        tadaGain.connect(ctx.destination)
+        tada.type = 'sine'
+        tada.frequency.setValueAtTime(440, now + 2.2) // A4
+        tada.frequency.setValueAtTime(659.25, now + 2.35) // E5 (Ta-da!)
+        tadaGain.gain.setValueAtTime(0, now + 2.19)
+        tadaGain.gain.setValueAtTime(0.08, now + 2.2)
+        tadaGain.gain.linearRampToValueAtTime(0.05, now + 2.34)
+        tadaGain.gain.setValueAtTime(0.15, now + 2.35)
+        tadaGain.gain.linearRampToValueAtTime(0, now + 2.7)
+        tada.start(now + 2.2)
+        tada.stop(now + 2.7)
     }
 
     // ─── CHARGING: Rising tones ───

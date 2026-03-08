@@ -268,7 +268,7 @@ function createGarage() {
   // ── Outdoor grid tiles: from door to charging station ──
   const outdoorTileMat = new THREE.MeshStandardMaterial({ color: 0x6b7b8d, roughness: 0.35, metalness: 0.3 })
   const outdoorEdgeMat = new THREE.MeshStandardMaterial({ color: 0x5a6a7c, roughness: 0.4, metalness: 0.25 })
-  const chargeTileMat = new THREE.MeshStandardMaterial({ color: 0x29b6f6, emissive: 0x29b6f6, emissiveIntensity: 0.4, roughness: 0.3, metalness: 0.2 })
+  const chargeTileMat = new THREE.MeshStandardMaterial({ color: 0x43a047, emissive: 0x43a047, emissiveIntensity: 0.4, roughness: 0.3, metalness: 0.2 })
   const outdoorGridLineMat = new THREE.MeshStandardMaterial({ color: 0x4a5a6c, roughness: 0.5, metalness: 0.2 })
 
   for (let x = 0; x < GRID_W; x++) {
@@ -287,7 +287,7 @@ function createGarage() {
 
       // Charge tile frame
       if (isCharge) {
-        const frameMat = new THREE.MeshStandardMaterial({ color: 0x4dd0e1, emissive: 0x4dd0e1, emissiveIntensity: 0.8, roughness: 0.3 })
+        const frameMat = new THREE.MeshStandardMaterial({ color: 0x66bb6a, emissive: 0x66bb6a, emissiveIntensity: 0.8, roughness: 0.3 })
         for (const [fw, fd, fx, fz] of [
           [0.96, 0.06, 0, -0.47], [0.96, 0.06, 0, 0.47],
           [0.06, 0.96, -0.47, 0], [0.06, 0.96, 0.47, 0]
@@ -758,7 +758,7 @@ function createChargingStation(pos: Position): THREE.Group {
   g.add(platform)
   const dockingRing = new THREE.Mesh(
     new THREE.TorusGeometry(1.1, 0.08, 20, 56),
-    new THREE.MeshStandardMaterial({ color: 0x4dd0e1, emissive: 0x26c6da, emissiveIntensity: 1.05, roughness: 0.2, metalness: 0.5 })
+    new THREE.MeshStandardMaterial({ color: 0x66bb6a, emissive: 0x43a047, emissiveIntensity: 1.05, roughness: 0.2, metalness: 0.5 })
   )
   dockingRing.rotation.x = Math.PI / 2
   dockingRing.position.y = 0.12
@@ -769,7 +769,7 @@ function createChargingStation(pos: Position): THREE.Group {
   )
   centerPad.position.y = 0.08
   g.add(centerPad)
-  chargingSurfaceMat = new THREE.MeshStandardMaterial({ color: 0x4de5ff, emissive: 0x26c6da, emissiveIntensity: 0.8, roughness: 0.1 })
+  chargingSurfaceMat = new THREE.MeshStandardMaterial({ color: 0x69f0ae, emissive: 0x43a047, emissiveIntensity: 0.8, roughness: 0.1 })
   const centerGlow = new THREE.Mesh(
     new THREE.CylinderGeometry(0.65, 0.7, 0.02, 40),
     chargingSurfaceMat
@@ -795,7 +795,7 @@ function createChargingStation(pos: Position): THREE.Group {
   g.add(statusBar)
   const statusStripe = new THREE.Mesh(
     new THREE.BoxGeometry(0.7, 0.03, 0.02),
-    new THREE.MeshStandardMaterial({ color: 0x4dd0e1, emissive: 0x4dd0e1, emissiveIntensity: 1.4, roughness: 0.1 })
+    new THREE.MeshStandardMaterial({ color: 0x66bb6a, emissive: 0x66bb6a, emissiveIntensity: 1.4, roughness: 0.1 })
   )
   statusStripe.position.set(0, 2.2, -2.15)
   g.add(statusStripe)
@@ -905,13 +905,13 @@ function createChargingStation(pos: Position): THREE.Group {
   g.add(labelSprite)
 
   // Local lighting (adjusted for bigger size)
-  const spotDown = new THREE.SpotLight(0x7de9ff, 2.5, 8.0, Math.PI / 4.5, 0.45)
+  const spotDown = new THREE.SpotLight(0x69f0ae, 2.5, 8.0, Math.PI / 4.5, 0.45)
   spotDown.position.set(0, 2.9, 0.1)
   spotDown.target.position.set(0, 0, 0.05)
   g.add(spotDown)
   g.add(spotDown.target)
   g.add(new THREE.PointLight(0x69f0ae, 1.2, 9).translateY(0.6))
-  chargingAmbientGlowMat = new THREE.MeshBasicMaterial({ color: 0x7de9ff, transparent: true, opacity: 0.06 })
+  chargingAmbientGlowMat = new THREE.MeshBasicMaterial({ color: 0x69f0ae, transparent: true, opacity: 0.06 })
   const glowSphere = new THREE.Mesh(new THREE.SphereGeometry(1.4, 24, 18), chargingAmbientGlowMat)
   glowSphere.position.y = 0.6
   g.add(glowSphere)
@@ -2494,7 +2494,7 @@ document.getElementById('intro-start-btn')!.addEventListener('click', () => {
 document.getElementById('toggle-panel-btn')!.addEventListener('click', () => {
   isPanelOpen = !isPanelOpen
   document.getElementById('coding-panel')!.classList.toggle('collapsed', !isPanelOpen)
-  document.getElementById('toggle-panel-btn')!.innerHTML = isPanelOpen ? '<span>◧</span> Kodlama Paneli' : '<span>◨</span> Paneli Aç'
+  document.getElementById('toggle-panel-btn')!.innerHTML = isPanelOpen ? '<span class="toggle-icon">☰</span> Kodlama' : '<span class="toggle-icon">☰</span> Paneli Aç'
   setTimeout(() => {
     blocklyMgr.resize()
     const c = document.getElementById('canvas-container')!
@@ -2638,11 +2638,10 @@ function loadMissionUI() {
   const idx = missionMgr.getCurrentIndex()
   ui.updateMission(idx + 1, mission.title, mission.description)
 
-  // Show hint
+  // Hide hint (direction info not needed)
   const hintEl = document.getElementById('mission-hint')
   if (hintEl) {
-    hintEl.textContent = `💡 ${mission.hint}`
-    hintEl.style.display = 'block'
+    hintEl.style.display = 'none'
   }
 
   // Nav buttons
@@ -2659,10 +2658,13 @@ function updateMissionStarsDisplay() {
   const starsEl = document.getElementById('mission-stars')
   if (!starsEl) return
   const best = missionMgr.getBestScore(idx)
+  const card = document.getElementById('mission-card')
   if (best) {
     starsEl.textContent = '⭐'.repeat(best.stars) + '☆'.repeat(3 - best.stars)
+    card?.classList.add('completed')
   } else {
     starsEl.textContent = '☆☆☆'
+    card?.classList.remove('completed')
   }
 }
 
