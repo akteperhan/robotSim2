@@ -858,16 +858,25 @@
       border-color: var(--accent-warning);
     }
 
-    #btn-load-code {
+    #btn-load-code, #btn-load-crash {
       background: linear-gradient(135deg, #667eea, #764ba2);
       color: white;
       box-shadow: 0 2px 8px rgba(102, 126, 234, 0.3);
       margin-left: 10px;
     }
 
-    #btn-load-code:hover {
+    #btn-load-crash {
+      background: linear-gradient(135deg, #ea6666, #a24b4b);
+      box-shadow: 0 2px 8px rgba(234, 102, 102, 0.3);
+    }
+
+    #btn-load-code:hover, #btn-load-crash:hover {
       box-shadow: 0 0 15px rgba(102, 126, 234, 0.5);
       transform: translateY(-1px);
+    }
+
+    #btn-load-crash:hover {
+      box-shadow: 0 0 15px rgba(234, 102, 102, 0.5);
     }
 
     #btn-step-toggle {
@@ -1630,6 +1639,7 @@
             <button class="ctrl-btn" id="btn-step-toggle" title="Adım adım modunu aç/kapat">👣 Adım Modu</button>
             <button class="ctrl-btn" id="btn-step-next" style="display:none" title="Sonraki adım">⏭ Adım</button>
             <button class="ctrl-btn" id="btn-load-code">💡 Çözümü Yükle</button>
+            <button class="ctrl-btn" id="btn-load-crash">💥 Çarpma Testi</button>
           </div>
         </div>
         <div class="tb-section">

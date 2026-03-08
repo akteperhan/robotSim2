@@ -399,4 +399,31 @@ export class BlocklyManager {
 
     this.updateProgramFromBlockly()
   }
+
+  loadWallCrashDemo() {
+    this.workspace.clear()
+    const gf = this.workspace.newBlock('green_flag')
+    gf.initSvg()
+    gf.render()
+    gf.moveBy(30, 30)
+
+    let cur = gf
+    const add = (type: string, fields?: Record<string, any>) => {
+      const b = this.workspace.newBlock(type)
+      if (fields) {
+        for (const f in fields) b.setFieldValue(fields[f], f)
+      }
+      b.initSvg()
+      b.render()
+      cur.nextConnection.connect(b.previousConnection)
+      cur = b
+    }
+
+    // Robot (5,8) kuzeye bakıyor → 3 ileri → sağa dön (batıya) → 8 ileri (6.adımda duvara çarpar)
+    add('move_forward', { COUNT: 3 })
+    add('turn_right', { COUNT: 1 })
+    add('move_forward', { COUNT: 8 })
+
+    this.updateProgramFromBlockly()
+  }
 }

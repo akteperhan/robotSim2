@@ -96,6 +96,11 @@ let blinkTimer = 0
 let blinkProgress = 0
 let nextBlinkAt = 2.4
 let isBlinking = false
+let eyeLineModeTimer = 0
+let nextLineModeAt = 5 + Math.random() * 4
+let isLineMode = false
+let lineModeProgress = 0
+let robotGlints: THREE.Mesh[] = []
 let chargePulseUntil = 0
 let garageMode: GarageMode = 'open'
 let garageGroup: THREE.Group | null = null
@@ -302,7 +307,7 @@ function drawRobotScreenFace(_mood: 'idle' | 'happy' | 'charging' | 'worried') {
 }
 
 function createRobot(pos: Position): THREE.Group {
-  const g = new THREE.Group(); wheelMeshes = []; robotEyeMeshes = []; robotPupils = []
+  const g = new THREE.Group(); wheelMeshes = []; robotEyeMeshes = []; robotPupils = []; robotGlints = []
 
   // ── GÖVDE — Daha büyük, daha yuvarlak, PDF'deki mini-van oranları ──
   const body = new THREE.Mesh(new RoundedBoxGeometry(0.88, 0.68, 0.98, 6, 0.15),
@@ -346,27 +351,28 @@ function createRobot(pos: Position): THREE.Group {
   const eyeMat = new THREE.MeshStandardMaterial({ color: 0xFFD700, emissive: 0xFFD700, emissiveIntensity: initEyeIntensity, roughness: 0.15 })
   const eyeGeo = new THREE.SphereGeometry(0.12, 32, 32)
   const leftEye = new THREE.Mesh(eyeGeo, eyeMat)
-  leftEye.position.set(-0.16, 0.52, 0.57); leftEye.scale.y = initEyeScaleY; g.add(leftEye)
+  leftEye.position.set(-0.16, 0.52, 0.54); leftEye.scale.y = initEyeScaleY; g.add(leftEye)
   const rightEye = new THREE.Mesh(eyeGeo, eyeMat)
-  rightEye.position.set(0.16, 0.52, 0.57); rightEye.scale.y = initEyeScaleY; g.add(rightEye)
+  rightEye.position.set(0.16, 0.52, 0.54); rightEye.scale.y = initEyeScaleY; g.add(rightEye)
   robotEyeMeshes.push(leftEye, rightEye)
 
   // Göz bebekleri (siyah) — referans sakla (göz takibi için)
   const pupilMat = new THREE.MeshStandardMaterial({ color: 0x111111, roughness: 0.3, metalness: 0.2 })
   const pupilGeo = new THREE.SphereGeometry(0.045, 16, 16)
   const leftPupil = new THREE.Mesh(pupilGeo, pupilMat)
-  leftPupil.position.set(-0.16, 0.52, 0.685); g.add(leftPupil)
+  leftPupil.position.set(-0.16, 0.52, 0.645); g.add(leftPupil)
   const rightPupil = new THREE.Mesh(pupilGeo, pupilMat)
-  rightPupil.position.set(0.16, 0.52, 0.685); g.add(rightPupil)
+  rightPupil.position.set(0.16, 0.52, 0.645); g.add(rightPupil)
   robotPupils.push(leftPupil, rightPupil)
 
   // Göz parlaması (beyaz küçük nokta — canlılık)
   const glintMat = new THREE.MeshStandardMaterial({ color: 0xffffff, emissive: 0xffffff, emissiveIntensity: 2, roughness: 0.1 })
   const glintGeo = new THREE.SphereGeometry(0.018, 16, 16)
   const leftGlint = new THREE.Mesh(glintGeo, glintMat)
-  leftGlint.position.set(-0.14, 0.54, 0.70); g.add(leftGlint)
+  leftGlint.position.set(-0.14, 0.54, 0.66); g.add(leftGlint)
   const rightGlint = new THREE.Mesh(glintGeo, glintMat)
-  rightGlint.position.set(0.18, 0.54, 0.70); g.add(rightGlint)
+  rightGlint.position.set(0.18, 0.54, 0.66); g.add(rightGlint)
+  robotGlints.push(leftGlint, rightGlint)
 
   robotEyeLights = []
   const lLight = new THREE.PointLight(0xFFD700, isIntro ? 0 : 0.5, 2.0).translateX(-0.16).translateY(0.52).translateZ(0.65)
@@ -391,9 +397,9 @@ function createRobot(pos: Position): THREE.Group {
   const browMat = new THREE.MeshStandardMaterial({ color: 0x37474f, roughness: 0.4, metalness: 0.3 })
   const browGeo = new RoundedBoxGeometry(0.14, 0.025, 0.03, 2, 0.008)
   const leftBrow = new THREE.Mesh(browGeo, browMat)
-  leftBrow.position.set(-0.16, 0.64, 0.58); leftBrow.rotation.z = -0.15; g.add(leftBrow)
+  leftBrow.position.set(-0.16, 0.64, 0.58); leftBrow.rotation.z = 0; g.add(leftBrow)
   const rightBrow = new THREE.Mesh(browGeo, browMat)
-  rightBrow.position.set(0.16, 0.64, 0.58); rightBrow.rotation.z = 0.15; g.add(rightBrow)
+  rightBrow.position.set(0.16, 0.64, 0.58); rightBrow.rotation.z = 0; g.add(rightBrow)
   robotBrowMeshes = [leftBrow, rightBrow]
 
   // ── ÜST DOME/KAFA — Daha büyük ve yuvarlak ──
@@ -426,47 +432,64 @@ function createRobot(pos: Position): THREE.Group {
   robotChargePort.position.set(0, 0.92, 0.40)
   g.add(robotChargePort)
 
-  // ── ANTEN — sleek multi-segment ──
-  // Base mount (small metallic ring)
+  // ── ANTEN — Gösterişli, büyük, çok katmanlı ──
+  // Geniş taban montaj halkası
   const antBase = new THREE.Mesh(
-    new THREE.CylinderGeometry(0.05, 0.06, 0.04, 16),
-    new THREE.MeshStandardMaterial({ color: 0x90a4ae, metalness: 0.9, roughness: 0.2 })
+    new THREE.CylinderGeometry(0.07, 0.09, 0.05, 20),
+    new THREE.MeshStandardMaterial({ color: 0x78909c, metalness: 0.95, roughness: 0.15 })
   )
-  antBase.position.y = 1.02; g.add(antBase)
+  antBase.position.y = 1.03; g.add(antBase)
 
-  // Lower segment (thicker, tapers up)
+  // Alt segment — kalın, sağlam
   const antLower = new THREE.Mesh(
-    new THREE.CylinderGeometry(0.015, 0.03, 0.18, 12),
-    new THREE.MeshStandardMaterial({ color: 0xb0bec5, metalness: 0.8, roughness: 0.25 })
+    new THREE.CylinderGeometry(0.025, 0.045, 0.22, 14),
+    new THREE.MeshStandardMaterial({ color: 0xb0bec5, metalness: 0.85, roughness: 0.2 })
   )
-  antLower.position.y = 1.13; g.add(antLower)
+  antLower.position.y = 1.17; g.add(antLower)
 
-  // Upper segment (thin, elegant)
-  const antUpper = new THREE.Mesh(
-    new THREE.CylinderGeometry(0.008, 0.015, 0.16, 12),
-    new THREE.MeshStandardMaterial({ color: 0xcfd8dc, metalness: 0.85, roughness: 0.2 })
+  // Alt ek halka (dekoratif)
+  const antMidRing = new THREE.Mesh(
+    new THREE.TorusGeometry(0.04, 0.008, 8, 20),
+    new THREE.MeshStandardMaterial({ color: 0x00E5FF, emissive: 0x00E5FF, emissiveIntensity: 1.5, transparent: true, opacity: 0.6 })
   )
-  antUpper.position.y = 1.30; g.add(antUpper)
+  antMidRing.rotation.x = Math.PI / 2
+  antMidRing.position.y = 1.28; g.add(antMidRing)
+
+  // Üst segment — ince, zarif
+  const antUpper = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.012, 0.025, 0.22, 14),
+    new THREE.MeshStandardMaterial({ color: 0xcfd8dc, metalness: 0.9, roughness: 0.15 })
+  )
+  antUpper.position.y = 1.40; g.add(antUpper)
   robotAntennaMesh = antUpper
 
-  // Glowing tip orb
+  // Parlayan uç küre — daha büyük
   antennaBallMat = new THREE.MeshStandardMaterial({
-    color: 0x00E5FF, emissive: 0x00E5FF, emissiveIntensity: 2.5,
-    metalness: 0.3, roughness: 0.1
+    color: 0x00E5FF, emissive: 0x00E5FF, emissiveIntensity: 3.0,
+    metalness: 0.3, roughness: 0.08
   })
-  const aBall = new THREE.Mesh(new THREE.SphereGeometry(0.05, 16, 16), antennaBallMat)
-  aBall.position.y = 1.42; g.add(aBall)
+  const aBall = new THREE.Mesh(new THREE.SphereGeometry(0.075, 20, 20), antennaBallMat)
+  aBall.position.y = 1.55; g.add(aBall)
 
-  // Small decorative ring around tip (RGB synced)
-  antennaRingMat = new THREE.MeshStandardMaterial({ color: 0x00E5FF, emissive: 0x00bcd4, emissiveIntensity: 1.0, transparent: true, opacity: 0.7 })
+  // Uç çevresinde büyük dekoratif halka (RGB synced)
+  antennaRingMat = new THREE.MeshStandardMaterial({ color: 0x00E5FF, emissive: 0x00bcd4, emissiveIntensity: 1.5, transparent: true, opacity: 0.75 })
   const antRing = new THREE.Mesh(
-    new THREE.TorusGeometry(0.065, 0.008, 8, 24), antennaRingMat
+    new THREE.TorusGeometry(0.10, 0.012, 10, 28), antennaRingMat
   )
   antRing.rotation.x = Math.PI / 2
-  antRing.position.y = 1.42; g.add(antRing)
+  antRing.position.y = 1.55; g.add(antRing)
 
-  const antLight = new THREE.PointLight(0x00E5FF, 0.5, 2.5)
-  antLight.position.y = 1.42; g.add(antLight)
+  // İkinci küçük halka — uç üstünde
+  const antTopRing = new THREE.Mesh(
+    new THREE.TorusGeometry(0.05, 0.006, 8, 20),
+    new THREE.MeshStandardMaterial({ color: 0x00E5FF, emissive: 0x00E5FF, emissiveIntensity: 2.0, transparent: true, opacity: 0.5 })
+  )
+  antTopRing.rotation.x = Math.PI / 2
+  antTopRing.position.y = 1.64; g.add(antTopRing)
+
+  // Güçlü anten ışığı
+  const antLight = new THREE.PointLight(0x00E5FF, 0.8, 3.5)
+  antLight.position.y = 1.55; g.add(antLight)
 
 
   // ── FLOATING CHARGE BAR (above robot) — bigger & with icon ──
@@ -1243,7 +1266,10 @@ function resetSimulationState() {
   blinkProgress = 0
   nextBlinkAt = 1.8 + Math.random() * 2.8
   isBlinking = false
-  robotEyeMeshes.forEach((eye) => { eye.scale.y = 1 })
+  isLineMode = false; lineModeProgress = 0; eyeLineModeTimer = 0
+  robotEyeMeshes.forEach((eye) => { eye.scale.set(1, 1, 1) })
+  robotPupils.forEach(p => { p.visible = true })
+  robotGlints.forEach(g => { g.visible = true })
 
   gameState = GameState.READY
   updateRobotPosition()
@@ -1429,6 +1455,9 @@ function updateRobotChargeIndicator(level: number) {
 function updateEyeBlink(delta: number) {
   if (!robotEyeMeshes.length) return
 
+  // Skip blink during line mode
+  if (isLineMode) return
+
   blinkTimer += delta
   if (!isBlinking && blinkTimer >= nextBlinkAt) {
     isBlinking = true
@@ -1448,6 +1477,63 @@ function updateEyeBlink(delta: number) {
     nextBlinkAt = 1.8 + Math.random() * 2.8
     robotEyeMeshes.forEach((eye) => { eye.scale.y = 1 })
   }
+}
+
+function updateEyeLineMode(delta: number) {
+  if (!robotEyeMeshes.length) return
+  // Don't trigger line mode during blink
+  if (isBlinking) return
+
+  eyeLineModeTimer += delta
+
+  if (!isLineMode && eyeLineModeTimer >= nextLineModeAt) {
+    isLineMode = true
+    lineModeProgress = 0
+  }
+
+  if (!isLineMode) return
+
+  // Line mode duration: ~1.2s total (0.2s in, 0.8s hold, 0.2s out)
+  lineModeProgress += delta
+  const TRANSITION_IN = 0.2
+  const HOLD = 0.8
+  const TRANSITION_OUT = 0.2
+  const TOTAL = TRANSITION_IN + HOLD + TRANSITION_OUT
+
+  let t: number
+  if (lineModeProgress < TRANSITION_IN) {
+    // Transition to line: round → flat
+    t = lineModeProgress / TRANSITION_IN
+  } else if (lineModeProgress < TRANSITION_IN + HOLD) {
+    // Hold line shape
+    t = 1
+  } else if (lineModeProgress < TOTAL) {
+    // Transition back: flat → round
+    t = 1 - (lineModeProgress - TRANSITION_IN - HOLD) / TRANSITION_OUT
+  } else {
+    // Done
+    t = 0
+    isLineMode = false
+    eyeLineModeTimer = 0
+    nextLineModeAt = 5 + Math.random() * 6
+    robotEyeMeshes.forEach(eye => { eye.scale.set(1, 1, 1) })
+    robotPupils.forEach(p => { p.visible = true })
+    robotGlints.forEach(g => { g.visible = true })
+    return
+  }
+
+  // Smooth ease
+  const ease = t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2
+
+  // Line shape: flatten Y to thin bar, stretch X wider
+  const scaleY = 1 - ease * 0.82  // 1 → 0.18
+  const scaleX = 1 + ease * 0.8   // 1 → 1.8
+  robotEyeMeshes.forEach(eye => { eye.scale.set(scaleX, scaleY, 1) })
+
+  // Hide pupils and glints during line mode (they look odd on a thin bar)
+  const showDetails = ease < 0.3
+  robotPupils.forEach(p => { p.visible = showDetails })
+  robotGlints.forEach(g => { g.visible = showDetails })
 }
 
 function updateGarageRoofVisual() {
@@ -1882,25 +1968,30 @@ function initGame() {
   EventBus.on('robot:expression', (expr: string) => {
     if (gameState === GameState.INTRO) return;
 
+    // Cancel line mode if active
+    isLineMode = false; lineModeProgress = 0; eyeLineModeTimer = 0
+    robotPupils.forEach(p => { p.visible = true })
+    robotGlints.forEach(g => { g.visible = true })
+
     robotEyeMeshes.forEach(eye => {
       eye.scale.set(1, 1, 1);
       eye.position.y = 0.52;
     });
 
     // Reset brows
-    robotBrowMeshes.forEach((b, i) => { b.rotation.z = i === 0 ? -0.15 : 0.15; b.position.y = 0.64 })
+    robotBrowMeshes.forEach(b => { b.rotation.z = 0; b.position.y = 0.64 })
 
     if (expr === 'HAPPY') {
       robotEyeMeshes.forEach(eye => { eye.scale.set(1.4, 0.35, 1); });
-      robotBrowMeshes.forEach((b, i) => { b.rotation.z = i === 0 ? -0.25 : 0.25; b.position.y = 0.66 })
+      robotBrowMeshes.forEach(b => { b.rotation.z = 0; b.position.y = 0.66 })
       drawRobotScreenFace('happy')
     } else if (expr === 'WORRIED') {
       robotEyeMeshes.forEach(eye => { eye.scale.set(0.8, 1.2, 1); eye.position.y = 0.54; });
-      robotBrowMeshes.forEach((b, i) => { b.rotation.z = i === 0 ? 0.2 : -0.2; b.position.y = 0.63 })
+      robotBrowMeshes.forEach(b => { b.rotation.z = 0; b.position.y = 0.62 })
       drawRobotScreenFace('worried')
     } else if (expr === 'EXCITED') {
       robotEyeMeshes.forEach(eye => { eye.scale.set(1.5, 1.5, 1); });
-      robotBrowMeshes.forEach((b, i) => { b.rotation.z = i === 0 ? -0.3 : 0.3; b.position.y = 0.68 })
+      robotBrowMeshes.forEach(b => { b.rotation.z = 0; b.position.y = 0.68 })
       drawRobotScreenFace('happy')
     } else {
       drawRobotScreenFace('idle')
@@ -1911,6 +2002,7 @@ function initGame() {
   blinkProgress = 0
   nextBlinkAt = 1.8 + Math.random() * 2.8
   isBlinking = false
+  isLineMode = false; lineModeProgress = 0; eyeLineModeTimer = 0
   updateRobotChargeIndicator(INITIAL_BATTERY_LEVEL)
   ui.updatePositionDisplay(robot); ui.updateBatteryUI(INITIAL_BATTERY_LEVEL)
   ui.updateMission(1, 'Tarayıcıya Ulaş', 'Robotu duvardaki mavi tarayıcı paneline kadar sür ve butona basarak kapıyı aç.')
@@ -1927,6 +2019,7 @@ function renderLoop() {
   stats.begin()
   requestAnimationFrame(renderLoop); time += 0.016; controls.update()
   updateEyeBlink(0.016)
+  updateEyeLineMode(0.016)
   updateGarageRoofVisual()
   updateChargingCable()
   if (particles) particles.update(0.016)
@@ -2189,6 +2282,13 @@ document.getElementById('btn-load-code')!.addEventListener('click', () => {
   if (isExecuting) return
   blocklyMgr.loadSampleSolution()
   ui.showToast('💡 Örnek kod yüklendi!', 'success')
+})
+
+// LOAD WALL CRASH DEMO
+document.getElementById('btn-load-crash')!.addEventListener('click', () => {
+  if (isExecuting) return
+  blocklyMgr.loadWallCrashDemo()
+  ui.showToast('💥 Duvara çarpma testi yüklendi!', 'warning')
 })
 
 // ═══════════════════════════════════════════
