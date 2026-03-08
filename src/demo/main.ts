@@ -577,11 +577,22 @@ function createRobot(pos: Position): THREE.Group {
   // Titreyen (z-fighting) slat'ler yerine Logo kullanımı
   const logoTex = new THREE.TextureLoader().load('/logo.png')
   logoTex.minFilter = THREE.LinearFilter
+  logoTex.magFilter = THREE.LinearFilter
+  logoTex.anisotropy = renderer.capabilities.getMaxAnisotropy() // Çözünürlüğü ve netliği artırır
+  logoTex.generateMipmaps = true
+
+  if ('colorSpace' in logoTex) logoTex.colorSpace = 'srgb'
+  else if ('encoding' in logoTex) (logoTex as any).encoding = 3001 // THREE.sRGBEncoding
+
   const logoMat = new THREE.MeshStandardMaterial({
     map: logoTex,
     transparent: true,
+    alphaTest: 0.1, // Kenarlardaki şeffaf hataları temizler
     roughness: 0.5,
-    metalness: 0.1
+    metalness: 0.1,
+    emissive: 0xffffff,
+    emissiveMap: logoTex,
+    emissiveIntensity: 0.4 // Rengin gölgede bile canlı/mat görünmesini sağlar
   })
   // PlaneGeometry kullanarak logoyu ventBack'in biraz dışına yerleştir (z-fighting'i önlemek için)
   const logoMesh = new THREE.Mesh(new THREE.PlaneGeometry(0.44, 0.24), logoMat)
@@ -1275,15 +1286,13 @@ function animateDoorOpening() {
 
       gameState = GameState.DOOR_OPENED
 
-      // Cinematic camera: zoom to show outside
-      animateCameraTo({ x: GRID_CENTER_X + 3, y: 9, z: DOOR_ROW + 8 }, { x: GRID_CENTER_X, y: 1, z: DOOR_ROW + 2 }, 1500, () => {
-        ui.updateMission(2, 'Şarj İstasyonu', 'Robotu dışarıdaki yeşil şarj alanına götür ve şarj et.')
-        ui.showToast('Kapı açıldı! Yeni hedef: Şarj istasyonuna ulaş! ⚡', 'info')
-        // Restore camera mode and return to follow
-        setTimeout(() => {
-          cameraMode = savedCameraMode
-        }, 1500)
-      })
+      // Cinematic camera show: dışarı atlayıp geri gelmesini iptal ediyoruz.
+      // 1. adımı zaten içeriden izlemiştik (1127. satırdaki animateCameraTo)
+      // Artık sadece normal kamera moduna (takip) geri dönüyoruz.
+      ui.updateMission(2, 'Şarj İstasyonu', 'Robotu dışarıdaki yeşil şarj alanına götür ve şarj et.')
+      ui.showToast('Kapı açıldı! Yeni hedef: Şarj istasyonuna ulaş! ⚡', 'info')
+      // Restore camera mode immediately
+      cameraMode = savedCameraMode
     }
   }
   animate()
