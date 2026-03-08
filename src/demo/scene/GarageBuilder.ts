@@ -18,8 +18,13 @@ export interface GarageConfig {
 export function createGarage(config: GarageConfig) {
     const garageGroup = new THREE.Group()
     const garageW = config.GRID_W + 0.6
-    const sideDepth = config.GARAGE_DEPTH + 2.2
-    const midZ = sideDepth / 2 - 0.7
+    // Side walls run from back wall (z=-0.7) to door row (z=DOOR_ROW)
+    const backZ = -0.7
+    const frontZ = config.DOOR_ROW
+    const sideDepth = frontZ - backZ
+    const midZ = (backZ + frontZ) / 2
+    // True geometric center between side walls for structural centering
+    const garageCenterX = (-0.72 + (config.GRID_W - 0.28)) / 2
 
     // ── GeomCollector for geometry merging ──
     // Normalize geometry: convert to non-indexed and ensure only position/normal/uv attributes
@@ -72,12 +77,12 @@ export function createGarage(config: GarageConfig) {
     // FLOOR & BASE
     // ═══════════════════════════════════════════
     const slabGeom = new THREE.BoxGeometry(garageW + 0.7, 0.14, sideDepth + 0.2)
-    slabGeom.translate(config.GRID_CENTER_X, -0.11, midZ)
+    slabGeom.translate(garageCenterX, -0.11, midZ)
     collect('floor', floorMat, slabGeom, false, true)
 
     const perimeterLaneMat = new THREE.MeshStandardMaterial({ color: 0x60667a, roughness: 0.6, metalness: 0.2 })
     const perimeterLaneGeom = new THREE.BoxGeometry(garageW + 0.15, 0.04, sideDepth - 0.2)
-    perimeterLaneGeom.translate(config.GRID_CENTER_X, -0.07, midZ)
+    perimeterLaneGeom.translate(garageCenterX, -0.07, midZ)
     collect('perimeterLane', perimeterLaneMat, perimeterLaneGeom, false, true)
 
     // ═══════════════════════════════════════════
@@ -198,7 +203,7 @@ export function createGarage(config: GarageConfig) {
     // WALLS
     // ═══════════════════════════════════════════
     const bwg = new THREE.BoxGeometry(garageW + 0.75, config.WALL_H + 0.45, 0.28)
-    bwg.translate(config.GRID_CENTER_X, (config.WALL_H + 0.45) / 2, -0.7)
+    bwg.translate(garageCenterX, (config.WALL_H + 0.45) / 2, -0.7)
     collect('walls', wallMat, bwg, true, true)
     const lwg = new THREE.BoxGeometry(0.28, config.WALL_H + 0.45, sideDepth)
     lwg.translate(-0.72, (config.WALL_H + 0.45) / 2, midZ)
@@ -210,7 +215,7 @@ export function createGarage(config: GarageConfig) {
     // Wall ribs
     for (let i = -4; i <= 4; i++) {
         const rg = new THREE.BoxGeometry(0.08, config.WALL_H + 0.1, 0.04)
-        rg.translate(config.GRID_CENTER_X + i * 0.88, (config.WALL_H + 0.1) / 2, -0.54)
+        rg.translate(garageCenterX + i * 0.88, (config.WALL_H + 0.1) / 2, -0.54)
         collect('wallPanel', wallPanelMat, rg)
     }
 
@@ -219,7 +224,7 @@ export function createGarage(config: GarageConfig) {
     // ═══════════════════════════════════════════
     const ledStripMat = new THREE.MeshStandardMaterial({ color: 0x00BCD4, emissive: 0x00BCD4, emissiveIntensity: 0.8, roughness: 0.2 })
     for (const [w, h, d, px, py, pz] of [
-        [garageW - 0.5, 0.04, 0.02, config.GRID_CENTER_X, config.WALL_H + 0.2, -0.54],
+        [garageW - 0.5, 0.04, 0.02, garageCenterX, config.WALL_H + 0.2, -0.54],
         [0.02, 0.04, sideDepth - 0.5, -0.56, config.WALL_H + 0.2, midZ],
         [0.02, 0.04, sideDepth - 0.5, config.GRID_W - 0.28, config.WALL_H + 0.2, midZ],
     ] as [number, number, number, number, number, number][]) {
@@ -233,7 +238,7 @@ export function createGarage(config: GarageConfig) {
     // ═══════════════════════════════════════════
     // Base bands
     for (const [w, h, d, px, py, pz] of [
-        [garageW + 0.2, 0.4, 0.03, config.GRID_CENTER_X, 0.2, -0.53],
+        [garageW + 0.2, 0.4, 0.03, garageCenterX, 0.2, -0.53],
         [0.03, 0.4, sideDepth - 0.5, -0.55, 0.2, midZ],
         [0.03, 0.4, sideDepth - 0.5, config.GRID_W - 0.27, 0.2, midZ],
     ] as [number, number, number, number, number, number][]) {
@@ -243,7 +248,7 @@ export function createGarage(config: GarageConfig) {
     }
     // Skirting
     for (const [w, h, d, px, py, pz] of [
-        [garageW - 0.3, 0.15, 0.03, config.GRID_CENTER_X, 0.075, -0.54],
+        [garageW - 0.3, 0.15, 0.03, garageCenterX, 0.075, -0.54],
         [0.03, 0.15, sideDepth - 1, -0.55, 0.075, midZ],
         [0.03, 0.15, sideDepth - 1, config.GRID_W - 0.41, 0.075, midZ],
     ] as [number, number, number, number, number, number][]) {
@@ -259,7 +264,7 @@ export function createGarage(config: GarageConfig) {
     const screenFrameMat = new THREE.MeshStandardMaterial({ color: 0x455a64, roughness: 0.3, metalness: 0.6 })
 
     // Screen frames (both screens)
-    for (const sx of [config.GRID_CENTER_X - 2.2, config.GRID_CENTER_X + 2.2]) {
+    for (const sx of [garageCenterX - 2.2, garageCenterX + 2.2]) {
         const fg = new THREE.BoxGeometry(2.0, 1.2, 0.04)
         fg.translate(sx, 2.0, -0.53)
         collect('screenFrames', screenFrameMat, fg)
@@ -272,10 +277,10 @@ export function createGarage(config: GarageConfig) {
     const screenGridMat = new THREE.MeshStandardMaterial({ color: 0x4caf50, emissive: 0x4caf50, emissiveIntensity: 1.5, roughness: 0.3 })
     for (let i = -3; i <= 3; i++) {
         const hg = new THREE.BoxGeometry(1.6, 0.008, 0.005)
-        hg.translate(config.GRID_CENTER_X - 2.2, 2.0 + i * 0.12, -0.49)
+        hg.translate(garageCenterX - 2.2, 2.0 + i * 0.12, -0.49)
         collect('screenGrid', screenGridMat, hg)
         const vg = new THREE.BoxGeometry(0.008, 0.8, 0.005)
-        vg.translate(config.GRID_CENTER_X - 2.2 + i * 0.22, 2.0, -0.49)
+        vg.translate(garageCenterX - 2.2 + i * 0.22, 2.0, -0.49)
         collect('screenGrid', screenGridMat, vg)
     }
 
@@ -285,7 +290,7 @@ export function createGarage(config: GarageConfig) {
         const barW = 0.4 + Math.random() * 1.0
         const barMat = new THREE.MeshStandardMaterial({ color: bc, emissive: bc, emissiveIntensity: 1.2, roughness: 0.3 })
         const bg = new THREE.BoxGeometry(barW, 0.08, 0.005)
-        bg.translate(config.GRID_CENTER_X + 2.2 - 0.8 + barW / 2, 2.25 - bi * 0.18, -0.49)
+        bg.translate(garageCenterX + 2.2 - 0.8 + barW / 2, 2.25 - bi * 0.18, -0.49)
         collect('statusBar_' + bi, barMat, bg)
     })
 
@@ -294,7 +299,7 @@ export function createGarage(config: GarageConfig) {
     // ═══════════════════════════════════════════
     const portalMat = new THREE.MeshStandardMaterial({ color: 0x828b9e, roughness: 0.35, metalness: 0.7 })
     for (const [w, h, d, px, py, pz] of [
-        [garageW + 0.5, 0.22, 0.18, config.GRID_CENTER_X, config.WALL_H + 0.16, config.DOOR_ROW - 0.44],
+        [garageW + 0.5, 0.22, 0.18, garageCenterX, config.WALL_H + 0.16, config.DOOR_ROW - 0.44],
         [0.2, config.WALL_H + 0.2, 0.16, -0.55, (config.WALL_H + 0.2) / 2, config.DOOR_ROW - 0.44],
         [0.2, config.WALL_H + 0.2, 0.16, config.GRID_W - 0.45, (config.WALL_H + 0.2) / 2, config.DOOR_ROW - 0.44],
     ] as [number, number, number, number, number, number][]) {
@@ -326,10 +331,10 @@ export function createGarage(config: GarageConfig) {
 
     // Fill lights (PointLights stay individual)
     const fill1 = new THREE.PointLight(0xfff4e0, 6.0, 30)
-    fill1.position.set(config.GRID_CENTER_X, config.WALL_H - 0.5, config.GARAGE_DEPTH / 3)
+    fill1.position.set(garageCenterX, config.WALL_H - 0.5, config.GARAGE_DEPTH / 3)
     garageGroup.add(fill1)
     const fill2 = new THREE.PointLight(0xfff4e0, 6.0, 30)
-    fill2.position.set(config.GRID_CENTER_X, config.WALL_H - 0.5, (config.GARAGE_DEPTH / 3) * 2)
+    fill2.position.set(garageCenterX, config.WALL_H - 0.5, (config.GARAGE_DEPTH / 3) * 2)
     garageGroup.add(fill2)
 
     // ═══════════════════════════════════════════
@@ -339,11 +344,11 @@ export function createGarage(config: GarageConfig) {
     // Vent grate
     const ventGrateMat = new THREE.MeshStandardMaterial({ color: 0x5a6070, roughness: 0.4, metalness: 0.5 })
     const vfg = new THREE.BoxGeometry(1.0, 0.6, 0.04)
-    vfg.translate(config.GRID_CENTER_X + 3.5, config.WALL_H - 0.5, -0.53)
+    vfg.translate(garageCenterX + 3.5, config.WALL_H - 0.5, -0.53)
     collect('ventGrate', ventGrateMat, vfg)
     for (let vi = 0; vi < 5; vi++) {
         const vsg = new THREE.BoxGeometry(0.9, 0.02, 0.03)
-        vsg.translate(config.GRID_CENTER_X + 3.5, config.WALL_H - 0.72 + vi * 0.1, -0.52)
+        vsg.translate(garageCenterX + 3.5, config.WALL_H - 0.72 + vi * 0.1, -0.52)
         collect('ventGrate', ventGrateMat, vsg)
     }
 
@@ -584,7 +589,7 @@ export function createGarage(config: GarageConfig) {
     const roofMat = new THREE.MeshStandardMaterial({ color: 0x7a8294, roughness: 0.45, metalness: 0.50 })
     garageRoofMaterials.push(roofMat)
     const rfg = new THREE.BoxGeometry(garageW + 0.8, 0.22, sideDepth + 0.26)
-    rfg.translate(config.GRID_CENTER_X, config.WALL_H + 0.36, midZ)
+    rfg.translate(garageCenterX, config.WALL_H + 0.36, midZ)
     collectRoof('roof', roofMat, rfg, false, true)
 
 
@@ -594,7 +599,7 @@ export function createGarage(config: GarageConfig) {
     const acBodyMat = new THREE.MeshStandardMaterial({ color: 0xd0d4d8, roughness: 0.5, metalness: 0.4 })
     const acGrateMat = new THREE.MeshStandardMaterial({ color: 0x8a9099, roughness: 0.3, metalness: 0.6 })
     const acPipeMat = new THREE.MeshStandardMaterial({ color: 0xb87333, roughness: 0.3, metalness: 0.8 })
-    for (const [ax, ay] of [[config.GRID_CENTER_X - 2.5, 2.8], [config.GRID_CENTER_X + 1.8, 2.0]] as [number, number][]) {
+    for (const [ax, ay] of [[garageCenterX - 2.5, 2.8], [garageCenterX + 1.8, 2.0]] as [number, number][]) {
         const abg = new THREE.BoxGeometry(0.9, 0.55, 0.30)
         abg.translate(ax, ay, -0.85)
         collect('acBodies', acBodyMat, abg)
@@ -629,16 +634,16 @@ export function createGarage(config: GarageConfig) {
     const drainMat = new THREE.MeshStandardMaterial({ color: 0x4a4f5e, roughness: 0.6, metalness: 0.5 })
     for (let dx = 0; dx < 3; dx++) {
         const dg = new THREE.BoxGeometry(0.12, 0.08, 0.22)
-        dg.translate(config.GRID_CENTER_X - 2 + dx * 2, 0.04, -1.0)
+        dg.translate(garageCenterX - 2 + dx * 2, 0.04, -1.0)
         collect('drains', drainMat, dg)
     }
 
     // Roof edge profiles
     const feg = new THREE.BoxGeometry(garageW + 0.85, 0.10, 0.12)
-    feg.translate(config.GRID_CENTER_X, config.WALL_H + 0.45, config.DOOR_ROW - 0.38)
+    feg.translate(garageCenterX, config.WALL_H + 0.45, config.DOOR_ROW - 0.38)
     collect('metalEdge', metalEdgeMat, feg)
     const beg = new THREE.BoxGeometry(garageW + 0.85, 0.10, 0.12)
-    beg.translate(config.GRID_CENTER_X, config.WALL_H + 0.45, -0.72)
+    beg.translate(garageCenterX, config.WALL_H + 0.45, -0.72)
     collect('metalEdge', metalEdgeMat, beg)
 
     // ═══════════════════════════════════════════
@@ -647,7 +652,7 @@ export function createGarage(config: GarageConfig) {
     const extRedMat = new THREE.MeshStandardMaterial({ color: 0xE53935, roughness: 0.6, metalness: 0.05 })
     const extBlueMat = new THREE.MeshStandardMaterial({ color: 0x1976D2, roughness: 0.6, metalness: 0.05 })
     for (const [w, h, d, px, py, pz] of [
-        [garageW + 0.8, 0.18, 0.06, config.GRID_CENTER_X, config.WALL_H + 0.50, config.DOOR_ROW - 0.38],
+        [garageW + 0.8, 0.18, 0.06, garageCenterX, config.WALL_H + 0.50, config.DOOR_ROW - 0.38],
         [0.06, 0.18, sideDepth + 0.2, config.GRID_W - 0.10, config.WALL_H + 0.50, midZ],
     ] as [number, number, number, number, number, number][]) {
         const rg = new THREE.BoxGeometry(w, h, d)
@@ -655,7 +660,7 @@ export function createGarage(config: GarageConfig) {
         collect('extRed', extRedMat, rg)
     }
     for (const [w, h, d, px, py, pz] of [
-        [garageW + 0.8, 0.18, 0.06, config.GRID_CENTER_X, config.WALL_H + 0.50, -0.75],
+        [garageW + 0.8, 0.18, 0.06, garageCenterX, config.WALL_H + 0.50, -0.75],
         [0.06, 0.18, sideDepth + 0.2, -0.90, config.WALL_H + 0.50, midZ],
     ] as [number, number, number, number, number, number][]) {
         const bg = new THREE.BoxGeometry(w, h, d)
@@ -668,15 +673,15 @@ export function createGarage(config: GarageConfig) {
     // ═══════════════════════════════════════════
     const signPlateMat = new THREE.MeshStandardMaterial({ color: 0x1565c0, roughness: 0.5, metalness: 0.1, emissive: 0x1565c0, emissiveIntensity: 0.15 })
     const spg = new RoundedBoxGeometry(4.5, 0.65, 0.08, 3, 0.04)
-    spg.translate(config.GRID_CENTER_X, config.WALL_H + 0.12, config.DOOR_ROW - 0.30)
+    spg.translate(garageCenterX, config.WALL_H + 0.12, config.DOOR_ROW - 0.30)
     collect('signPlate', signPlateMat, spg)
     const signFrameMat = new THREE.MeshStandardMaterial({ color: 0xE53935, roughness: 0.5, metalness: 0.1 })
     const sfg = new RoundedBoxGeometry(4.7, 0.75, 0.06, 3, 0.04)
-    sfg.translate(config.GRID_CENTER_X, config.WALL_H + 0.12, config.DOOR_ROW - 0.32)
+    sfg.translate(garageCenterX, config.WALL_H + 0.12, config.DOOR_ROW - 0.32)
     collect('signFrame', signFrameMat, sfg)
     const signInnerMat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.5, metalness: 0.0 })
     const sing = new RoundedBoxGeometry(3.8, 0.40, 0.02, 3, 0.02)
-    sing.translate(config.GRID_CENTER_X, config.WALL_H + 0.12, config.DOOR_ROW - 0.26)
+    sing.translate(garageCenterX, config.WALL_H + 0.12, config.DOOR_ROW - 0.26)
     collect('signInner', signInnerMat, sing)
 
     // ═══════════════════════════════════════════
@@ -719,16 +724,16 @@ export function createGarage(config: GarageConfig) {
 
     // Motor housing — above door opening
     const motorG = new THREE.BoxGeometry(1.2, 0.35, 0.25)
-    motorG.translate(config.GRID_CENTER_X, config.WALL_H + 0.05, doorZ - 0.15)
+    motorG.translate(garageCenterX, config.WALL_H + 0.05, doorZ - 0.15)
     collect('motorBox', darkBandMat, motorG)
     const drumG = new THREE.CylinderGeometry(0.12, 0.12, 1.0, 16)
     drumG.rotateZ(Math.PI / 2)
-    drumG.translate(config.GRID_CENTER_X, config.WALL_H + 0.05, doorZ - 0.15)
+    drumG.translate(garageCenterX, config.WALL_H + 0.05, doorZ - 0.15)
     collect('motorBox', darkBandMat, drumG)
     for (const dx of [-0.52, 0.52]) {
         const gearG = new THREE.CylinderGeometry(0.08, 0.08, 0.04, 16)
         gearG.rotateZ(Math.PI / 2)
-        gearG.translate(config.GRID_CENTER_X + dx, config.WALL_H + 0.05, doorZ - 0.15)
+        gearG.translate(garageCenterX + dx, config.WALL_H + 0.05, doorZ - 0.15)
         collect('motorBox', darkBandMat, gearG)
     }
 
@@ -746,7 +751,7 @@ export function createGarage(config: GarageConfig) {
     })
     const laserG = new THREE.BoxGeometry(garageW + 0.14, 0.003, 0.003)
     const photoSensorLaser = new THREE.Mesh(laserG, photoSensorLaserMat)
-    photoSensorLaser.position.set(config.GRID_CENTER_X, 0.3, doorZ)
+    photoSensorLaser.position.set(garageCenterX, 0.3, doorZ)
     garageGroup.add(photoSensorLaser)
 
     // ═══════════════════════════════════════════
@@ -773,7 +778,7 @@ export function createGarage(config: GarageConfig) {
     const ledTopStrip = new THREE.Mesh(
         new THREE.BoxGeometry(garageW + 0.2, 0.03, 0.03), doorFrameLedMat
     )
-    ledTopStrip.position.set(config.GRID_CENTER_X, config.WALL_H + 0.05, doorFrameZ)
+    ledTopStrip.position.set(garageCenterX, config.WALL_H + 0.05, doorFrameZ)
     garageGroup.add(ledTopStrip)
     const ledLeftStrip = new THREE.Mesh(
         new THREE.BoxGeometry(0.03, config.WALL_H, 0.03), doorFrameLedMat
@@ -791,7 +796,7 @@ export function createGarage(config: GarageConfig) {
     const motionSensorMat = new THREE.MeshStandardMaterial({ color: 0xeeeeee, roughness: 0.4, metalness: 0.1 })
     const motionLensMat = new THREE.MeshStandardMaterial({ color: 0x880000, roughness: 0.3, metalness: 0.2 })
     const msG = new RoundedBoxGeometry(0.18, 0.08, 0.06, 2, 0.01)
-    msG.translate(config.GRID_CENTER_X, config.WALL_H + 0.10, doorZ - 0.35)
+    msG.translate(garageCenterX, config.WALL_H + 0.10, doorZ - 0.35)
     collect('motionSensor', motionSensorMat, msG)
     // ═══════════════════════════════════════════
     // FAZ 3: FLOOR DETAILS
@@ -815,7 +820,7 @@ export function createGarage(config: GarageConfig) {
         color: 0x222222, transparent: true, opacity: 0.2,
         roughness: 0.3, metalness: 0.1, depthWrite: false
     })
-    for (const tx of [config.GRID_CENTER_X - 1.2, config.GRID_CENTER_X + 1.2]) {
+    for (const tx of [garageCenterX - 1.2, garageCenterX + 1.2]) {
         const tmG = new THREE.PlaneGeometry(0.18, 8.0)
         tmG.rotateX(-Math.PI / 2)
         tmG.translate(tx, 0.006, 7.0)

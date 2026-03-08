@@ -291,6 +291,58 @@ export class SoundManager {
         })
     }
 
+    // ─── WALL COLLISION: Impact thud + bonk ───
+    playWallCollision() {
+        if (!this.enabled) return
+        const ctx = this.getContext()
+        const now = ctx.currentTime
+
+        // Heavy impact thud
+        const thud = ctx.createOscillator()
+        const thudGain = ctx.createGain()
+        thud.connect(thudGain)
+        thudGain.connect(ctx.destination)
+        thud.type = 'sine'
+        thud.frequency.setValueAtTime(80, now)
+        thud.frequency.linearRampToValueAtTime(30, now + 0.2)
+        thudGain.gain.setValueAtTime(0.25, now)
+        thudGain.gain.linearRampToValueAtTime(0, now + 0.3)
+        thud.start(now)
+        thud.stop(now + 0.3)
+
+        // Noise burst for crash texture
+        const bufLen = ctx.sampleRate * 0.15
+        const buf = ctx.createBuffer(1, bufLen, ctx.sampleRate)
+        const data = buf.getChannelData(0)
+        for (let i = 0; i < bufLen; i++) data[i] = (Math.random() * 2 - 1)
+        const noise = ctx.createBufferSource()
+        noise.buffer = buf
+        const hp = ctx.createBiquadFilter()
+        hp.type = 'highpass'
+        hp.frequency.setValueAtTime(200, now)
+        const nGain = ctx.createGain()
+        noise.connect(hp)
+        hp.connect(nGain)
+        nGain.connect(ctx.destination)
+        nGain.gain.setValueAtTime(0.15, now)
+        nGain.gain.linearRampToValueAtTime(0, now + 0.15)
+        noise.start(now)
+        noise.stop(now + 0.15)
+
+        // Two-tone warning bonk
+        const bonk = ctx.createOscillator()
+        const bonkGain = ctx.createGain()
+        bonk.connect(bonkGain)
+        bonkGain.connect(ctx.destination)
+        bonk.type = 'square'
+        bonk.frequency.setValueAtTime(300, now + 0.05)
+        bonk.frequency.linearRampToValueAtTime(150, now + 0.15)
+        bonkGain.gain.setValueAtTime(0.08, now + 0.05)
+        bonkGain.gain.linearRampToValueAtTime(0, now + 0.2)
+        bonk.start(now + 0.05)
+        bonk.stop(now + 0.2)
+    }
+
     // ─── INTRO BOOT: Robot startup sound ───
     playBootUp() {
         if (!this.enabled) return

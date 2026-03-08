@@ -7,7 +7,7 @@ export class MoveBackwardCommand implements ICommand {
   execute(robot: Robot, grid: Grid): CommandResult {
     const nextPos = robot.getBackwardPosition()
     if (!grid.isValidPosition(nextPos)) {
-      return { success: false, errorMessage: 'Cannot move backward', batteryConsumed: 0 }
+      return { success: false, errorMessage: 'wall_behind', batteryConsumed: 0 }
     }
     robot.moveTo(nextPos)
     return { success: true, batteryConsumed: BATTERY_COST.MOVE_BACKWARD }

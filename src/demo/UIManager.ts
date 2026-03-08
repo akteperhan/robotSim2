@@ -23,7 +23,7 @@ export class UIManager {
   updatePositionDisplay(robot: Robot) {
     const p = robot.getPosition()
     const d = robot.getDirection()
-    document.getElementById('position-text')!.textContent = `Pos: (${p.x}, ${p.y}) | Yön: ${DIR_NAMES[d] || '?'}`
+    document.getElementById('position-text')!.textContent = `Konum: (${p.x}, ${p.y}) | Yön: ${DIR_NAMES[d] || '?'}`
   }
 
   updateMission(num: number, title: string, desc: string) {
@@ -67,5 +67,36 @@ export class UIManager {
 
   hideFailure() {
     document.getElementById('failure-overlay')!.classList.remove('visible')
+  }
+
+  showCrashModal(msg: string) {
+    document.getElementById('crash-message')!.textContent = msg
+    document.getElementById('crash-overlay')!.classList.add('visible')
+  }
+
+  hideCrashModal() {
+    document.getElementById('crash-overlay')!.classList.remove('visible')
+  }
+
+  showCollisionFlash() {
+    let flash = document.getElementById('collision-flash')
+    if (!flash) {
+      flash = document.createElement('div')
+      flash.id = 'collision-flash'
+      document.body.appendChild(flash)
+    }
+    flash.classList.remove('active')
+    void flash.offsetWidth
+    flash.classList.add('active')
+    setTimeout(() => flash!.classList.remove('active'), 700)
+  }
+
+  showCollisionToast(msg: string) {
+    const c = document.getElementById('toast-container')!
+    const t = document.createElement('div')
+    t.className = 'toast error collision-toast'
+    t.innerHTML = `<span style="font-size:28px">💥</span> <div><strong style="font-size:16px">Duvara Çarpıldı!</strong><br><span style="font-size:13px">${msg}</span></div>`
+    c.appendChild(t)
+    setTimeout(() => t.remove(), 5000)
   }
 }

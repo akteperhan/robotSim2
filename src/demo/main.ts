@@ -26,7 +26,7 @@ import {
   GRID_W, GRID_H, GARAGE_DEPTH, DOOR_ROW, GRID_CENTER_X, DOOR_PANEL_H, DOOR_Z,
   ROBOT_START, BUTTON_POS, CHARGE_POS, WALL_H,
   CAM_POS, CAM_TARGET, BASE_EXPOSURE, DOOR_OPEN_EXPOSURE_BOOST,
-  INITIAL_BATTERY_LEVEL, DEFAULT_EXECUTION_SPEED,
+  INITIAL_BATTERY_LEVEL, DEFAULT_EXECUTION_SPEED, BATTERY_COST,
   BLINK_MIN_INTERVAL, BLINK_MAX_INTERVAL, BLINK_DURATION,
   type GarageMode
 } from '../core/Constants'
@@ -48,6 +48,7 @@ let robot: Robot, robotMesh: THREE.Group, grid: Grid, battery: BatterySystem, ex
 let button: Button, door: GarageDoor, chargingPad: ChargingPad
 let doorPanels: THREE.Mesh[] = [], doorLines: THREE.Mesh[] = [], doorHandle: THREE.Mesh
 let doorMeshGroup: THREE.Group
+const doorCenterX = (-0.58 + GRID_W - 0.42) / 2  // true center between inner wall faces
 let buttonMesh: THREE.Group | null = null
 let buttonScreenMesh: THREE.Mesh | null = null
 let buttonScreenMat: THREE.MeshStandardMaterial | null = null
@@ -102,6 +103,9 @@ let isLineMode = false
 let lineModeProgress = 0
 let robotGlints: THREE.Mesh[] = []
 let chargePulseUntil = 0
+let execStepCount = 0
+let execTotalSteps = 0
+let execEnergyUsed = 0
 let garageMode: GarageMode = 'open'
 let garageGroup: THREE.Group | null = null
 let garageRoofGroup: THREE.Group | null = null
@@ -185,7 +189,8 @@ function initScene() {
   scene.environment = skyTex
   scene.fog = new THREE.FogExp2(0xd4e4f0, 0.004)
   camera = new THREE.PerspectiveCamera(45, c.clientWidth / c.clientHeight, 0.1, 500)
-  camera.position.set(CAM_POS.x, CAM_POS.y, CAM_POS.z)
+  // Start with close-up of robot face for intro (robot at grid pos 5,8 → 3D pos 5,0,8)
+  camera.position.set(GRID_CENTER_X + 0.3, 0.8, ROBOT_START.y + 2.2)
 
   renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance', logarithmicDepthBuffer: true })
   renderer.setSize(c.clientWidth, c.clientHeight)
@@ -200,7 +205,10 @@ function initScene() {
   controls = new OrbitControls(camera, renderer.domElement)
   controls.enableDamping = true; controls.dampingFactor = 0.05
   controls.minDistance = 3; controls.maxDistance = 55; controls.maxPolarAngle = Math.PI / 2.05
-  controls.target.set(CAM_TARGET.x, CAM_TARGET.y, CAM_TARGET.z); controls.update()
+  // Look at robot face during intro
+  controls.target.set(GRID_CENTER_X, 0.45, ROBOT_START.y); controls.update()
+  // Disable orbit controls during intro
+  controls.enableRotate = false; controls.enableZoom = false; controls.enablePan = false
 
   // Lights — kept minimal since EnvironmentBuilder adds outdoorSun + hemisphere
   mainAmbientLight = new THREE.AmbientLight(0xfff5e6, 0.35)
@@ -906,9 +914,9 @@ function createDoor(): THREE.Group {
   const doorGroup = new THREE.Group()
   doorPanels = []; doorLines = []
   // Align door precisely between inner wall faces
-  // Left wall inner face: -0.72 + 0.14 = -0.58  |  Right wall inner face: (GRID_W - 0.28) + 0.14 = GRID_W - 0.14
+  // Left wall inner face: -0.72 + 0.14 = -0.58  |  Right wall inner face: (GRID_W - 0.28) - 0.14 = GRID_W - 0.42
   const wallLeftInner = -0.58
-  const wallRightInner = GRID_W - 0.14
+  const wallRightInner = GRID_W - 0.42
   const doorCX = (wallLeftInner + wallRightInner) / 2
   const doorW = wallRightInner - wallLeftInner + 0.1  // slight overlap to avoid gaps
   const numPanels = Math.ceil(WALL_H / DOOR_PANEL_H)
@@ -1041,8 +1049,8 @@ function animateDoorOpening() {
   // Glow plane
   if (doorGlowPlane) scene.remove(doorGlowPlane)
   const glowMat = new THREE.MeshBasicMaterial({ color: 0xfff8e1, transparent: true, opacity: 0, side: THREE.DoubleSide })
-  const glowCX = (-0.58 + GRID_W - 0.14) / 2
-  doorGlowPlane = new THREE.Mesh(new THREE.PlaneGeometry(GRID_W - 0.14 + 0.58 + 0.1, WALL_H), glowMat)
+  const glowCX = (-0.58 + GRID_W - 0.42) / 2
+  doorGlowPlane = new THREE.Mesh(new THREE.PlaneGeometry(GRID_W - 0.42 + 0.58 + 0.1, WALL_H), glowMat)
   doorGlowPlane.position.set(glowCX, WALL_H / 2, DOOR_ROW + 0.1); scene.add(doorGlowPlane)
 
   // Volumetric SpotLights — fan-shaped light beams flooding into garage
@@ -1198,16 +1206,17 @@ function resetDoorVisualState() {
 
   if (doorMeshGroup) doorMeshGroup.visible = true
   doorPanels.forEach((p, i) => {
-    p.position.set(GRID_CENTER_X, DOOR_PANEL_H / 2 + i * DOOR_PANEL_H, DOOR_Z)
+    p.position.set(doorCenterX, DOOR_PANEL_H / 2 + i * DOOR_PANEL_H, DOOR_Z)
     p.rotation.set(0, 0, 0)
     p.scale.set(1, 1, 1)
   })
   doorLines.forEach((l, i) => {
-    l.position.set(GRID_CENTER_X, i * DOOR_PANEL_H + DOOR_PANEL_H, DOOR_Z)
+    l.position.set(doorCenterX, i * DOOR_PANEL_H + DOOR_PANEL_H, DOOR_Z)
     l.rotation.set(0, 0, 0)
     l.scale.set(1, 1, 1)
   })
-  doorHandle.position.set(GRID_CENTER_X - (GRID_W - 0.3) * 0.33, 0.9, DOOR_Z + 0.1)
+  const doorW = (GRID_W - 0.42) - (-0.58) + 0.1
+  doorHandle.position.set(doorCenterX - doorW * 0.33, 0.9, DOOR_Z + 0.1)
   doorHandle.rotation.set(0, 0, 0)
   doorHandle.scale.set(1, 1, 1)
 
@@ -1278,6 +1287,46 @@ function resetSimulationState() {
   ui.updatePositionDisplay(robot)
   ui.updateStatus('Hazır', 'ready')
   ui.updateMission(1, 'Tarayıcıya Ulaş', 'Robotu duvardaki mavi tarayıcı paneline kadar sür ve butona basarak kapıyı aç.')
+  hideExecInfoPanel()
+}
+
+// ═══════════════════════════════════════════
+// EXECUTION INFO PANEL
+// ═══════════════════════════════════════════
+function showExecInfoPanel() {
+  const el = document.getElementById('exec-info-panel')
+  if (el) el.classList.add('visible')
+}
+function hideExecInfoPanel() {
+  const el = document.getElementById('exec-info-panel')
+  if (el) el.classList.remove('visible')
+}
+function updateExecInfoPanel(stepType?: string) {
+  const stepEl = document.getElementById('exec-step')
+  const usedEl = document.getElementById('exec-energy-used')
+  const leftEl = document.getElementById('exec-energy-left')
+  const costEl = document.getElementById('exec-cost-per-step')
+  if (stepEl) stepEl.textContent = `${execStepCount} / ${execTotalSteps}`
+  if (usedEl) usedEl.textContent = `${execEnergyUsed.toFixed(1)}%`
+  const remaining = battery.getCurrentLevel()
+  if (leftEl) {
+    leftEl.textContent = `${remaining.toFixed(1)}%`
+    leftEl.className = 'exec-info-value energy-left'
+    if (remaining <= 1) leftEl.classList.add('low')
+  }
+  // Cost per step based on command type
+  if (costEl && stepType) {
+    const costMap: Record<string, number> = {
+      MOVE_FORWARD: BATTERY_COST.MOVE_FORWARD,
+      MOVE_BACKWARD: BATTERY_COST.MOVE_BACKWARD,
+      TURN_LEFT: BATTERY_COST.TURN_LEFT,
+      TURN_RIGHT: BATTERY_COST.TURN_RIGHT,
+      PRESS_BUTTON: BATTERY_COST.PRESS_BUTTON,
+      CHARGE: BATTERY_COST.CHARGE,
+    }
+    const cost = costMap[stepType] ?? 0
+    costEl.textContent = `${cost.toFixed(1)}%`
+  }
 }
 
 // ═══════════════════════════════════════════
@@ -1455,7 +1504,8 @@ function updateRobotChargeIndicator(level: number) {
 function updateEyeBlink(delta: number) {
   if (!robotEyeMeshes.length) return
 
-  // Skip blink during line mode
+  // Skip blink during intro and line mode
+  if (gameState === GameState.INTRO) return
   if (isLineMode) return
 
   blinkTimer += delta
@@ -1481,6 +1531,7 @@ function updateEyeBlink(delta: number) {
 
 function updateEyeLineMode(delta: number) {
   if (!robotEyeMeshes.length) return
+  if (gameState === GameState.INTRO) return
   // Don't trigger line mode during blink
   if (isBlinking) return
 
@@ -1857,7 +1908,18 @@ function initGame() {
       case 'TURN_LEFT': case 'TURN_RIGHT': soundManager.playTurn(); break
       case 'CHARGE': soundManager.playCharging(); break
     }
-    ui.showToast(`⚡ Enerji kullanıldı (${data.type})`, 'info')
+    // Update exec info panel instead of showing toast
+    execStepCount = data.index + 1
+    const costMap: Record<string, number> = {
+      MOVE_FORWARD: BATTERY_COST.MOVE_FORWARD,
+      MOVE_BACKWARD: BATTERY_COST.MOVE_BACKWARD,
+      TURN_LEFT: BATTERY_COST.TURN_LEFT,
+      TURN_RIGHT: BATTERY_COST.TURN_RIGHT,
+      PRESS_BUTTON: BATTERY_COST.PRESS_BUTTON,
+      CHARGE: BATTERY_COST.CHARGE,
+    }
+    execEnergyUsed += costMap[data.type] ?? 0
+    updateExecInfoPanel(data.type)
   })
 
   EventBus.on('battery:dead', () => {
@@ -1945,24 +2007,75 @@ function initGame() {
   EventBus.on('command:error', (d: { index: number, message: string }) => {
     blocklyMgr.highlightError(d.index)
     const msg = getFullErrorMessage(d.message) || d.message
-    ui.showToast(`Komut ${d.index + 1}: ${msg}`, 'error'); ui.updateStatus('Hata!', 'error')
-    logPanel.addEntry('error', `Komut ${d.index + 1}: ${msg}`)
-    // Robot bounce-back on wall collision
-    if (robotMesh) {
-      const origX = robotMesh.position.x, origZ = robotMesh.position.z
-      const dir = robot.getDirection()
-      const bx = dir === 0 ? 0 : dir === 180 ? 0 : dir === 90 ? 0.15 : -0.15
-      const bz = dir === 0 ? -0.15 : dir === 180 ? 0.15 : 0
-      const bStart = Date.now()
-      const bounce = () => {
-        const t = Math.min((Date.now() - bStart) / 300, 1)
-        const bump = Math.sin(t * Math.PI) * (1 - t)
-        robotMesh.position.x = origX + bx * bump
-        robotMesh.position.z = origZ + bz * bump
-        if (t < 1) requestAnimationFrame(bounce)
-        else { robotMesh.position.x = origX; robotMesh.position.z = origZ }
-      }; bounce()
+    const isWallCollision = d.message === 'wall_ahead' || d.message === 'wall_behind'
+
+    if (isWallCollision) {
+      // Collision sound
+      soundManager.playWallCollision()
+      // Big collision toast
+      ui.showCrashModal('BIG-BOT bir duvara çarptı! Bloklarını düzenle ve tekrar dene.')
+      // Red screen flash
+      ui.showCollisionFlash()
+      // Robot worried expression
+      EventBus.emit('robot:expression', EyeExpression.WORRIED)
+
+      // Camera shake
+      const origCamPos = camera.position.clone()
+      const shakeStart = Date.now()
+      const cameraShake = () => {
+        const elapsed = Date.now() - shakeStart
+        const t = Math.min(elapsed / 500, 1)
+        const decay = 1 - t
+        camera.position.x = origCamPos.x + (Math.random() - 0.5) * 0.3 * decay
+        camera.position.y = origCamPos.y + (Math.random() - 0.5) * 0.3 * decay
+        if (t < 1) requestAnimationFrame(cameraShake)
+        else camera.position.copy(origCamPos)
+      }
+      cameraShake()
+
+      // Dramatic robot bounce-back
+      if (robotMesh) {
+        const origX = robotMesh.position.x, origZ = robotMesh.position.z
+        const origRotY = robotMesh.rotation.y
+        const dir = robot.getDirection()
+        const bx = dir === 0 ? 0 : dir === 180 ? 0 : dir === 90 ? 0.35 : -0.35
+        const bz = dir === 0 ? -0.35 : dir === 180 ? 0.35 : 0
+        const bStart = Date.now()
+        const bounce = () => {
+          const t = Math.min((Date.now() - bStart) / 600, 1)
+          const bump = Math.sin(t * Math.PI) * (1 - t * 0.5)
+          robotMesh.position.x = origX + bx * bump
+          robotMesh.position.z = origZ + bz * bump
+          robotMesh.rotation.y = origRotY + Math.sin(t * Math.PI * 4) * 0.05 * (1 - t)
+          if (t < 1) requestAnimationFrame(bounce)
+          else {
+            robotMesh.position.x = origX; robotMesh.position.z = origZ
+            robotMesh.rotation.y = origRotY
+          }
+        }; bounce()
+      }
+    } else {
+      ui.showToast(`Komut ${d.index + 1}: ${msg}`, 'error')
+      // Generic bounce
+      if (robotMesh) {
+        const origX = robotMesh.position.x, origZ = robotMesh.position.z
+        const dir = robot.getDirection()
+        const bx = dir === 0 ? 0 : dir === 180 ? 0 : dir === 90 ? 0.15 : -0.15
+        const bz = dir === 0 ? -0.15 : dir === 180 ? 0.15 : 0
+        const bStart = Date.now()
+        const bounce = () => {
+          const t = Math.min((Date.now() - bStart) / 300, 1)
+          const bump = Math.sin(t * Math.PI) * (1 - t)
+          robotMesh.position.x = origX + bx * bump
+          robotMesh.position.z = origZ + bz * bump
+          if (t < 1) requestAnimationFrame(bounce)
+          else { robotMesh.position.x = origX; robotMesh.position.z = origZ }
+        }; bounce()
+      }
     }
+
+    ui.updateStatus('Hata!', 'error')
+    logPanel.addEntry('error', `Komut ${d.index + 1}: ${msg}`)
   })
 
   EventBus.on('robot:expression', (expr: string) => {
@@ -2170,8 +2283,12 @@ document.getElementById('intro-start-btn')!.addEventListener('click', () => {
   ov.classList.add('hidden')
   setTimeout(() => { ov.style.display = 'none' }, 1000)
   gameState = GameState.READY
-  applyGarageMode(garageMode, false, false)
 
+  // Re-enable orbit controls
+  controls.enableRotate = true; controls.enableZoom = true; controls.enablePan = true
+  controls.enableDamping = true
+
+  // Ensure eyes are fully on
   robotEyeMeshes.forEach(eye => {
     eye.scale.y = 1;
     if (eye.material instanceof THREE.MeshStandardMaterial) eye.material.emissiveIntensity = 2;
@@ -2179,9 +2296,14 @@ document.getElementById('intro-start-btn')!.addEventListener('click', () => {
   robotEyeLights.forEach(l => l.intensity = 0.4);
   if (robotChargeRingMat) robotChargeRingMat.emissiveIntensity = 0.6;
 
+  // Apply garage mode settings (roof, lights) without camera snap
+  const roofVisible = garageMode === 'closed'
+  if (garageRoofGroup) garageRoofGroup.visible = roofVisible
+  if (mainAmbientLight) mainAmbientLight.intensity = (garageMode === 'closed' ? 1.5 : 0.35) * lightMultiplier
+  controls.maxPolarAngle = roofVisible ? Math.PI / 2.25 : Math.PI / 2.05
+
+  // Animate camera from close-up to overview
   const pose = getPrimaryCameraPose()
-  camera.position.set(GRID_CENTER_X, 1, -1.2)
-  controls.target.set(GRID_CENTER_X, 0.8, 2.8)
   animateCameraTo(pose.pos, pose.target, 2000)
 })
 
@@ -2213,25 +2335,50 @@ if (garageModeSelect) {
 }
 
 // GREEN FLAG — run program
-document.getElementById('btn-green-flag')!.addEventListener('click', async () => {
-  if (isExecuting) { ui.showToast('Zaten çalışıyor!', 'warning'); return }
-  if (gameState === GameState.INTRO) { ui.showToast('Önce göreve başlayın!', 'warning'); return }
+// RUN TOGGLE — Başlat / Durdur
+document.getElementById('btn-run-toggle')!.addEventListener('click', async () => {
+  const btn = document.getElementById('btn-run-toggle') as HTMLButtonElement
 
+  // STOP branch
+  if (isExecuting) {
+    executor.stop(); isExecuting = false; isAntennaBlinking = false
+    blocklyMgr.clearHighlight()
+    cameraMode = previousCameraMode
+    if (cameraMode === 'overview') {
+      const pose = getPrimaryCameraPose()
+      animateCameraTo(pose.pos, pose.target, 800)
+    }
+    ui.updateStatus('Durduruldu', 'ready')
+    ui.showToast('⏹ Durduruldu', 'warning')
+    btn.classList.remove('running')
+    btn.innerHTML = '<span>🚀</span> Başlat'
+    return
+  }
+
+  // START branch
+  if (gameState === GameState.INTRO) { ui.showToast('Önce göreve başlayın!', 'warning'); return }
   const cmds = executor.getCommands().length
   if (cmds === 0) { ui.showToast('Blok ekleyin!', 'warning'); return }
-
   if (battery.getCurrentLevel() <= 0) {
     ui.showFailure('Batarya tamamen bitti! Sıfırla ve tekrar dene.')
     gameState = GameState.FAILED; return
   }
 
   isExecuting = true
-  // Switch to follow camera during execution
+  btn.classList.add('running')
+  btn.innerHTML = '⏹ Durdur'
   previousCameraMode = cameraMode
   cameraMode = 'follow'
   if (gameState === GameState.READY || gameState === GameState.DOOR_OPENED) {
     ui.updateStatus('Çalışıyor...', 'executing')
   }
+
+  // Initialize and show exec info panel
+  execStepCount = 0
+  execTotalSteps = cmds
+  execEnergyUsed = 0
+  updateExecInfoPanel()
+  showExecInfoPanel()
 
   const result = await executor.execute(robot, grid, battery)
 
@@ -2243,26 +2390,14 @@ document.getElementById('btn-green-flag')!.addEventListener('click', async () =>
 
   isExecuting = false
   isAntennaBlinking = false
-  // Restore camera mode after execution
+  btn.classList.remove('running')
+  btn.innerHTML = '<span>🚀</span> Başlat'
   cameraMode = previousCameraMode
   if (cameraMode === 'overview') {
     const pose = getPrimaryCameraPose()
     animateCameraTo(pose.pos, pose.target, 800)
   }
   ui.updatePositionDisplay(robot)
-})
-
-// STOP
-document.getElementById('btn-stop')!.addEventListener('click', () => {
-  executor.stop(); isExecuting = false; isAntennaBlinking = false
-  blocklyMgr.clearHighlight()
-  // Restore camera mode
-  cameraMode = previousCameraMode
-  if (cameraMode === 'overview') {
-    const pose = getPrimaryCameraPose()
-    animateCameraTo(pose.pos, pose.target, 800)
-  }
-  ui.updateStatus('Durduruldu', 'ready'); ui.showToast('⏹ Durduruldu', 'warning')
 })
 
 // RESET
@@ -2275,6 +2410,27 @@ document.getElementById('btn-reset')!.addEventListener('click', () => {
 // Failure retry
 document.getElementById('failure-retry-btn')!.addEventListener('click', () => {
   ui.hideFailure(); document.getElementById('btn-reset')!.click()
+})
+
+// CRASH MODAL — Başa Dön
+document.getElementById('crash-retry-btn')!.addEventListener('click', () => {
+  ui.hideCrashModal()
+  resetSimulationState()
+  blocklyMgr.clearHighlight()
+  const btn = document.getElementById('btn-run-toggle') as HTMLButtonElement
+  btn.classList.remove('running')
+  btn.innerHTML = '<span>🚀</span> Başlat'
+  ui.showToast('🔄 Başa dönüldü', 'info')
+})
+
+// CRASH MODAL — Devam Et
+document.getElementById('crash-continue-btn')!.addEventListener('click', () => {
+  ui.hideCrashModal()
+  EventBus.emit('robot:expression', EyeExpression.NORMAL)
+  const btn = document.getElementById('btn-run-toggle') as HTMLButtonElement
+  btn.classList.remove('running')
+  btn.innerHTML = '<span>🚀</span> Başlat'
+  ui.showToast('✏️ Bloklarını düzenle ve tekrar başlat', 'info')
 })
 
 // LOAD SAMPLE CODE
@@ -2518,3 +2674,22 @@ blocklyMgr.init((newExecutor, totalCost) => {
 })
 loadMissionUI()
 renderLoop()
+
+// Intro: animate robot eyes opening after 800ms
+setTimeout(() => {
+  if (gameState !== GameState.INTRO) return
+  const eyeStart = performance.now()
+  const eyeDur = 600
+  const animateEyeOpen = () => {
+    const t = Math.min(1, (performance.now() - eyeStart) / eyeDur)
+    const e = t < 0.5 ? 2 * t * t : -1 + (4 - 2 * t) * t
+    robotEyeMeshes.forEach(eye => {
+      eye.scale.y = 0.1 + 0.9 * e
+      if (eye.material instanceof THREE.MeshStandardMaterial) eye.material.emissiveIntensity = 2.5 * e
+    })
+    robotEyeLights.forEach(l => l.intensity = 0.4 * e)
+    if (robotChargeRingMat) robotChargeRingMat.emissiveIntensity = 0.6 * e
+    if (t < 1) requestAnimationFrame(animateEyeOpen)
+  }
+  requestAnimationFrame(animateEyeOpen)
+}, 800)

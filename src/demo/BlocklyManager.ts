@@ -170,24 +170,24 @@ export class BlocklyManager {
       scrollbars: true,
       trashcan: true,
       zoom: { controls: true, wheel: true, startScale: 1.0, maxScale: 3, minScale: 0.3, scaleSpeed: 1.2 },
-      grid: { spacing: 25, length: 3, colour: '#2a2f42', snap: true },
-      theme: Blockly.Theme.defineTheme('bigbot_dark', {
-        name: 'bigbot_dark',
+      grid: { spacing: 25, length: 3, colour: '#e0e4ff', snap: true },
+      theme: Blockly.Theme.defineTheme('bigbot_fun', {
+        name: 'bigbot_fun',
         base: Blockly.Themes.Classic,
         componentStyles: {
-          workspaceBackgroundColour: '#151822',
-          toolboxBackgroundColour: '#1e2233',
-          toolboxForegroundColour: '#e0e0e0',
-          flyoutBackgroundColour: '#1e2233',
-          flyoutForegroundColour: '#e0e0e0',
-          flyoutOpacity: 0.95,
-          scrollbarColour: '#3a3f55',
-          scrollbarOpacity: 0.6,
-          insertionMarkerColour: '#00d4aa',
-          insertionMarkerOpacity: 0.5,
-          cursorColour: '#00d4aa'
+          workspaceBackgroundColour: '#f7f9ff',
+          toolboxBackgroundColour: '#7c4dff',
+          toolboxForegroundColour: '#ffffff',
+          flyoutBackgroundColour: '#5c35c9',
+          flyoutForegroundColour: '#ffffff',
+          flyoutOpacity: 0.96,
+          scrollbarColour: '#c5caff',
+          scrollbarOpacity: 0.7,
+          insertionMarkerColour: '#ff6b35',
+          insertionMarkerOpacity: 0.6,
+          cursorColour: '#ff6b35'
         },
-        fontStyle: { family: 'Inter, Arial, sans-serif', weight: 'bold', size: 12 }
+        fontStyle: { family: 'Inter, Arial, sans-serif', weight: 'bold', size: 13 }
       })
     })
 
@@ -197,14 +197,14 @@ export class BlocklyManager {
     const style = document.createElement('style')
     style.textContent = `
       .blocklyHighlighted > .blocklyPath {
-        stroke: #00e6b8 !important;
+        stroke: #ff6b35 !important;
         stroke-width: 3px !important;
-        filter: drop-shadow(0 0 8px rgba(0, 230, 184, 0.6)) !important;
+        filter: drop-shadow(0 0 8px rgba(255, 107, 53, 0.6)) !important;
         animation: block-glow 1s ease-in-out infinite alternate !important;
       }
       @keyframes block-glow {
-        from { filter: drop-shadow(0 0 6px rgba(0, 230, 184, 0.4)); }
-        to { filter: drop-shadow(0 0 14px rgba(0, 230, 184, 0.8)); }
+        from { filter: drop-shadow(0 0 6px rgba(255, 107, 53, 0.4)); }
+        to { filter: drop-shadow(0 0 14px rgba(255, 107, 53, 0.8)); }
       }
     `
     document.head.appendChild(style)

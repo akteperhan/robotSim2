@@ -10,7 +10,7 @@ export class MoveForwardCommand implements ICommand {
     if (!grid.isValidPosition(targetPosition)) {
       return {
         success: false,
-        errorMessage: 'Cannot move to invalid position',
+        errorMessage: 'wall_ahead',
         batteryConsumed: 0
       }
     }
