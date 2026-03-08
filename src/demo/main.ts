@@ -913,100 +913,181 @@ function createChargingStation(pos: Position): THREE.Group {
 function createDoor(): THREE.Group {
   const doorGroup = new THREE.Group()
   doorPanels = []; doorLines = []
-  // Align door precisely between inner wall faces
-  // Left wall inner face: -0.72 + 0.14 = -0.58  |  Right wall inner face: (GRID_W - 0.28) - 0.14 = GRID_W - 0.42
   const wallLeftInner = -0.58
   const wallRightInner = GRID_W - 0.42
   const doorCX = (wallLeftInner + wallRightInner) / 2
-  const doorW = wallRightInner - wallLeftInner + 0.1  // slight overlap to avoid gaps
+  const doorW = wallRightInner - wallLeftInner + 0.1
   const numPanels = Math.ceil(WALL_H / DOOR_PANEL_H)
 
-  // Industrial sectional door — alternating panel colors for depth
-  const panelColorA = 0x78909c
-  const panelColorB = 0x6b7d8a
-  const lineMat = new THREE.MeshStandardMaterial({
-    color: 0x455a64, roughness: 0.4, metalness: 0.7,
+  // ── I-Beam Header across top of door ──
+  const headerY = WALL_H + 0.05
+  const ibeamMat = new THREE.MeshStandardMaterial({ color: 0x4a4a4a, roughness: 0.4, metalness: 0.6 })
+  // Web
+  const hweb = new THREE.Mesh(new THREE.BoxGeometry(doorW + 0.4, 0.15, 0.025), ibeamMat)
+  hweb.position.set(doorCX, headerY, DOOR_Z)
+  doorGroup.add(hweb)
+  // Top flange
+  const htf = new THREE.Mesh(new THREE.BoxGeometry(doorW + 0.4, 0.025, 0.20), ibeamMat)
+  htf.position.set(doorCX, headerY + 0.075 + 0.0125, DOOR_Z)
+  doorGroup.add(htf)
+  // Bottom flange
+  const hbf = new THREE.Mesh(new THREE.BoxGeometry(doorW + 0.4, 0.025, 0.20), ibeamMat)
+  hbf.position.set(doorCX, headerY - 0.075 - 0.0125, DOOR_Z)
+  doorGroup.add(hbf)
+
+  // ── I-Beam Side Posts ──
+  for (const sx of [wallLeftInner - 0.12, wallRightInner + 0.12]) {
+    const sweb = new THREE.Mesh(new THREE.BoxGeometry(0.025, WALL_H + 0.2, 0.15), ibeamMat)
+    sweb.position.set(sx, WALL_H / 2, DOOR_Z)
+    doorGroup.add(sweb)
+    const sff = new THREE.Mesh(new THREE.BoxGeometry(0.20, WALL_H + 0.2, 0.025), ibeamMat)
+    sff.position.set(sx, WALL_H / 2, DOOR_Z + 0.075 + 0.0125)
+    doorGroup.add(sff)
+    const sbf = new THREE.Mesh(new THREE.BoxGeometry(0.20, WALL_H + 0.2, 0.025), ibeamMat)
+    sbf.position.set(sx, WALL_H / 2, DOOR_Z - 0.075 - 0.0125)
+    doorGroup.add(sbf)
+  }
+
+  // ── Visible Vertical Tracks with Rollers ──
+  const trackMat = new THREE.MeshStandardMaterial({ color: 0x3a3a3a, roughness: 0.35, metalness: 0.7 })
+  for (const rx of [doorCX - doorW / 2 - 0.04, doorCX + doorW / 2 + 0.04]) {
+    // C-channel track
+    const trackBack = new THREE.Mesh(new THREE.BoxGeometry(0.04, WALL_H + 0.1, 0.06), trackMat)
+    trackBack.position.set(rx, WALL_H / 2, DOOR_Z - 0.03)
+    doorGroup.add(trackBack)
+    const trackFront = new THREE.Mesh(new THREE.BoxGeometry(0.04, WALL_H + 0.1, 0.01), trackMat)
+    trackFront.position.set(rx, WALL_H / 2, DOOR_Z + 0.02)
+    doorGroup.add(trackFront)
+    // Roller brackets
+    for (let b = 0; b < 3; b++) {
+      const roller = new THREE.Mesh(new THREE.CylinderGeometry(0.012, 0.012, 0.03, 8), trackMat)
+      roller.rotateX(Math.PI / 2)
+      roller.position.set(rx, 0.5 + b * 1.0, DOOR_Z - 0.01)
+      doorGroup.add(roller)
+    }
+  }
+
+  // ── Door Panels — thicker, industrial gray ──
+  const panelMat = new THREE.MeshStandardMaterial({
+    color: 0xc0c4c8, roughness: 0.4, metalness: 0.3,
     clippingPlanes: [doorClipPlane], clipShadows: true
   })
-
-  // Top 3 panels get frosted window inserts
-  const windowThreshold = numPanels - 3
+  const jointMat = new THREE.MeshStandardMaterial({
+    color: 0x505050, roughness: 0.5, metalness: 0.4,
+    clippingPlanes: [doorClipPlane], clipShadows: true
+  })
+  // Window panel is the top one
+  const windowPanelIdx = numPanels - 1
 
   for (let i = 0; i < numPanels; i++) {
-    const panelColor = i % 2 === 0 ? panelColorA : panelColorB
-    const panelMat = new THREE.MeshStandardMaterial({
-      color: panelColor, roughness: 0.45, metalness: 0.5,
-      clippingPlanes: [doorClipPlane], clipShadows: true
-    })
-    const p = new THREE.Mesh(new RoundedBoxGeometry(doorW, DOOR_PANEL_H - 0.01, 0.08, 2, 0.01), panelMat)
+    const p = new THREE.Mesh(
+      new RoundedBoxGeometry(doorW, DOOR_PANEL_H - 0.01, 0.04, 2, 0.005), panelMat
+    )
     p.position.set(doorCX, DOOR_PANEL_H / 2 + i * DOOR_PANEL_H, DOOR_Z)
     p.castShadow = true; doorGroup.add(p); doorPanels.push(p)
 
-    // Panel divider lines
-    const l = new THREE.Mesh(new THREE.BoxGeometry(doorW, 0.012, 0.09), lineMat)
-    l.position.set(doorCX, i * DOOR_PANEL_H + DOOR_PANEL_H, DOOR_Z)
-    doorGroup.add(l); doorLines.push(l)
+    // Recessed joint lines at top and bottom of each panel
+    const topJoint = new THREE.Mesh(new THREE.BoxGeometry(doorW, 0.005, 0.045), jointMat)
+    topJoint.position.set(doorCX, (i + 1) * DOOR_PANEL_H - 0.002, DOOR_Z)
+    doorGroup.add(topJoint); doorLines.push(topJoint)
 
-    // Frosted window inserts on top panels
-    if (i >= windowThreshold) {
+    const botJoint = new THREE.Mesh(new THREE.BoxGeometry(doorW, 0.005, 0.045), jointMat)
+    botJoint.position.set(doorCX, i * DOOR_PANEL_H + 0.002, DOOR_Z)
+    doorGroup.add(botJoint)
+
+    // Frosted glass window on top panel
+    if (i === windowPanelIdx) {
       const windowMat = new THREE.MeshStandardMaterial({
-        color: 0xb3e5fc, emissive: 0x80deea, emissiveIntensity: 0.15,
-        roughness: 0.1, metalness: 0.1, transparent: true, opacity: 0.7,
+        color: 0xb0d4e8, emissive: 0x80bcd0, emissiveIntensity: 0.12,
+        roughness: 0.15, metalness: 0.05, transparent: true, opacity: 0.65,
         clippingPlanes: [doorClipPlane], clipShadows: true
       })
-      // 4 window panes per panel
+      const winFrameMat = new THREE.MeshStandardMaterial({
+        color: 0x606060, roughness: 0.4, metalness: 0.5,
+        clippingPlanes: [doorClipPlane], clipShadows: true
+      })
+      // 4 window panes
       for (let w = 0; w < 4; w++) {
         const wx = doorCX - doorW * 0.35 + w * (doorW * 0.7 / 3)
-        const win = new THREE.Mesh(new THREE.BoxGeometry(doorW * 0.15, DOOR_PANEL_H * 0.6, 0.01), windowMat)
-        win.position.set(wx, DOOR_PANEL_H / 2 + i * DOOR_PANEL_H, DOOR_Z + 0.045)
+        const win = new THREE.Mesh(
+          new THREE.BoxGeometry(doorW * 0.14, DOOR_PANEL_H * 0.55, 0.008), windowMat
+        )
+        win.position.set(wx, DOOR_PANEL_H / 2 + i * DOOR_PANEL_H, DOOR_Z + 0.022)
         doorGroup.add(win)
+        // Window frame
+        const wf = new THREE.Mesh(
+          new THREE.BoxGeometry(doorW * 0.16, DOOR_PANEL_H * 0.60, 0.003), winFrameMat
+        )
+        wf.position.set(wx, DOOR_PANEL_H / 2 + i * DOOR_PANEL_H, DOOR_Z + 0.020)
+        doorGroup.add(wf)
       }
     }
-
-    // Embossed rectangle detail on lower panels (industrial look)
-    if (i < windowThreshold && i > 0) {
-      const embossMat = new THREE.MeshStandardMaterial({
-        color: panelColor, roughness: 0.55, metalness: 0.45,
-        clippingPlanes: [doorClipPlane], clipShadows: true
-      })
-      const embossL = new THREE.Mesh(new THREE.BoxGeometry(doorW * 0.42, DOOR_PANEL_H * 0.55, 0.005), embossMat)
-      embossL.position.set(doorCX - doorW * 0.26, DOOR_PANEL_H / 2 + i * DOOR_PANEL_H, DOOR_Z + 0.042)
-      doorGroup.add(embossL)
-      const embossR = new THREE.Mesh(new THREE.BoxGeometry(doorW * 0.42, DOOR_PANEL_H * 0.55, 0.005), embossMat)
-      embossR.position.set(doorCX + doorW * 0.26, DOOR_PANEL_H / 2 + i * DOOR_PANEL_H, DOOR_Z + 0.042)
-      doorGroup.add(embossR)
-    }
   }
 
-  // Side rails / tracks
-  const railMat = new THREE.MeshStandardMaterial({ color: 0x37474f, roughness: 0.3, metalness: 0.8 })
-  for (const rx of [doorCX - doorW / 2 - 0.06, doorCX + doorW / 2 + 0.06]) {
-    // Vertical track
-    const rail = new THREE.Mesh(new THREE.BoxGeometry(0.06, WALL_H + 0.1, 0.10), railMat)
-    rail.position.set(rx, WALL_H / 2, DOOR_Z)
-    doorGroup.add(rail)
-    // Track brackets
-    for (let b = 0; b < 4; b++) {
-      const bracket = new THREE.Mesh(new THREE.BoxGeometry(0.10, 0.04, 0.04), railMat)
-      bracket.position.set(rx, 0.4 + b * 0.7, DOOR_Z - 0.06)
-      doorGroup.add(bracket)
-    }
+  // ── Amber Warning Beacons ──
+  const beaconMat = new THREE.MeshStandardMaterial({
+    color: 0xff8c00, emissive: 0xff8c00, emissiveIntensity: 0.8, roughness: 0.3, metalness: 0.2
+  })
+  for (const bx of [doorCX - doorW / 2 - 0.15, doorCX + doorW / 2 + 0.15]) {
+    const beacon = new THREE.Mesh(new THREE.SphereGeometry(0.06, 12, 8), beaconMat)
+    beacon.position.set(bx, headerY + 0.06, DOOR_Z + 0.05)
+    doorGroup.add(beacon)
+    // Beacon base
+    const bbase = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 0.03, 8), ibeamMat)
+    bbase.position.set(bx, headerY - 0.02, DOOR_Z + 0.05)
+    doorGroup.add(bbase)
   }
 
-  // Handle — larger, more industrial
-  doorHandle = new THREE.Mesh(new RoundedBoxGeometry(0.14, 0.38, 0.14, 2, 0.02),
+  // ── Yellow/Black Chevron Floor Markings ──
+  const chevronYellow = new THREE.MeshStandardMaterial({ color: 0xf0c040, roughness: 0.6 })
+  const chevronBlack = new THREE.MeshStandardMaterial({ color: 0x1a1a1a, roughness: 0.6 })
+  const chevronCount = 8
+  const chevronTotalW = doorW + 0.3
+  const chevronSegW = chevronTotalW / chevronCount
+  for (let ci = 0; ci < chevronCount; ci++) {
+    const cx = doorCX - chevronTotalW / 2 + chevronSegW * (ci + 0.5)
+    const cMat = ci % 2 === 0 ? chevronYellow : chevronBlack
+    const cg = new THREE.Mesh(new THREE.BoxGeometry(chevronSegW * 0.9, 0.01, 0.25), cMat)
+    cg.position.set(cx, 0.005, DOOR_Z + 0.35)
+    doorGroup.add(cg)
+  }
+
+  // ── Wall-Mounted Control Panel ──
+  const ctrlPanelMat = new THREE.MeshStandardMaterial({ color: 0x505560, roughness: 0.4, metalness: 0.4 })
+  const ctrlBox = new THREE.Mesh(new THREE.BoxGeometry(0.20, 0.25, 0.06), ctrlPanelMat)
+  ctrlBox.position.set(wallRightInner + 0.35, 1.2, DOOR_Z)
+  doorGroup.add(ctrlBox)
+  // Green button
+  const greenBtnMat = new THREE.MeshStandardMaterial({ color: 0x00c853, emissive: 0x00c853, emissiveIntensity: 0.5, roughness: 0.3 })
+  const greenBtn = new THREE.Mesh(new THREE.CylinderGeometry(0.015, 0.015, 0.015, 8), greenBtnMat)
+  greenBtn.rotateX(Math.PI / 2)
+  greenBtn.position.set(wallRightInner + 0.32, 1.26, DOOR_Z + 0.035)
+  doorGroup.add(greenBtn)
+  // Red button
+  const redBtnMat = new THREE.MeshStandardMaterial({ color: 0xff1744, emissive: 0xff1744, emissiveIntensity: 0.5, roughness: 0.3 })
+  const redBtn = new THREE.Mesh(new THREE.CylinderGeometry(0.015, 0.015, 0.015, 8), redBtnMat)
+  redBtn.rotateX(Math.PI / 2)
+  redBtn.position.set(wallRightInner + 0.38, 1.26, DOOR_Z + 0.035)
+  doorGroup.add(redBtn)
+  // Display
+  const ctrlDispMat = new THREE.MeshStandardMaterial({ color: 0x0a0a14, emissive: 0x1565c0, emissiveIntensity: 0.2, roughness: 0.1 })
+  const ctrlDisp = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.06, 0.005), ctrlDispMat)
+  ctrlDisp.position.set(wallRightInner + 0.35, 1.15, DOOR_Z + 0.035)
+  doorGroup.add(ctrlDisp)
+
+  // ── Handle ──
+  doorHandle = new THREE.Mesh(new RoundedBoxGeometry(0.14, 0.38, 0.12, 2, 0.02),
     new THREE.MeshStandardMaterial({
       color: 0x263238, roughness: 0.25, metalness: 0.85,
       clippingPlanes: [doorClipPlane], clipShadows: true
     }))
-  doorHandle.position.set(doorCX - doorW * 0.33, 0.9, DOOR_Z + 0.1); doorGroup.add(doorHandle)
-  // Handle grip bar
+  doorHandle.position.set(doorCX - doorW * 0.33, 0.9, DOOR_Z + 0.08); doorGroup.add(doorHandle)
   const grip = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.02, 0.06),
     new THREE.MeshStandardMaterial({ color: 0x455a64, roughness: 0.3, metalness: 0.8,
       clippingPlanes: [doorClipPlane], clipShadows: true }))
-  grip.position.set(doorCX - doorW * 0.33, 0.95, DOOR_Z + 0.14); doorGroup.add(grip)
+  grip.position.set(doorCX - doorW * 0.33, 0.95, DOOR_Z + 0.12); doorGroup.add(grip)
 
-  // Bottom weather seal (rubber strip)
+  // ── Bottom Weather Seal ──
   const sealMat = new THREE.MeshStandardMaterial({ color: 0x1a1a1a, roughness: 0.9, metalness: 0.0 })
   const seal = new THREE.Mesh(new THREE.BoxGeometry(doorW + 0.1, 0.03, 0.12), sealMat)
   seal.position.set(doorCX, 0.015, DOOR_Z)
@@ -2010,43 +2091,71 @@ function initGame() {
     const isWallCollision = d.message === 'wall_ahead' || d.message === 'wall_behind'
 
     if (isWallCollision) {
-      // Collision sound
+      // Soft collision sound
       soundManager.playWallCollision()
-      // Big collision toast
-      ui.showCrashModal('BIG-BOT bir duvara çarptı! Bloklarını düzenle ve tekrar dene.')
-      // Red screen flash
+      // Educational crash modal
+      ui.showCrashModal('Robot duvara çarptı. İlerlemeden önce yönünü ve adım sayını kontrol et.')
+      // Soft screen flash
       ui.showCollisionFlash()
       // Robot worried expression
       EventBus.emit('robot:expression', EyeExpression.WORRIED)
 
-      // Camera shake
+      // Gentle camera shake (reduced intensity)
       const origCamPos = camera.position.clone()
       const shakeStart = Date.now()
       const cameraShake = () => {
         const elapsed = Date.now() - shakeStart
-        const t = Math.min(elapsed / 500, 1)
+        const t = Math.min(elapsed / 350, 1)
         const decay = 1 - t
-        camera.position.x = origCamPos.x + (Math.random() - 0.5) * 0.3 * decay
-        camera.position.y = origCamPos.y + (Math.random() - 0.5) * 0.3 * decay
+        camera.position.x = origCamPos.x + (Math.random() - 0.5) * 0.12 * decay
+        camera.position.y = origCamPos.y + (Math.random() - 0.5) * 0.12 * decay
         if (t < 1) requestAnimationFrame(cameraShake)
         else camera.position.copy(origCamPos)
       }
       cameraShake()
 
-      // Dramatic robot bounce-back
+      // Robot red flash (brief color change)
+      if (robotMesh) {
+        const flashMats: { mat: THREE.MeshStandardMaterial, origColor: THREE.Color }[] = []
+        robotMesh.traverse((child) => {
+          if ((child as THREE.Mesh).isMesh) {
+            const mat = (child as THREE.Mesh).material as THREE.MeshStandardMaterial
+            if (mat && mat.isMeshStandardMaterial && mat.color) {
+              flashMats.push({ mat, origColor: mat.color.clone() })
+            }
+          }
+        })
+        // Flash red
+        const flashColor = new THREE.Color(0xff4444)
+        flashMats.forEach(f => f.mat.color.copy(flashColor))
+        setTimeout(() => {
+          flashMats.forEach(f => f.mat.color.copy(f.origColor))
+        }, 200)
+      }
+
+      // Small collision particles at contact point
+      if (robotMesh) {
+        const dir = robot.getDirection()
+        const ox = dir === 90 ? 0.5 : dir === 270 ? -0.5 : 0
+        const oz = dir === 0 ? -0.5 : dir === 180 ? 0.5 : 0
+        const contactPoint = robotMesh.position.clone().add(new THREE.Vector3(ox, 0.5, oz))
+        particles.emitChargeSparks(contactPoint, 12)
+      }
+
+      // Gentle recoil animation
       if (robotMesh) {
         const origX = robotMesh.position.x, origZ = robotMesh.position.z
         const origRotY = robotMesh.rotation.y
         const dir = robot.getDirection()
-        const bx = dir === 0 ? 0 : dir === 180 ? 0 : dir === 90 ? 0.35 : -0.35
-        const bz = dir === 0 ? -0.35 : dir === 180 ? 0.35 : 0
+        const bx = dir === 0 ? 0 : dir === 180 ? 0 : dir === 90 ? 0.2 : -0.2
+        const bz = dir === 0 ? -0.2 : dir === 180 ? 0.2 : 0
         const bStart = Date.now()
         const bounce = () => {
-          const t = Math.min((Date.now() - bStart) / 600, 1)
-          const bump = Math.sin(t * Math.PI) * (1 - t * 0.5)
+          const t = Math.min((Date.now() - bStart) / 400, 1)
+          const bump = Math.sin(t * Math.PI) * (1 - t * 0.6)
           robotMesh.position.x = origX + bx * bump
           robotMesh.position.z = origZ + bz * bump
-          robotMesh.rotation.y = origRotY + Math.sin(t * Math.PI * 4) * 0.05 * (1 - t)
+          robotMesh.rotation.y = origRotY + Math.sin(t * Math.PI * 2) * 0.03 * (1 - t)
           if (t < 1) requestAnimationFrame(bounce)
           else {
             robotMesh.position.x = origX; robotMesh.position.z = origZ
@@ -2412,7 +2521,7 @@ document.getElementById('failure-retry-btn')!.addEventListener('click', () => {
   ui.hideFailure(); document.getElementById('btn-reset')!.click()
 })
 
-// CRASH MODAL — Başa Dön
+// CRASH MODAL — Tekrar Dene
 document.getElementById('crash-retry-btn')!.addEventListener('click', () => {
   ui.hideCrashModal()
   resetSimulationState()
@@ -2420,17 +2529,17 @@ document.getElementById('crash-retry-btn')!.addEventListener('click', () => {
   const btn = document.getElementById('btn-run-toggle') as HTMLButtonElement
   btn.classList.remove('running')
   btn.innerHTML = '<span>🚀</span> Başlat'
-  ui.showToast('🔄 Başa dönüldü', 'info')
+  ui.showToast('🔄 Tekrar denemeye hazır!', 'info')
 })
 
-// CRASH MODAL — Devam Et
+// CRASH MODAL — Koda Geri Dön
 document.getElementById('crash-continue-btn')!.addEventListener('click', () => {
   ui.hideCrashModal()
   EventBus.emit('robot:expression', EyeExpression.NORMAL)
   const btn = document.getElementById('btn-run-toggle') as HTMLButtonElement
   btn.classList.remove('running')
   btn.innerHTML = '<span>🚀</span> Başlat'
-  ui.showToast('✏️ Bloklarını düzenle ve tekrar başlat', 'info')
+  ui.showToast('✏️ Kodunu düzenle ve tekrar dene', 'info')
 })
 
 // LOAD SAMPLE CODE

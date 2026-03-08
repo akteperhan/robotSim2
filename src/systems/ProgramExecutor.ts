@@ -112,21 +112,6 @@ export class ProgramExecutor {
         }
       }
 
-      // Check if command can execute
-      if (!command.canExecute(robot, grid)) {
-        EventBus.emit('command:error', {
-          index: this.currentIndex,
-          message: 'Command cannot be executed'
-        })
-        this.isExecuting = false
-        return {
-          success: false,
-          stoppedAt: this.currentIndex,
-          commandsExecuted: this.currentIndex,
-          batteryUsed: this.totalBatteryUsed
-        }
-      }
-
       // Execute command (supports async commands like ChargeCommand)
       const result = await command.execute(robot, grid)
 

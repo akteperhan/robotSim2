@@ -291,56 +291,56 @@ export class SoundManager {
         })
     }
 
-    // ─── WALL COLLISION: Impact thud + bonk ───
+    // ─── WALL COLLISION: Soft educational bump ───
     playWallCollision() {
         if (!this.enabled) return
         const ctx = this.getContext()
         const now = ctx.currentTime
 
-        // Heavy impact thud
+        // Gentle thump — low sine, quick fade
         const thud = ctx.createOscillator()
         const thudGain = ctx.createGain()
         thud.connect(thudGain)
         thudGain.connect(ctx.destination)
         thud.type = 'sine'
-        thud.frequency.setValueAtTime(80, now)
-        thud.frequency.linearRampToValueAtTime(30, now + 0.2)
-        thudGain.gain.setValueAtTime(0.25, now)
-        thudGain.gain.linearRampToValueAtTime(0, now + 0.3)
+        thud.frequency.setValueAtTime(120, now)
+        thud.frequency.linearRampToValueAtTime(60, now + 0.15)
+        thudGain.gain.setValueAtTime(0.10, now)
+        thudGain.gain.linearRampToValueAtTime(0, now + 0.25)
         thud.start(now)
-        thud.stop(now + 0.3)
+        thud.stop(now + 0.25)
 
-        // Noise burst for crash texture
-        const bufLen = ctx.sampleRate * 0.15
+        // Soft filtered noise tap (very brief)
+        const bufLen = ctx.sampleRate * 0.08
         const buf = ctx.createBuffer(1, bufLen, ctx.sampleRate)
         const data = buf.getChannelData(0)
-        for (let i = 0; i < bufLen; i++) data[i] = (Math.random() * 2 - 1)
+        for (let i = 0; i < bufLen; i++) data[i] = (Math.random() * 2 - 1) * 0.4
         const noise = ctx.createBufferSource()
         noise.buffer = buf
-        const hp = ctx.createBiquadFilter()
-        hp.type = 'highpass'
-        hp.frequency.setValueAtTime(200, now)
+        const lp = ctx.createBiquadFilter()
+        lp.type = 'lowpass'
+        lp.frequency.setValueAtTime(800, now)
         const nGain = ctx.createGain()
-        noise.connect(hp)
-        hp.connect(nGain)
+        noise.connect(lp)
+        lp.connect(nGain)
         nGain.connect(ctx.destination)
-        nGain.gain.setValueAtTime(0.15, now)
-        nGain.gain.linearRampToValueAtTime(0, now + 0.15)
+        nGain.gain.setValueAtTime(0.06, now)
+        nGain.gain.linearRampToValueAtTime(0, now + 0.08)
         noise.start(now)
-        noise.stop(now + 0.15)
+        noise.stop(now + 0.1)
 
-        // Two-tone warning bonk
-        const bonk = ctx.createOscillator()
-        const bonkGain = ctx.createGain()
-        bonk.connect(bonkGain)
-        bonkGain.connect(ctx.destination)
-        bonk.type = 'square'
-        bonk.frequency.setValueAtTime(300, now + 0.05)
-        bonk.frequency.linearRampToValueAtTime(150, now + 0.15)
-        bonkGain.gain.setValueAtTime(0.08, now + 0.05)
-        bonkGain.gain.linearRampToValueAtTime(0, now + 0.2)
-        bonk.start(now + 0.05)
-        bonk.stop(now + 0.2)
+        // Gentle descending "boop" — friendly tone
+        const boop = ctx.createOscillator()
+        const boopGain = ctx.createGain()
+        boop.connect(boopGain)
+        boopGain.connect(ctx.destination)
+        boop.type = 'sine'
+        boop.frequency.setValueAtTime(440, now + 0.05)
+        boop.frequency.linearRampToValueAtTime(280, now + 0.2)
+        boopGain.gain.setValueAtTime(0.06, now + 0.05)
+        boopGain.gain.linearRampToValueAtTime(0, now + 0.25)
+        boop.start(now + 0.05)
+        boop.stop(now + 0.25)
     }
 
     // ─── INTRO BOOT: Robot startup sound ───

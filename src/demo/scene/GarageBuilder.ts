@@ -18,22 +18,16 @@ export interface GarageConfig {
 export function createGarage(config: GarageConfig) {
     const garageGroup = new THREE.Group()
     const garageW = config.GRID_W + 0.6
-    // Side walls run from back wall (z=-0.7) to door row (z=DOOR_ROW)
     const backZ = -0.7
     const frontZ = config.DOOR_ROW
     const sideDepth = frontZ - backZ
     const midZ = (backZ + frontZ) / 2
-    // True geometric center between side walls for structural centering
     const garageCenterX = (-0.72 + (config.GRID_W - 0.28)) / 2
 
     // ── GeomCollector for geometry merging ──
-    // Normalize geometry: convert to non-indexed and ensure only position/normal/uv attributes
-    // so that different geometry types (Box, Cylinder, Torus, RoundedBox, etc.) can be merged.
     function normalize(geom: THREE.BufferGeometry): THREE.BufferGeometry {
         const g = geom.index ? geom.toNonIndexed() : geom
-        // Ensure normals exist
         if (!g.getAttribute('normal')) g.computeVertexNormals()
-        // Strip any non-standard attributes to guarantee merge compatibility
         const keep = new Set(['position', 'normal', 'uv'])
         for (const name of Object.keys(g.attributes)) {
             if (!keep.has(name)) g.deleteAttribute(name)
@@ -50,7 +44,6 @@ export function createGarage(config: GarageConfig) {
         if (receiveShadow) b.receiveShadow = true
     }
 
-    // Separate collector for roof group geometries
     const rgc = new Map<string, { mat: THREE.Material, geoms: THREE.BufferGeometry[], castShadow: boolean, receiveShadow: boolean }>()
     function collectRoof(key: string, mat: THREE.Material, geom: THREE.BufferGeometry, castShadow = false, receiveShadow = false) {
         if (!rgc.has(key)) rgc.set(key, { mat, geoms: [], castShadow, receiveShadow })
@@ -61,29 +54,52 @@ export function createGarage(config: GarageConfig) {
     }
 
     // ═══════════════════════════════════════════
-    // SHARED MATERIALS (reused across multiple merge groups)
+    // MATERIAL PALETTE — Semi-Realistic Industrial
     // ═══════════════════════════════════════════
-    const wallMat = new THREE.MeshStandardMaterial({ color: 0xd5dce6, roughness: 0.7, metalness: 0.05 })
-    const wallPanelMat = new THREE.MeshStandardMaterial({ color: 0xc0c8d4, roughness: 0.65, metalness: 0.08 })
-    const floorMat = new THREE.MeshStandardMaterial({ color: 0x5a6274, roughness: 0.55, metalness: 0.25 })
-    // baseBandMat and skirting in original both use { color: 0x37474f, roughness: 0.5, metalness: 0.3 }
-    const darkBandMat = new THREE.MeshStandardMaterial({ color: 0x37474f, roughness: 0.5, metalness: 0.3 })
-    const toolMat = new THREE.MeshStandardMaterial({ color: 0x42a5f5, roughness: 0.3, metalness: 0.8 })
+    const extCladdingMat = new THREE.MeshStandardMaterial({ color: 0xb0b4b8, roughness: 0.5, metalness: 0.4 })
+    const intWallMat = new THREE.MeshStandardMaterial({ color: 0xd4d4d4, roughness: 0.6, metalness: 0.1 })
+    const revealMat = new THREE.MeshStandardMaterial({ color: 0x606060, roughness: 0.7, metalness: 0.2 })
+    const structSteelMat = new THREE.MeshStandardMaterial({ color: 0x5a5a5a, roughness: 0.4, metalness: 0.6 })
+    const concreteMat = new THREE.MeshStandardMaterial({ color: 0x909090, roughness: 0.8, metalness: 0.0 })
+    const epoxyFloorMat = new THREE.MeshStandardMaterial({ color: 0xc8ccd0, roughness: 0.3, metalness: 0.1 })
+    const safetyYellowMat = new THREE.MeshStandardMaterial({ color: 0xf0c040, roughness: 0.6, emissive: 0xf0c040, emissiveIntensity: 0.1 })
+    const safetyBlackMat = new THREE.MeshStandardMaterial({ color: 0x1a1a1a, roughness: 0.6 })
+    const conduitMat = new THREE.MeshStandardMaterial({ color: 0x707070, roughness: 0.5, metalness: 0.3 })
+    const firePipeMat = new THREE.MeshStandardMaterial({ color: 0xcc3333, roughness: 0.5, metalness: 0.2 })
     const contactShadowMat = new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.2, depthWrite: false })
-    // Original edgeMat + conduitMat: color 0x78909c, roughness 0.20/0.25, metalness 0.75
-    const metalEdgeMat = new THREE.MeshStandardMaterial({ color: 0x78909c, roughness: 0.20, metalness: 0.75 })
+    const roofBeamMat = new THREE.MeshStandardMaterial({ color: 0x5a5a5a, roughness: 0.4, metalness: 0.55 })
+    const roofPanelMat = new THREE.MeshStandardMaterial({ color: 0x8a8e94, roughness: 0.5, metalness: 0.45 })
 
     // ═══════════════════════════════════════════
-    // FLOOR & BASE
+    // FLOOR — Epoxy with concrete base
     // ═══════════════════════════════════════════
     const slabGeom = new THREE.BoxGeometry(garageW + 0.7, 0.14, sideDepth + 0.2)
     slabGeom.translate(garageCenterX, -0.11, midZ)
-    collect('floor', floorMat, slabGeom, false, true)
+    collect('floor', epoxyFloorMat, slabGeom, false, true)
 
-    const perimeterLaneMat = new THREE.MeshStandardMaterial({ color: 0x60667a, roughness: 0.6, metalness: 0.2 })
-    const perimeterLaneGeom = new THREE.BoxGeometry(garageW + 0.15, 0.04, sideDepth - 0.2)
-    perimeterLaneGeom.translate(garageCenterX, -0.07, midZ)
-    collect('perimeterLane', perimeterLaneMat, perimeterLaneGeom, false, true)
+    // Concrete base band around perimeter
+    for (const [w, h, d, px, py, pz] of [
+        [garageW + 0.2, 0.15, 0.08, garageCenterX, 0.075, -0.53],
+        [garageW + 0.2, 0.15, 0.08, garageCenterX, 0.075, frontZ - 0.5],
+        [0.08, 0.15, sideDepth - 0.5, -0.55, 0.075, midZ],
+        [0.08, 0.15, sideDepth - 0.5, config.GRID_W - 0.41, 0.075, midZ],
+    ] as [number, number, number, number, number, number][]) {
+        const g = new THREE.BoxGeometry(w, h, d)
+        g.translate(px, py, pz)
+        collect('concreteBase', concreteMat, g)
+    }
+
+    // Safety line at door threshold
+    const threshG = new THREE.BoxGeometry(garageW - 1, 0.01, 0.08)
+    threshG.translate(garageCenterX, 0.005, frontZ - 0.7)
+    collect('safetyYellow', safetyYellowMat, threshG)
+
+    // Anti-slip darker bands near entrance
+    for (let i = 0; i < 3; i++) {
+        const g = new THREE.BoxGeometry(garageW - 1.5, 0.005, 0.12)
+        g.translate(garageCenterX, 0.003, frontZ - 1.0 - i * 0.3)
+        collect('antiSlip', concreteMat, g, false, true)
+    }
 
     // ═══════════════════════════════════════════
     // GRID
@@ -115,9 +131,6 @@ export function createGarage(config: GarageConfig) {
     const tileEdgeMat = new THREE.MeshStandardMaterial({ color: 0x7a8498, roughness: 0.35, metalness: 0.30 })
     const tileStartMat = new THREE.MeshStandardMaterial({ color: 0x4caf50, emissive: 0x4caf50, emissiveIntensity: 0.4, roughness: 0.3, metalness: 0.2 })
     const tileButtonMat = new THREE.MeshStandardMaterial({ color: 0xff9800, emissive: 0xff9800, emissiveIntensity: 0.4, roughness: 0.3, metalness: 0.2 })
-    // tileChargeMat kept for completeness (not used in current grid loop, but defined in original)
-    const _tileChargeMat = new THREE.MeshStandardMaterial({ color: 0x29b6f6, emissive: 0x29b6f6, emissiveIntensity: 0.4, roughness: 0.3, metalness: 0.2 })
-    void _tileChargeMat // suppress unused warning
 
     const startX = config.GRID_CENTER_X, startZ = config.START_Y ?? 3
     const buttonX = config.BUTTON_X ?? 0, buttonZ = config.BUTTON_Y ?? 7
@@ -152,7 +165,6 @@ export function createGarage(config: GarageConfig) {
                     collect('startFrame', startFrameMat, fg)
                 }
             }
-
             if (isButton) {
                 for (const [fw, fd, fx, fz] of [
                     [0.96, 0.06, 0, -0.47], [0.96, 0.06, 0, 0.47],
@@ -163,26 +175,23 @@ export function createGarage(config: GarageConfig) {
                     collect('buttonFrame', buttonFrameMat, fg)
                 }
             }
-
         }
     }
 
     // ═══════════════════════════════════════════
-    // SAFETY STRIPES
+    // SAFETY STRIPES (door entrance area)
     // ═══════════════════════════════════════════
-    const safetyYellow = new THREE.MeshStandardMaterial({ color: 0xfdd835, roughness: 0.5, emissive: 0xfdd835, emissiveIntensity: 0.15 })
-    const safetyBlack = new THREE.MeshStandardMaterial({ color: 0x212121, roughness: 0.5 })
-    const addSafetyStripe = (sx: number, sz: number, sw: number, sd: number, count: number) => {
-        const segW = sw / count
+    const addChevronStripes = (cx: number, cz: number, w: number, d: number, count: number) => {
+        const segW = w / count
         for (let i = 0; i < count; i++) {
-            const sg = new THREE.BoxGeometry(segW * 0.45, 0.015, sd)
-            sg.translate(sx - sw / 2 + segW * (i + 0.5), 0.005, sz)
-            collect(i % 2 === 0 ? 'safetyYellow' : 'safetyBlack', i % 2 === 0 ? safetyYellow : safetyBlack, sg)
+            const sg = new THREE.BoxGeometry(segW * 0.45, 0.015, d)
+            sg.translate(cx - w / 2 + segW * (i + 0.5), 0.005, cz)
+            collect(i % 2 === 0 ? 'safetyYellow' : 'safetyBlack', i % 2 === 0 ? safetyYellowMat : safetyBlackMat, sg)
         }
     }
-    addSafetyStripe((config.GRID_W - 1) / 2, -0.3, config.GRID_W - 1, 0.15, 24)
-    addSafetyStripe(-0.3, (config.GARAGE_DEPTH - 1) / 2, 0.15, config.GARAGE_DEPTH - 1, 1)
-    addSafetyStripe(config.GRID_W - 0.7, (config.GARAGE_DEPTH - 1) / 2, 0.15, config.GARAGE_DEPTH - 1, 1)
+    addChevronStripes((config.GRID_W - 1) / 2, -0.3, config.GRID_W - 1, 0.15, 24)
+    addChevronStripes(-0.3, (config.GARAGE_DEPTH - 1) / 2, 0.15, config.GARAGE_DEPTH - 1, 1)
+    addChevronStripes(config.GRID_W - 0.7, (config.GARAGE_DEPTH - 1) / 2, 0.15, config.GARAGE_DEPTH - 1, 1)
 
     // ═══════════════════════════════════════════
     // COORDINATE PLAQUES
@@ -200,27 +209,128 @@ export function createGarage(config: GarageConfig) {
     }
 
     // ═══════════════════════════════════════════
-    // WALLS
+    // WALLS — Ribbed Metal Cladding Panels
     // ═══════════════════════════════════════════
-    const bwg = new THREE.BoxGeometry(garageW + 0.75, config.WALL_H + 0.45, 0.28)
-    bwg.translate(garageCenterX, (config.WALL_H + 0.45) / 2, -0.7)
-    collect('walls', wallMat, bwg, true, true)
-    const lwg = new THREE.BoxGeometry(0.28, config.WALL_H + 0.45, sideDepth)
-    lwg.translate(-0.72, (config.WALL_H + 0.45) / 2, midZ)
-    collect('walls', wallMat, lwg, true, false)
-    const rwg = new THREE.BoxGeometry(0.28, config.WALL_H + 0.45, sideDepth)
-    rwg.translate(config.GRID_W - 0.28, (config.WALL_H + 0.45) / 2, midZ)
-    collect('walls', wallMat, rwg, true, false)
+    const wallThickness = 0.28
+    const wallH = config.WALL_H + 0.45
 
-    // Wall ribs
-    for (let i = -4; i <= 4; i++) {
-        const rg = new THREE.BoxGeometry(0.08, config.WALL_H + 0.1, 0.04)
-        rg.translate(garageCenterX + i * 0.88, (config.WALL_H + 0.1) / 2, -0.54)
-        collect('wallPanel', wallPanelMat, rg)
+    // Back wall core
+    const bwg = new THREE.BoxGeometry(garageW + 0.75, wallH, wallThickness)
+    bwg.translate(garageCenterX, wallH / 2, -0.7)
+    collect('wallCore', intWallMat, bwg, true, true)
+
+    // Side wall cores
+    const lwg = new THREE.BoxGeometry(wallThickness, wallH, sideDepth)
+    lwg.translate(-0.72, wallH / 2, midZ)
+    collect('wallCore', intWallMat, lwg, true, false)
+    const rwg = new THREE.BoxGeometry(wallThickness, wallH, sideDepth)
+    rwg.translate(config.GRID_W - 0.28, wallH / 2, midZ)
+    collect('wallCore', intWallMat, rwg, true, false)
+
+    // Exterior horizontal ribbed cladding panels
+    const panelH = 0.55
+    const panelGap = 0.02
+    const numPanels = Math.floor(wallH / (panelH + panelGap))
+
+    // Back wall cladding (exterior face)
+    for (let i = 0; i < numPanels; i++) {
+        const py = panelH / 2 + i * (panelH + panelGap)
+        if (py + panelH / 2 > wallH) break
+        const pg = new THREE.BoxGeometry(garageW + 0.78, panelH, 0.03)
+        pg.translate(garageCenterX, py, -0.85)
+        collect('cladding', extCladdingMat, pg, true, false)
+        // Reveal strip between panels
+        if (i > 0) {
+            const rg = new THREE.BoxGeometry(garageW + 0.78, panelGap, 0.025)
+            rg.translate(garageCenterX, py - panelH / 2 - panelGap / 2, -0.85)
+            collect('reveal', revealMat, rg)
+        }
+    }
+
+    // Left wall cladding (exterior face)
+    for (let i = 0; i < numPanels; i++) {
+        const py = panelH / 2 + i * (panelH + panelGap)
+        if (py + panelH / 2 > wallH) break
+        const pg = new THREE.BoxGeometry(0.03, panelH, sideDepth + 0.1)
+        pg.translate(-0.87, py, midZ)
+        collect('cladding', extCladdingMat, pg, true, false)
+        if (i > 0) {
+            const rg = new THREE.BoxGeometry(0.03, panelGap, sideDepth + 0.1)
+            rg.translate(-0.87, py - panelH / 2 - panelGap / 2, midZ)
+            collect('reveal', revealMat, rg)
+        }
+    }
+
+    // Right wall cladding (exterior face)
+    for (let i = 0; i < numPanels; i++) {
+        const py = panelH / 2 + i * (panelH + panelGap)
+        if (py + panelH / 2 > wallH) break
+        const pg = new THREE.BoxGeometry(0.03, panelH, sideDepth + 0.1)
+        pg.translate(config.GRID_W - 0.13, py, midZ)
+        collect('cladding', extCladdingMat, pg, true, false)
+        if (i > 0) {
+            const rg = new THREE.BoxGeometry(0.03, panelGap, sideDepth + 0.1)
+            rg.translate(config.GRID_W - 0.13, py - panelH / 2 - panelGap / 2, midZ)
+            collect('reveal', revealMat, rg)
+        }
+    }
+
+    // Interior wall panel lines (subtle horizontal grooves)
+    const intPanelLineMat = new THREE.MeshStandardMaterial({ color: 0xbababa, roughness: 0.7, metalness: 0.05 })
+    for (let i = 1; i < 6; i++) {
+        const py = i * 0.55
+        // Back wall interior lines
+        const blg = new THREE.BoxGeometry(garageW + 0.2, 0.01, 0.005)
+        blg.translate(garageCenterX, py, -0.54)
+        collect('intPanelLines', intPanelLineMat, blg)
+        // Side walls interior lines
+        const llg = new THREE.BoxGeometry(0.005, 0.01, sideDepth - 0.5)
+        llg.translate(-0.55, py, midZ)
+        collect('intPanelLines', intPanelLineMat, llg)
+        const rlg = new THREE.BoxGeometry(0.005, 0.01, sideDepth - 0.5)
+        rlg.translate(config.GRID_W - 0.42, py, midZ)
+        collect('intPanelLines', intPanelLineMat, rlg)
+    }
+
+    // Concrete dado (bottom 0.3m of interior walls)
+    for (const [w, h, d, px, py, pz] of [
+        [garageW + 0.2, 0.30, 0.03, garageCenterX, 0.15, -0.53],
+        [0.03, 0.30, sideDepth - 0.5, -0.55, 0.15, midZ],
+        [0.03, 0.30, sideDepth - 0.5, config.GRID_W - 0.41, 0.15, midZ],
+    ] as [number, number, number, number, number, number][]) {
+        const g = new THREE.BoxGeometry(w, h, d)
+        g.translate(px, py, pz)
+        collect('concreteDado', concreteMat, g)
     }
 
     // ═══════════════════════════════════════════
-    // LED STRIPS
+    // I-BEAM COLUMNS at corners
+    // ═══════════════════════════════════════════
+    const flangeW = 0.18, flangeT = 0.02, webW = 0.02, webH = 0.14
+    const columnH = wallH + 0.1
+    const columnPositions = [
+        [-0.72, backZ],
+        [config.GRID_W - 0.28, backZ],
+        [-0.72, frontZ - 0.2],
+        [config.GRID_W - 0.28, frontZ - 0.2],
+    ]
+    for (const [cx, cz] of columnPositions) {
+        // Web
+        const wg = new THREE.BoxGeometry(webW, columnH, webH)
+        wg.translate(cx, columnH / 2, cz)
+        collect('steelColumns', structSteelMat, wg, true, false)
+        // Front flange
+        const ffg = new THREE.BoxGeometry(flangeW, columnH, flangeT)
+        ffg.translate(cx, columnH / 2, cz + webH / 2)
+        collect('steelColumns', structSteelMat, ffg, true, false)
+        // Back flange
+        const bfg = new THREE.BoxGeometry(flangeW, columnH, flangeT)
+        bfg.translate(cx, columnH / 2, cz - webH / 2)
+        collect('steelColumns', structSteelMat, bfg, true, false)
+    }
+
+    // ═══════════════════════════════════════════
+    // LED STRIPS (accent lighting along wall tops)
     // ═══════════════════════════════════════════
     const ledStripMat = new THREE.MeshStandardMaterial({ color: 0x00BCD4, emissive: 0x00BCD4, emissiveIntensity: 0.8, roughness: 0.2 })
     for (const [w, h, d, px, py, pz] of [
@@ -234,36 +344,11 @@ export function createGarage(config: GarageConfig) {
     }
 
     // ═══════════════════════════════════════════
-    // BASE BANDS + SKIRTING (same material: darkBandMat)
-    // ═══════════════════════════════════════════
-    // Base bands
-    for (const [w, h, d, px, py, pz] of [
-        [garageW + 0.2, 0.4, 0.03, garageCenterX, 0.2, -0.53],
-        [0.03, 0.4, sideDepth - 0.5, -0.55, 0.2, midZ],
-        [0.03, 0.4, sideDepth - 0.5, config.GRID_W - 0.27, 0.2, midZ],
-    ] as [number, number, number, number, number, number][]) {
-        const bg = new THREE.BoxGeometry(w, h, d)
-        bg.translate(px, py, pz)
-        collect('baseBands', darkBandMat, bg)
-    }
-    // Skirting
-    for (const [w, h, d, px, py, pz] of [
-        [garageW - 0.3, 0.15, 0.03, garageCenterX, 0.075, -0.54],
-        [0.03, 0.15, sideDepth - 1, -0.55, 0.075, midZ],
-        [0.03, 0.15, sideDepth - 1, config.GRID_W - 0.41, 0.075, midZ],
-    ] as [number, number, number, number, number, number][]) {
-        const sg = new THREE.BoxGeometry(w, h, d)
-        sg.translate(px, py, pz)
-        collect('baseBands', darkBandMat, sg)
-    }
-
-    // ═══════════════════════════════════════════
     // DIGITAL SCREENS
     // ═══════════════════════════════════════════
     const screenBgMat = new THREE.MeshStandardMaterial({ color: 0x111827, roughness: 0.2, metalness: 0.4 })
     const screenFrameMat = new THREE.MeshStandardMaterial({ color: 0x455a64, roughness: 0.3, metalness: 0.6 })
 
-    // Screen frames (both screens)
     for (const sx of [garageCenterX - 2.2, garageCenterX + 2.2]) {
         const fg = new THREE.BoxGeometry(2.0, 1.2, 0.04)
         fg.translate(sx, 2.0, -0.53)
@@ -273,7 +358,6 @@ export function createGarage(config: GarageConfig) {
         collect('screenBgs', screenBgMat, bg)
     }
 
-    // Screen 1 grid
     const screenGridMat = new THREE.MeshStandardMaterial({ color: 0x4caf50, emissive: 0x4caf50, emissiveIntensity: 1.5, roughness: 0.3 })
     for (let i = -3; i <= 3; i++) {
         const hg = new THREE.BoxGeometry(1.6, 0.008, 0.005)
@@ -284,7 +368,6 @@ export function createGarage(config: GarageConfig) {
         collect('screenGrid', screenGridMat, vg)
     }
 
-    // Status bars (unique random widths + colors)
     const barColors = [0x29b6f6, 0x66bb6a, 0xffa726, 0x29b6f6]
     barColors.forEach((bc, bi) => {
         const barW = 0.4 + Math.random() * 1.0
@@ -295,9 +378,9 @@ export function createGarage(config: GarageConfig) {
     })
 
     // ═══════════════════════════════════════════
-    // ENTRY PORTAL
+    // ENTRY PORTAL — Heavy-duty steel frame
     // ═══════════════════════════════════════════
-    const portalMat = new THREE.MeshStandardMaterial({ color: 0x828b9e, roughness: 0.35, metalness: 0.7 })
+    const portalMat = new THREE.MeshStandardMaterial({ color: 0x606060, roughness: 0.35, metalness: 0.6 })
     for (const [w, h, d, px, py, pz] of [
         [garageW + 0.5, 0.22, 0.18, garageCenterX, config.WALL_H + 0.16, config.DOOR_ROW - 0.44],
         [0.2, config.WALL_H + 0.2, 0.16, -0.55, (config.WALL_H + 0.2) / 2, config.DOOR_ROW - 0.44],
@@ -309,11 +392,12 @@ export function createGarage(config: GarageConfig) {
     }
 
     // ═══════════════════════════════════════════
-    // ROOF GROUP
+    // ROOF GROUP — Structural beams + corrugated panels
     // ═══════════════════════════════════════════
     const garageRoofGroup = new THREE.Group()
     const garageRoofMaterials: THREE.MeshStandardMaterial[] = []
 
+    // Ceiling lights (LED panels)
     const ceilingLedHousing = new THREE.MeshStandardMaterial({ color: 0xd0d6de, roughness: 0.4, metalness: 0.3 })
     const ceilingLedGlow = new THREE.MeshStandardMaterial({ color: 0xffffff, emissive: 0xfff4e0, emissiveIntensity: 1.2, roughness: 0.1 })
     const cLightX = [1.5, 4, 7, 9.5]
@@ -329,7 +413,7 @@ export function createGarage(config: GarageConfig) {
         }
     }
 
-    // Fill lights (PointLights stay individual)
+    // Fill lights
     const fill1 = new THREE.PointLight(0xfff4e0, 6.0, 30)
     fill1.position.set(garageCenterX, config.WALL_H - 0.5, config.GARAGE_DEPTH / 3)
     garageGroup.add(fill1)
@@ -337,25 +421,179 @@ export function createGarage(config: GarageConfig) {
     fill2.position.set(garageCenterX, config.WALL_H - 0.5, (config.GARAGE_DEPTH / 3) * 2)
     garageGroup.add(fill2)
 
-    // ═══════════════════════════════════════════
-    // INDUSTRIAL DETAILS
-    // ═══════════════════════════════════════════
+    // 3 main structural I-beams spanning width
+    const beamSpacing = sideDepth / 4
+    for (let i = 1; i <= 3; i++) {
+        const bz = backZ + beamSpacing * i
+        // Web
+        const wg = new THREE.BoxGeometry(garageW + 0.4, 0.20, 0.025)
+        wg.translate(garageCenterX, config.WALL_H + 0.15, bz)
+        collectRoof('roofBeams', roofBeamMat, wg, true, false)
+        // Bottom flange
+        const bfg = new THREE.BoxGeometry(garageW + 0.4, 0.025, 0.14)
+        bfg.translate(garageCenterX, config.WALL_H + 0.05, bz)
+        collectRoof('roofBeams', roofBeamMat, bfg, true, false)
+        // Top flange
+        const tfg = new THREE.BoxGeometry(garageW + 0.4, 0.025, 0.14)
+        tfg.translate(garageCenterX, config.WALL_H + 0.275, bz)
+        collectRoof('roofBeams', roofBeamMat, tfg, true, false)
+    }
 
-    // Vent grate
-    const ventGrateMat = new THREE.MeshStandardMaterial({ color: 0x5a6070, roughness: 0.4, metalness: 0.5 })
-    const vfg = new THREE.BoxGeometry(1.0, 0.6, 0.04)
-    vfg.translate(garageCenterX + 3.5, config.WALL_H - 0.5, -0.53)
-    collect('ventGrate', ventGrateMat, vfg)
-    for (let vi = 0; vi < 5; vi++) {
-        const vsg = new THREE.BoxGeometry(0.9, 0.02, 0.03)
-        vsg.translate(garageCenterX + 3.5, config.WALL_H - 0.72 + vi * 0.1, -0.52)
-        collect('ventGrate', ventGrateMat, vsg)
+    // Purlins (cross-beams between main beams)
+    for (let xi = 0; xi < 4; xi++) {
+        const px = -0.5 + (garageW + 0.4) / 5 * (xi + 1)
+        for (let i = 0; i < 5; i++) {
+            const pz = backZ + beamSpacing * i / 1 * (i === 0 ? 0.5 : i === 4 ? 3.5 : i)
+            if (pz < backZ || pz > frontZ) continue
+            const pg = new THREE.BoxGeometry(0.02, 0.08, beamSpacing * 0.9)
+            pg.translate(px, config.WALL_H + 0.10, backZ + beamSpacing * (i < 4 ? i + 0.5 : 3.5))
+            collectRoof('purlins', roofBeamMat, pg)
+        }
+    }
+    // Simpler purlin approach: evenly spaced
+    for (let xi = 0; xi < 5; xi++) {
+        const px = -0.3 + xi * (garageW + 0.2) / 4
+        for (let zi = 0; zi < 4; zi++) {
+            const pzStart = backZ + beamSpacing * zi + beamSpacing * 0.1
+            const pzLen = beamSpacing * 0.8
+            const pg = new THREE.BoxGeometry(0.02, 0.06, pzLen)
+            pg.translate(px, config.WALL_H + 0.10, pzStart + pzLen / 2)
+            collectRoof('purlins', roofBeamMat, pg)
+        }
+    }
+
+    // Corrugated roof panels (alternating raised strips)
+    garageRoofMaterials.push(roofPanelMat)
+    const roofBaseG = new THREE.BoxGeometry(garageW + 0.8, 0.06, sideDepth + 0.26)
+    roofBaseG.translate(garageCenterX, config.WALL_H + 0.32, midZ)
+    collectRoof('roofBase', roofPanelMat, roofBaseG, false, true)
+
+    // Corrugation ribs on roof
+    const ribCount = Math.floor((garageW + 0.6) / 0.25)
+    for (let i = 0; i < ribCount; i++) {
+        const rx = -0.4 + i * 0.25
+        const rg = new THREE.BoxGeometry(0.08, 0.03, sideDepth + 0.2)
+        rg.translate(rx, config.WALL_H + 0.375, midZ)
+        collectRoof('roofRibs', roofPanelMat, rg)
+    }
+
+    // Roof edge / drip edge trim
+    const dripMat = new THREE.MeshStandardMaterial({ color: 0x4a4f5a, roughness: 0.3, metalness: 0.6 })
+    for (const [w, h, d, px, py, pz] of [
+        [garageW + 0.85, 0.08, 0.06, garageCenterX, config.WALL_H + 0.40, frontZ + 0.05],
+        [garageW + 0.85, 0.08, 0.06, garageCenterX, config.WALL_H + 0.40, backZ - 0.15],
+        [0.06, 0.08, sideDepth + 0.4, -0.90, config.WALL_H + 0.40, midZ],
+        [0.06, 0.08, sideDepth + 0.4, config.GRID_W - 0.10, config.WALL_H + 0.40, midZ],
+    ] as [number, number, number, number, number, number][]) {
+        const g = new THREE.BoxGeometry(w, h, d)
+        g.translate(px, py, pz)
+        collectRoof('dripEdge', dripMat, g)
     }
 
     // ═══════════════════════════════════════════
-    // WORKSHOP: SHELVES
+    // UTILITY — Conduit runs + junction boxes
     // ═══════════════════════════════════════════
-    const metalShelfMat = new THREE.MeshStandardMaterial({ color: 0x6a7080, roughness: 0.4, metalness: 0.6 })
+    // Conduit along upper back wall
+    const conduit1 = new THREE.CylinderGeometry(0.015, 0.015, garageW - 1, 8)
+    conduit1.rotateZ(Math.PI / 2)
+    conduit1.translate(garageCenterX, config.WALL_H - 0.15, -0.52)
+    collect('conduit', conduitMat, conduit1)
+
+    // Conduit along upper left wall
+    const conduit2 = new THREE.CylinderGeometry(0.015, 0.015, sideDepth - 2, 8)
+    conduit2.rotateX(Math.PI / 2)
+    conduit2.translate(-0.53, config.WALL_H - 0.15, midZ)
+    collect('conduit', conduitMat, conduit2)
+
+    // Junction boxes
+    for (const [jx, jy, jz] of [
+        [garageCenterX - 3, config.WALL_H - 0.15, -0.51],
+        [garageCenterX + 3, config.WALL_H - 0.15, -0.51],
+        [-0.52, config.WALL_H - 0.15, 5],
+        [-0.52, config.WALL_H - 0.15, 12],
+    ] as [number, number, number][]) {
+        const jg = new THREE.BoxGeometry(0.08, 0.08, 0.04)
+        jg.translate(jx, jy, jz)
+        collect('junctionBox', conduitMat, jg)
+    }
+
+    // Cable tray along ceiling edge (U-profile)
+    const trayMat = new THREE.MeshStandardMaterial({ color: 0x606060, roughness: 0.5, metalness: 0.4 })
+    // Bottom
+    const ctBottom = new THREE.BoxGeometry(0.12, 0.005, sideDepth - 1)
+    ctBottom.translate(config.GRID_W - 0.45, config.WALL_H - 0.05, midZ)
+    collect('cableTray', trayMat, ctBottom)
+    // Sides
+    for (const dx of [-0.06, 0.06]) {
+        const ctSide = new THREE.BoxGeometry(0.005, 0.04, sideDepth - 1)
+        ctSide.translate(config.GRID_W - 0.45 + dx, config.WALL_H - 0.03, midZ)
+        collect('cableTray', trayMat, ctSide)
+    }
+
+    // ═══════════════════════════════════════════
+    // FIRE SUPPRESSION PIPE + SPRINKLERS
+    // ═══════════════════════════════════════════
+    const firePipe = new THREE.CylinderGeometry(0.02, 0.02, garageW - 1, 8)
+    firePipe.rotateZ(Math.PI / 2)
+    firePipe.translate(garageCenterX, config.WALL_H - 0.25, 6)
+    collect('firePipe', firePipeMat, firePipe)
+
+    // Sprinkler heads
+    for (const sx of [garageCenterX - 3, garageCenterX, garageCenterX + 3]) {
+        const stem = new THREE.CylinderGeometry(0.006, 0.006, 0.06, 8)
+        stem.translate(sx, config.WALL_H - 0.31, 6)
+        collect('sprinkler', firePipeMat, stem)
+        const disc = new THREE.CylinderGeometry(0.025, 0.025, 0.005, 12)
+        disc.translate(sx, config.WALL_H - 0.34, 6)
+        collect('sprinkler', firePipeMat, disc)
+    }
+
+    // ═══════════════════════════════════════════
+    // PEGBOARD WITH TOOLS — back wall
+    // ═══════════════════════════════════════════
+    const pegboardMat = new THREE.MeshStandardMaterial({ color: 0x8b7355, roughness: 0.8, metalness: 0.0 })
+    const pbG = new THREE.BoxGeometry(1.5, 1.0, 0.03)
+    pbG.translate(garageCenterX - 3.5, 1.8, -0.53)
+    collect('pegboard', pegboardMat, pbG)
+
+    // Tool silhouettes on pegboard
+    const toolSilMat = new THREE.MeshStandardMaterial({ color: 0x3a3a3a, roughness: 0.4, metalness: 0.6 })
+    // Wrench
+    const wr = new THREE.BoxGeometry(0.04, 0.35, 0.01)
+    wr.translate(garageCenterX - 4.0, 1.85, -0.51)
+    collect('tools', toolSilMat, wr)
+    // Hammer
+    const hm = new THREE.BoxGeometry(0.04, 0.30, 0.01)
+    hm.translate(garageCenterX - 3.7, 1.85, -0.51)
+    collect('tools', toolSilMat, hm)
+    const hmHead = new THREE.BoxGeometry(0.12, 0.06, 0.01)
+    hmHead.translate(garageCenterX - 3.7, 2.05, -0.51)
+    collect('tools', toolSilMat, hmHead)
+    // Screwdriver
+    const sd = new THREE.BoxGeometry(0.025, 0.28, 0.01)
+    sd.translate(garageCenterX - 3.4, 1.82, -0.51)
+    collect('tools', toolSilMat, sd)
+    // Pliers
+    const pl = new THREE.BoxGeometry(0.06, 0.22, 0.01)
+    pl.translate(garageCenterX - 3.1, 1.80, -0.51)
+    collect('tools', toolSilMat, pl)
+
+    // ═══════════════════════════════════════════
+    // ELECTRICAL PANEL — side wall
+    // ═══════════════════════════════════════════
+    const elPanelMat = new THREE.MeshStandardMaterial({ color: 0x808080, roughness: 0.5, metalness: 0.3 })
+    const epG = new THREE.BoxGeometry(0.04, 0.55, 0.38)
+    epG.translate(-0.52, 1.6, 8.5)
+    collect('elPanel', elPanelMat, epG)
+    // Caution stripe
+    const cautionG = new THREE.BoxGeometry(0.045, 0.08, 0.38)
+    cautionG.translate(-0.52, 1.95, 8.5)
+    collect('cautionStripe', safetyYellowMat, cautionG)
+
+    // ═══════════════════════════════════════════
+    // WORKSHOP: SHELVES (muted industrial)
+    // ═══════════════════════════════════════════
+    const metalShelfMat = new THREE.MeshStandardMaterial({ color: 0x505560, roughness: 0.4, metalness: 0.6 })
     for (let i = 0; i < 4; i++) {
         const sg = new THREE.BoxGeometry(0.16, 0.035, 2.4)
         sg.translate(-0.44, 0.75 + i * 0.52, 2.2)
@@ -369,15 +607,15 @@ export function createGarage(config: GarageConfig) {
         }
     }
 
-    // Small boxes — group by color to merge
+    // Boxes — muted industrial colors
     const boxDefs: [number, number, number, number, number, number, number][] = [
-        [-0.44, 0.82, 1.5, 0.12, 0.12, 0.18, 0x3498db],
-        [-0.44, 0.82, 2.5, 0.12, 0.08, 0.20, 0x2ecc71],
-        [-0.44, 1.34, 1.5, 0.12, 0.16, 0.24, 0x2c3e50],
-        [-0.44, 1.34, 2.3, 0.14, 0.14, 0.14, 0x1abc9c],
-        [-0.44, 1.86, 1.4, 0.10, 0.12, 0.20, 0x8e44ad],
-        [-0.44, 1.86, 2.5, 0.12, 0.12, 0.16, 0xf39c12],
-        [-0.44, 2.38, 2.2, 0.14, 0.14, 0.22, 0x2c3e50],
+        [-0.44, 0.82, 1.5, 0.12, 0.12, 0.18, 0x4a6070],
+        [-0.44, 0.82, 2.5, 0.12, 0.08, 0.20, 0x5a6a50],
+        [-0.44, 1.34, 1.5, 0.12, 0.16, 0.24, 0x3a3a44],
+        [-0.44, 1.34, 2.3, 0.14, 0.14, 0.14, 0x4a5a5a],
+        [-0.44, 1.86, 1.4, 0.10, 0.12, 0.20, 0x5a4a5a],
+        [-0.44, 1.86, 2.5, 0.12, 0.12, 0.16, 0x8a7040],
+        [-0.44, 2.38, 2.2, 0.14, 0.14, 0.22, 0x3a3a44],
     ]
     const boxByColor = new Map<number, typeof boxDefs>()
     for (const bd of boxDefs) {
@@ -395,16 +633,16 @@ export function createGarage(config: GarageConfig) {
     })
 
     // Can
-    const canMat = new THREE.MeshStandardMaterial({ color: 0xc0c0c0, roughness: 0.3, metalness: 0.7 })
-    const cg = new THREE.CylinderGeometry(0.06, 0.06, 0.16, 16)
-    cg.translate(-0.44, 1.35, 3.0)
-    collect('canMetal', canMat, cg)
+    const canMat = new THREE.MeshStandardMaterial({ color: 0x909090, roughness: 0.3, metalness: 0.5 })
+    const canG = new THREE.CylinderGeometry(0.06, 0.06, 0.16, 16)
+    canG.translate(-0.44, 1.35, 3.0)
+    collect('canMetal', canMat, canG)
 
     // ═══════════════════════════════════════════
-    // WORKSHOP: BENCH
+    // WORKSHOP: BENCH (muted)
     // ═══════════════════════════════════════════
-    const benchMat = new THREE.MeshStandardMaterial({ color: 0x4a5568, roughness: 0.55, metalness: 0.4 })
-    const benchTopMat = new THREE.MeshStandardMaterial({ color: 0x6d5843, roughness: 0.7, metalness: 0.05 })
+    const benchMat = new THREE.MeshStandardMaterial({ color: 0x3a4050, roughness: 0.55, metalness: 0.4 })
+    const benchTopMat = new THREE.MeshStandardMaterial({ color: 0x5a4a38, roughness: 0.7, metalness: 0.05 })
     const benchGeom = new THREE.BoxGeometry(0.18, 0.82, 2.8)
     benchGeom.translate(config.GRID_W - 0.52, 0.41, 2.4)
     collect('bench', benchMat, benchGeom)
@@ -417,8 +655,8 @@ export function createGarage(config: GarageConfig) {
         collect('bench', benchMat, lg)
     }
 
-    // Vise (original: { color: 0x455a64, roughness: 0.3, metalness: 0.8 })
-    const viseMat = new THREE.MeshStandardMaterial({ color: 0x455a64, roughness: 0.3, metalness: 0.8 })
+    // Vise
+    const viseMat = new THREE.MeshStandardMaterial({ color: 0x3a4048, roughness: 0.3, metalness: 0.8 })
     const vbg = new RoundedBoxGeometry(0.14, 0.08, 0.12, 2, 0.01)
     vbg.translate(config.GRID_W - 0.48, 0.90, 1.2)
     collect('vise', viseMat, vbg)
@@ -430,8 +668,8 @@ export function createGarage(config: GarageConfig) {
     vhg.translate(config.GRID_W - 0.40, 0.96, 1.2)
     collect('vise', viseMat, vhg)
 
-    // Red tool cabinet on bench
-    const toolCabinetMat = new THREE.MeshStandardMaterial({ color: 0xcf3a3a, roughness: 0.35, metalness: 0.5 })
+    // Tool cabinet — dull red
+    const toolCabinetMat = new THREE.MeshStandardMaterial({ color: 0x8a2a2a, roughness: 0.4, metalness: 0.4 })
     const tcg = new RoundedBoxGeometry(0.22, 0.18, 0.30, 3, 0.02)
     tcg.translate(config.GRID_W - 0.48, 0.95, 2.0)
     collect('toolCabinet', toolCabinetMat, tcg)
@@ -448,7 +686,7 @@ export function createGarage(config: GarageConfig) {
     lag.rotateZ(-Math.PI / 4)
     lag.translate(config.GRID_W - 0.55, 1.45, 3.6)
     collect('lampParts', lampPoleMat, lag)
-    const lampShadeMat = new THREE.MeshStandardMaterial({ color: 0x2e7d32, roughness: 0.5, metalness: 0.3 })
+    const lampShadeMat = new THREE.MeshStandardMaterial({ color: 0x2a4a2a, roughness: 0.5, metalness: 0.3 })
     const lsg = new THREE.ConeGeometry(0.10, 0.08, 12)
     lsg.rotateX(Math.PI)
     lsg.translate(config.GRID_W - 0.62, 1.52, 3.6)
@@ -458,9 +696,9 @@ export function createGarage(config: GarageConfig) {
     garageGroup.add(deskLight)
 
     // ═══════════════════════════════════════════
-    // BIG RED CABINET + DRAWERS
+    // BIG RED CABINET + DRAWERS (weathered)
     // ═══════════════════════════════════════════
-    const bigCabinetMat = new THREE.MeshStandardMaterial({ color: 0xb71c1c, roughness: 0.35, metalness: 0.5 })
+    const bigCabinetMat = new THREE.MeshStandardMaterial({ color: 0x7a1818, roughness: 0.4, metalness: 0.4 })
     const bcg = new RoundedBoxGeometry(0.48, 1.0, 0.55, 4, 0.04)
     bcg.translate(config.GRID_W - 0.65, 0.50, 4.8)
     collect('bigCabinet', bigCabinetMat, bcg)
@@ -470,20 +708,21 @@ export function createGarage(config: GarageConfig) {
     cscg.translate(config.GRID_W - 0.65, 0.005, 4.8)
     collect('contactShadows', contactShadowMat, cscg)
 
-    const drawerMat = new THREE.MeshStandardMaterial({ color: 0x8b0000, roughness: 0.4, metalness: 0.6 })
+    const drawerMat = new THREE.MeshStandardMaterial({ color: 0x5a0a0a, roughness: 0.5, metalness: 0.5 })
+    const toolHandleMat = new THREE.MeshStandardMaterial({ color: 0x606870, roughness: 0.3, metalness: 0.7 })
     for (let di = 0; di < 4; di++) {
         const dg = new THREE.BoxGeometry(0.42, 0.015, 0.50)
         dg.translate(config.GRID_W - 0.65, 0.20 + di * 0.22, 4.8)
         collect('drawers', drawerMat, dg)
         const hg = new THREE.BoxGeometry(0.14, 0.02, 0.03)
         hg.translate(config.GRID_W - 0.40, 0.26 + di * 0.22, 4.8)
-        collect('toolBlue', toolMat, hg)
+        collect('toolHandles', toolHandleMat, hg)
     }
 
     // ═══════════════════════════════════════════
-    // BARRELS
+    // BARRELS (weathered dark green/rust)
     // ═══════════════════════════════════════════
-    const barrelMat1 = new THREE.MeshStandardMaterial({ color: 0x1565c0, roughness: 0.5, metalness: 0.4 })
+    const barrelMat1 = new THREE.MeshStandardMaterial({ color: 0x2a4a2a, roughness: 0.6, metalness: 0.3 })
     const b1g = new THREE.CylinderGeometry(0.22, 0.24, 0.70, 16)
     b1g.translate(config.GRID_W - 0.60, 0.35, 0.4)
     collect('barrels', barrelMat1, b1g)
@@ -491,10 +730,11 @@ export function createGarage(config: GarageConfig) {
     csb1g.rotateX(-Math.PI / 2)
     csb1g.translate(config.GRID_W - 0.60, 0.005, 0.4)
     collect('contactShadows', contactShadowMat, csb1g)
+
     // ═══════════════════════════════════════════
     // WALL POSTERS
     // ═══════════════════════════════════════════
-    const posterMat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.7 })
+    const posterMat = new THREE.MeshStandardMaterial({ color: 0xeeeeee, roughness: 0.7 })
     const pg1 = new THREE.BoxGeometry(0.02, 0.40, 0.30)
     pg1.translate(-0.56, 2.3, 8.0)
     collect('poster', posterMat, pg1)
@@ -507,21 +747,17 @@ export function createGarage(config: GarageConfig) {
     // LAB EQUIPMENT: CONTROL PANEL
     // ═══════════════════════════════════════════
     const panelBodyMat = new THREE.MeshStandardMaterial({ color: 0x37474f, roughness: 0.4, metalness: 0.6 })
-    const pbg = new THREE.BoxGeometry(0.06, 0.8, 0.5)
-    pbg.translate(-0.52, 1.5, 6.5)
-    collect('controlPanel', panelBodyMat, pbg)
-    // Panel frame (same material as screenFrameMat: 0x455a64, r0.35, m0.7)
-    // Original panelFrame had roughness 0.35, metalness 0.7. screenFrameMat has 0.3, 0.6. NOT the same.
+    const pbodyG = new THREE.BoxGeometry(0.06, 0.8, 0.5)
+    pbodyG.translate(-0.52, 1.5, 6.5)
+    collect('controlPanel', panelBodyMat, pbodyG)
     const panelFrameMat = new THREE.MeshStandardMaterial({ color: 0x455a64, roughness: 0.35, metalness: 0.7 })
     const pfg = new THREE.BoxGeometry(0.07, 0.84, 0.54)
     pfg.translate(-0.53, 1.5, 6.5)
     collect('panelFrame', panelFrameMat, pfg)
-    // Mini screen
     const miniScreenMat = new THREE.MeshStandardMaterial({ color: 0x0d1117, emissive: 0x1565c0, emissiveIntensity: 0.3, roughness: 0.1, metalness: 0.2 })
-    const msg = new THREE.BoxGeometry(0.065, 0.22, 0.28)
-    msg.translate(-0.50, 1.65, 6.5)
-    collect('miniScreen', miniScreenMat, msg)
-    // Panel buttons (same mat, can merge all 3)
+    const mscrG = new THREE.BoxGeometry(0.065, 0.22, 0.28)
+    mscrG.translate(-0.50, 1.65, 6.5)
+    collect('miniScreen', miniScreenMat, mscrG)
     const panelBtnMat = new THREE.MeshStandardMaterial({ color: 0x90a4ae, roughness: 0.3, metalness: 0.8 })
     for (let bi = 0; bi < 3; bi++) {
         const bg = new THREE.CylinderGeometry(0.018, 0.018, 0.02, 16)
@@ -538,14 +774,14 @@ export function createGarage(config: GarageConfig) {
     cug.translate(chargeX + 0.7, 0.30, chargeZ)
     collect('chargeUnit', chargeUnitMat, cug)
     const chargeCableMat = new THREE.MeshStandardMaterial({ color: 0x1a1a1a, roughness: 0.8 })
-    const ccg = new THREE.CylinderGeometry(0.008, 0.008, 0.5, 16)
-    ccg.rotateZ(Math.PI / 3)
-    ccg.translate(chargeX + 0.4, 0.15, chargeZ)
-    collect('chargeCable', chargeCableMat, ccg)
+    const ccG = new THREE.CylinderGeometry(0.008, 0.008, 0.5, 16)
+    ccG.rotateZ(Math.PI / 3)
+    ccG.translate(chargeX + 0.4, 0.15, chargeZ)
+    collect('chargeCable', chargeCableMat, ccG)
     const boltMat = new THREE.MeshStandardMaterial({ color: 0xffeb3b, emissive: 0xffeb3b, emissiveIntensity: 1.5 })
-    const blg = new THREE.BoxGeometry(0.04, 0.12, 0.01)
-    blg.translate(chargeX + 0.70, 0.50, chargeZ + 0.13)
-    collect('bolt', boltMat, blg)
+    const blG = new THREE.BoxGeometry(0.04, 0.12, 0.01)
+    blG.translate(chargeX + 0.70, 0.50, chargeZ + 0.13)
+    collect('bolt', boltMat, blG)
 
     // ═══════════════════════════════════════════
     // START POINT CIRCLE
@@ -570,7 +806,7 @@ export function createGarage(config: GarageConfig) {
     sag.translate(robotStartX + 0.5, 0.017, robotStartZ + 0.25)
     collect('startCircle', startCircleMat, sag)
 
-    // ── Ceiling local lights (PointLights, individual) ──
+    // ── Ceiling local lights ──
     let lightIdx = 0
     for (const lz of cLightZ) {
         for (const lx of cLightX) {
@@ -584,51 +820,91 @@ export function createGarage(config: GarageConfig) {
     }
 
     // ═══════════════════════════════════════════
-    // ROOF MESHES
+    // EXTERIOR: PARAPET + FASCIA
     // ═══════════════════════════════════════════
-    const roofMat = new THREE.MeshStandardMaterial({ color: 0x7a8294, roughness: 0.45, metalness: 0.50 })
-    garageRoofMaterials.push(roofMat)
-    const rfg = new THREE.BoxGeometry(garageW + 0.8, 0.22, sideDepth + 0.26)
-    rfg.translate(garageCenterX, config.WALL_H + 0.36, midZ)
-    collectRoof('roof', roofMat, rfg, false, true)
+    const parapetMat = new THREE.MeshStandardMaterial({ color: 0x9a9ea4, roughness: 0.5, metalness: 0.35 })
+    const copingMat = new THREE.MeshStandardMaterial({ color: 0x606468, roughness: 0.3, metalness: 0.5 })
 
+    // Parapet walls (0.4m above roofline)
+    for (const [w, h, d, px, py, pz] of [
+        [garageW + 0.85, 0.40, 0.10, garageCenterX, config.WALL_H + 0.65, frontZ + 0.02],
+        [garageW + 0.85, 0.40, 0.10, garageCenterX, config.WALL_H + 0.65, backZ - 0.12],
+        [0.10, 0.40, sideDepth + 0.3, -0.90, config.WALL_H + 0.65, midZ],
+        [0.10, 0.40, sideDepth + 0.3, config.GRID_W - 0.10, config.WALL_H + 0.65, midZ],
+    ] as [number, number, number, number, number, number][]) {
+        const g = new THREE.BoxGeometry(w, h, d)
+        g.translate(px, py, pz)
+        collect('parapet', parapetMat, g, true, false)
+    }
+
+    // Metal coping caps on top of parapets
+    for (const [w, h, d, px, py, pz] of [
+        [garageW + 0.90, 0.03, 0.14, garageCenterX, config.WALL_H + 0.865, frontZ + 0.02],
+        [garageW + 0.90, 0.03, 0.14, garageCenterX, config.WALL_H + 0.865, backZ - 0.12],
+        [0.14, 0.03, sideDepth + 0.35, -0.90, config.WALL_H + 0.865, midZ],
+        [0.14, 0.03, sideDepth + 0.35, config.GRID_W - 0.10, config.WALL_H + 0.865, midZ],
+    ] as [number, number, number, number, number, number][]) {
+        const g = new THREE.BoxGeometry(w, h, d)
+        g.translate(px, py, pz)
+        collect('coping', copingMat, g)
+    }
+
+    // ═══════════════════════════════════════════
+    // SIGN — Backlit box sign
+    // ═══════════════════════════════════════════
+    const signBoxMat = new THREE.MeshStandardMaterial({ color: 0x1a1a2e, roughness: 0.4, metalness: 0.3 })
+    const signGlowMat = new THREE.MeshStandardMaterial({
+        color: 0xffffff, emissive: 0xffffff, emissiveIntensity: 0.8, roughness: 0.2
+    })
+    const signFrameOuterMat = new THREE.MeshStandardMaterial({ color: 0x404050, roughness: 0.3, metalness: 0.5 })
+
+    // Sign outer frame
+    const sfOuter = new RoundedBoxGeometry(4.7, 0.75, 0.12, 3, 0.04)
+    sfOuter.translate(garageCenterX, config.WALL_H + 0.12, config.DOOR_ROW - 0.32)
+    collect('signFrame', signFrameOuterMat, sfOuter)
+    // Sign box body
+    const sbG = new RoundedBoxGeometry(4.5, 0.65, 0.10, 3, 0.03)
+    sbG.translate(garageCenterX, config.WALL_H + 0.12, config.DOOR_ROW - 0.30)
+    collect('signBox', signBoxMat, sbG)
+    // Illuminated text panel (front face)
+    const stG = new RoundedBoxGeometry(3.8, 0.40, 0.02, 3, 0.02)
+    stG.translate(garageCenterX, config.WALL_H + 0.12, config.DOOR_ROW - 0.24)
+    collect('signGlow', signGlowMat, stG)
+
+    // Wall-mounted floodlights flanking sign
+    const floodMat = new THREE.MeshStandardMaterial({ color: 0x3a3a3a, roughness: 0.4, metalness: 0.5 })
+    const floodGlowMat = new THREE.MeshStandardMaterial({ color: 0xfff4e0, emissive: 0xfff4e0, emissiveIntensity: 1.0, roughness: 0.2 })
+    for (const fx of [garageCenterX - 3.0, garageCenterX + 3.0]) {
+        // Housing
+        const fhG = new THREE.BoxGeometry(0.15, 0.10, 0.08)
+        fhG.translate(fx, config.WALL_H + 0.12, config.DOOR_ROW - 0.20)
+        collect('floodHousing', floodMat, fhG)
+        // Lens
+        const flG = new THREE.BoxGeometry(0.10, 0.06, 0.02)
+        flG.translate(fx, config.WALL_H + 0.10, config.DOOR_ROW - 0.15)
+        collect('floodGlow', floodGlowMat, flG)
+    }
 
     // ═══════════════════════════════════════════
     // EXTERIOR: AC UNITS
     // ═══════════════════════════════════════════
-    const acBodyMat = new THREE.MeshStandardMaterial({ color: 0xd0d4d8, roughness: 0.5, metalness: 0.4 })
-    const acGrateMat = new THREE.MeshStandardMaterial({ color: 0x8a9099, roughness: 0.3, metalness: 0.6 })
+    const acBodyMat = new THREE.MeshStandardMaterial({ color: 0xc0c4c8, roughness: 0.5, metalness: 0.4 })
+    const acGrateMat = new THREE.MeshStandardMaterial({ color: 0x7a8088, roughness: 0.3, metalness: 0.6 })
     const acPipeMat = new THREE.MeshStandardMaterial({ color: 0xb87333, roughness: 0.3, metalness: 0.8 })
     for (const [ax, ay] of [[garageCenterX - 2.5, 2.8], [garageCenterX + 1.8, 2.0]] as [number, number][]) {
         const abg = new THREE.BoxGeometry(0.9, 0.55, 0.30)
-        abg.translate(ax, ay, -0.85)
+        abg.translate(ax, ay, -0.95)
         collect('acBodies', acBodyMat, abg)
         for (let gi = 0; gi < 4; gi++) {
             const agg = new THREE.BoxGeometry(0.82, 0.04, 0.22)
-            agg.translate(ax, ay - 0.18 + gi * 0.12, -0.72)
+            agg.translate(ax, ay - 0.18 + gi * 0.12, -0.82)
             collect('acGrates', acGrateMat, agg)
         }
         const apg = new THREE.CylinderGeometry(0.025, 0.025, 0.5, 16)
         apg.rotateZ(Math.PI / 2)
-        apg.translate(ax + 0.5, ay - 0.15, -0.82)
+        apg.translate(ax + 0.5, ay - 0.15, -0.92)
         collect('acPipes', acPipeMat, apg)
     }
-
-    // ═══════════════════════════════════════════
-    // EXTERIOR: ELECTRICAL PANEL + MISC
-    // ═══════════════════════════════════════════
-    const panelMat = new THREE.MeshStandardMaterial({ color: 0xe0e4ec, roughness: 0.4, metalness: 0.3 })
-    const epg = new THREE.BoxGeometry(0.48, 0.65, 0.10)
-    epg.translate(config.GRID_W - 0.15, 1.4, 1.5)
-    collect('elPanel', panelMat, epg)
-    const latchMat = new THREE.MeshStandardMaterial({ color: 0x555555, metalness: 0.9 })
-    const ltg = new THREE.BoxGeometry(0.06, 0.06, 0.08)
-    ltg.translate(config.GRID_W - 0.12, 1.55, 1.5)
-    collect('latch', latchMat, ltg)
-    const warnMat = new THREE.MeshStandardMaterial({ color: 0xffc107, emissive: 0xffc107, emissiveIntensity: 0.4 })
-    const wg = new THREE.BoxGeometry(0.20, 0.10, 0.02)
-    wg.translate(config.GRID_W - 0.14, 1.25, 1.5)
-    collect('warn', warnMat, wg)
 
     // Drains
     const drainMat = new THREE.MeshStandardMaterial({ color: 0x4a4f5e, roughness: 0.6, metalness: 0.5 })
@@ -638,108 +914,56 @@ export function createGarage(config: GarageConfig) {
         collect('drains', drainMat, dg)
     }
 
-    // Roof edge profiles
-    const feg = new THREE.BoxGeometry(garageW + 0.85, 0.10, 0.12)
-    feg.translate(garageCenterX, config.WALL_H + 0.45, config.DOOR_ROW - 0.38)
-    collect('metalEdge', metalEdgeMat, feg)
-    const beg = new THREE.BoxGeometry(garageW + 0.85, 0.10, 0.12)
-    beg.translate(garageCenterX, config.WALL_H + 0.45, -0.72)
-    collect('metalEdge', metalEdgeMat, beg)
-
-    // ═══════════════════════════════════════════
-    // EXTERIOR FACADE: COLOR BANDS
-    // ═══════════════════════════════════════════
-    const extRedMat = new THREE.MeshStandardMaterial({ color: 0xE53935, roughness: 0.6, metalness: 0.05 })
-    const extBlueMat = new THREE.MeshStandardMaterial({ color: 0x1976D2, roughness: 0.6, metalness: 0.05 })
-    for (const [w, h, d, px, py, pz] of [
-        [garageW + 0.8, 0.18, 0.06, garageCenterX, config.WALL_H + 0.50, config.DOOR_ROW - 0.38],
-        [0.06, 0.18, sideDepth + 0.2, config.GRID_W - 0.10, config.WALL_H + 0.50, midZ],
-    ] as [number, number, number, number, number, number][]) {
-        const rg = new THREE.BoxGeometry(w, h, d)
-        rg.translate(px, py, pz)
-        collect('extRed', extRedMat, rg)
-    }
-    for (const [w, h, d, px, py, pz] of [
-        [garageW + 0.8, 0.18, 0.06, garageCenterX, config.WALL_H + 0.50, -0.75],
-        [0.06, 0.18, sideDepth + 0.2, -0.90, config.WALL_H + 0.50, midZ],
-    ] as [number, number, number, number, number, number][]) {
-        const bg = new THREE.BoxGeometry(w, h, d)
-        bg.translate(px, py, pz)
-        collect('extBlue', extBlueMat, bg)
-    }
-
-    // ═══════════════════════════════════════════
-    // SIGN
-    // ═══════════════════════════════════════════
-    const signPlateMat = new THREE.MeshStandardMaterial({ color: 0x1565c0, roughness: 0.5, metalness: 0.1, emissive: 0x1565c0, emissiveIntensity: 0.15 })
-    const spg = new RoundedBoxGeometry(4.5, 0.65, 0.08, 3, 0.04)
-    spg.translate(garageCenterX, config.WALL_H + 0.12, config.DOOR_ROW - 0.30)
-    collect('signPlate', signPlateMat, spg)
-    const signFrameMat = new THREE.MeshStandardMaterial({ color: 0xE53935, roughness: 0.5, metalness: 0.1 })
-    const sfg = new RoundedBoxGeometry(4.7, 0.75, 0.06, 3, 0.04)
-    sfg.translate(garageCenterX, config.WALL_H + 0.12, config.DOOR_ROW - 0.32)
-    collect('signFrame', signFrameMat, sfg)
-    const signInnerMat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.5, metalness: 0.0 })
-    const sing = new RoundedBoxGeometry(3.8, 0.40, 0.02, 3, 0.02)
-    sing.translate(garageCenterX, config.WALL_H + 0.12, config.DOOR_ROW - 0.26)
-    collect('signInner', signInnerMat, sing)
-
-    // ═══════════════════════════════════════════
-    // GUTTERS
-    // ═══════════════════════════════════════════
-    const gutterMat = new THREE.MeshStandardMaterial({ color: 0x78909c, roughness: 0.25, metalness: 0.8 })
-    for (const gx of [-0.80, config.GRID_W - 0.20]) {
+    // Gutters
+    const gutterMat = new THREE.MeshStandardMaterial({ color: 0x606468, roughness: 0.25, metalness: 0.7 })
+    for (const gx of [-0.90, config.GRID_W - 0.10]) {
         const gg = new THREE.CylinderGeometry(0.04, 0.04, config.WALL_H + 0.3, 16)
-        gg.translate(gx, (config.WALL_H + 0.3) / 2, -0.80)
+        gg.translate(gx, (config.WALL_H + 0.3) / 2, -0.90)
         collect('gutters', gutterMat, gg)
         const eg = new THREE.CylinderGeometry(0.045, 0.04, 0.15, 16)
         eg.rotateX(Math.PI / 4)
-        eg.translate(gx, 0.08, -0.88)
+        eg.translate(gx, 0.08, -0.98)
         collect('gutters', gutterMat, eg)
     }
 
     // ═══════════════════════════════════════════
-    // EXTERIOR WALL LAMPS
+    // EXTERIOR WALL LAMPS (industrial style)
     // ═══════════════════════════════════════════
-    const wallLampMat = new THREE.MeshStandardMaterial({ color: 0x37474f, roughness: 0.5, metalness: 0.4 })
-    const wallLampGlowMat = new THREE.MeshStandardMaterial({ color: 0xFFC107, emissive: 0xFFC107, emissiveIntensity: 1.2, roughness: 0.3 })
-    const wallLampShadeMat = new THREE.MeshStandardMaterial({ color: 0x2E7D32, roughness: 0.6, metalness: 0.1 })
-    for (const lmpX of [-0.45, config.GRID_W - 0.55]) {
+    const wallLampMat = new THREE.MeshStandardMaterial({ color: 0x3a3a3a, roughness: 0.4, metalness: 0.5 })
+    for (const lmpX of [-0.55, config.GRID_W - 0.45]) {
         const brg = new THREE.BoxGeometry(0.08, 0.06, 0.20)
         brg.translate(lmpX, config.WALL_H - 0.35, config.DOOR_ROW - 0.30)
         collect('wallLampBrackets', wallLampMat, brg)
-        const shg = new THREE.ConeGeometry(0.12, 0.10, 12)
-        shg.rotateX(Math.PI)
+        const shg = new THREE.BoxGeometry(0.14, 0.04, 0.14)
         shg.translate(lmpX, config.WALL_H - 0.28, config.DOOR_ROW - 0.22)
-        collect('wallLampShades', wallLampShadeMat, shg)
+        collect('wallLampShades', wallLampMat, shg)
         const extLight = new THREE.PointLight(0xfff4e0, 1.5, 5)
         extLight.position.set(lmpX, config.WALL_H - 0.3, config.DOOR_ROW - 0.15)
         garageGroup.add(extLight)
     }
 
     // ═══════════════════════════════════════════
-    // FAZ 1: DOOR MECHANISM
+    // DOOR MECHANISM
     // ═══════════════════════════════════════════
     const doorZ = config.DOOR_ROW - 0.1
 
-    // Motor housing — above door opening
+    // Motor housing
     const motorG = new THREE.BoxGeometry(1.2, 0.35, 0.25)
     motorG.translate(garageCenterX, config.WALL_H + 0.05, doorZ - 0.15)
-    collect('motorBox', darkBandMat, motorG)
+    collect('motorBox', structSteelMat, motorG)
     const drumG = new THREE.CylinderGeometry(0.12, 0.12, 1.0, 16)
     drumG.rotateZ(Math.PI / 2)
     drumG.translate(garageCenterX, config.WALL_H + 0.05, doorZ - 0.15)
-    collect('motorBox', darkBandMat, drumG)
+    collect('motorBox', structSteelMat, drumG)
     for (const dx of [-0.52, 0.52]) {
         const gearG = new THREE.CylinderGeometry(0.08, 0.08, 0.04, 16)
         gearG.rotateZ(Math.PI / 2)
         gearG.translate(garageCenterX + dx, config.WALL_H + 0.05, doorZ - 0.15)
-        collect('motorBox', darkBandMat, gearG)
+        collect('motorBox', structSteelMat, gearG)
     }
 
-    // Photoelectric sensors — static bodies (collected) + animated laser (separate)
+    // Photoelectric sensors
     const sensorBodyMat = new THREE.MeshStandardMaterial({ color: 0x444444, roughness: 0.4, metalness: 0.6 })
-    const sensorLensMat = new THREE.MeshStandardMaterial({ color: 0xff0000, emissive: 0xff0000, emissiveIntensity: 2.0, roughness: 0.2 })
     for (const sx of [-0.40, config.GRID_W - 0.60]) {
         const sbG = new THREE.CylinderGeometry(0.03, 0.03, 0.06, 12)
         sbG.translate(sx, 0.3, doorZ)
@@ -755,11 +979,10 @@ export function createGarage(config: GarageConfig) {
     garageGroup.add(photoSensorLaser)
 
     // ═══════════════════════════════════════════
-    // FAZ 2: DOOR FRAME DETAILS
+    // DOOR FRAME DETAILS
     // ═══════════════════════════════════════════
-    // Emergency stop button — left wall
+    // Emergency stop button
     const eStopYellowMat = new THREE.MeshStandardMaterial({ color: 0xFFD600, roughness: 0.5, metalness: 0.1 })
-    const eStopRedMat = new THREE.MeshStandardMaterial({ color: 0xD32F2F, roughness: 0.4, metalness: 0.2 })
     const eStopBlackMat = new THREE.MeshStandardMaterial({ color: 0x222222, roughness: 0.5, metalness: 0.4 })
     const estpG = new THREE.BoxGeometry(0.02, 0.14, 0.14)
     estpG.translate(-0.55, 1.2, 10.5)
@@ -769,7 +992,7 @@ export function createGarage(config: GarageConfig) {
     ecolG.translate(-0.53, 1.2, 10.5)
     collect('eStopCollar', eStopBlackMat, ecolG)
 
-    // Door frame LED strips — animated (separate meshes, shared material)
+    // Door frame LED strips (animated)
     const doorFrameLedMat = new THREE.MeshStandardMaterial({
         color: 0xff0000, emissive: 0xff0000, emissiveIntensity: 1.5,
         roughness: 0.2, metalness: 0.1
@@ -792,16 +1015,15 @@ export function createGarage(config: GarageConfig) {
     garageGroup.add(ledRightStrip)
     const doorFrameLedStrips = [ledTopStrip, ledLeftStrip, ledRightStrip]
 
-    // Motion sensor — above door
+    // Motion sensor
     const motionSensorMat = new THREE.MeshStandardMaterial({ color: 0xeeeeee, roughness: 0.4, metalness: 0.1 })
-    const motionLensMat = new THREE.MeshStandardMaterial({ color: 0x880000, roughness: 0.3, metalness: 0.2 })
     const msG = new RoundedBoxGeometry(0.18, 0.08, 0.06, 2, 0.01)
     msG.translate(garageCenterX, config.WALL_H + 0.10, doorZ - 0.35)
     collect('motionSensor', motionSensorMat, msG)
+
     // ═══════════════════════════════════════════
-    // FAZ 3: FLOOR DETAILS
+    // FLOOR DETAILS
     // ═══════════════════════════════════════════
-    // Oil stains
     const oilStainMat = new THREE.MeshStandardMaterial({
         color: 0x111111, transparent: true, opacity: 0.35,
         roughness: 0.2, metalness: 0.3, depthWrite: false
@@ -815,7 +1037,6 @@ export function createGarage(config: GarageConfig) {
     oil2G.translate(7.0, 0.005, 6.5)
     collect('oilStains', oilStainMat, oil2G)
 
-    // Tire marks
     const tireMarkMat = new THREE.MeshStandardMaterial({
         color: 0x222222, transparent: true, opacity: 0.2,
         roughness: 0.3, metalness: 0.1, depthWrite: false
@@ -828,9 +1049,9 @@ export function createGarage(config: GarageConfig) {
     }
 
     // ═══════════════════════════════════════════
-    // FAZ 5: INTERIOR DETAILS
+    // INTERIOR DETAILS
     // ═══════════════════════════════════════════
-    // Fire extinguisher — right wall
+    // Fire extinguisher
     const fireExtRedMat = new THREE.MeshStandardMaterial({ color: 0xCC0000, roughness: 0.5, metalness: 0.2 })
     const fireExtGrayMat = new THREE.MeshStandardMaterial({ color: 0x888888, roughness: 0.4, metalness: 0.6 })
     const feBodG = new THREE.CylinderGeometry(0.06, 0.06, 0.45, 12)
@@ -847,7 +1068,7 @@ export function createGarage(config: GarageConfig) {
     feBrkG.translate(config.GRID_W - 0.38, 0.35, 6.0)
     collect('fireExtCap', fireExtGrayMat, feBrkG)
 
-    // First aid cabinet — left wall
+    // First aid cabinet
     const firstAidMat = new THREE.MeshStandardMaterial({ color: 0xeeeeee, roughness: 0.5, metalness: 0.1 })
     const greenCrossMat = new THREE.MeshStandardMaterial({ color: 0x2E7D32, emissive: 0x2E7D32, emissiveIntensity: 0.3, roughness: 0.4 })
     const faBoxG = new RoundedBoxGeometry(0.02, 0.3, 0.22, 2, 0.005)
@@ -860,9 +1081,9 @@ export function createGarage(config: GarageConfig) {
     faCrossHG.translate(-0.515, 2.0, 4.5)
     collect('firstAidCross', greenCrossMat, faCrossHG)
 
-    // Ventilation fan — back wall (static housing collected, animated blade separate)
-    const fanHousingMat = new THREE.MeshStandardMaterial({ color: 0x666666, roughness: 0.4, metalness: 0.5 })
-    const fanBladeMat = new THREE.MeshStandardMaterial({ color: 0x444444, roughness: 0.5, metalness: 0.4 })
+    // Ventilation fan (static housing collected, animated blade separate)
+    const fanHousingMat = new THREE.MeshStandardMaterial({ color: 0x555555, roughness: 0.4, metalness: 0.5 })
+    const fanBladeMat = new THREE.MeshStandardMaterial({ color: 0x3a3a3a, roughness: 0.5, metalness: 0.4 })
     for (let bi = 0; bi < 3; bi++) {
         const barG = new THREE.BoxGeometry(0.44, 0.02, 0.02)
         barG.rotateZ(bi * Math.PI / 3)

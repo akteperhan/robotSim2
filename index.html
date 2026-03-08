@@ -440,36 +440,42 @@
       min-width: 52px;
     }
 
-    /* Blockly error block red pulse */
+    /* Blockly error block red pulse + shake */
     .blocklyErrorHighlight > .blocklyPath {
-      stroke: #fe5b6a !important;
+      stroke: #ff8a65 !important;
       stroke-width: 3px !important;
-      filter: drop-shadow(0 0 10px rgba(254, 91, 106, 0.7)) !important;
-      animation: block-error-pulse 0.6s ease-in-out 3 !important;
+      filter: drop-shadow(0 0 8px rgba(255, 138, 101, 0.6)) !important;
+      animation: block-error-pulse 0.6s ease-in-out 3, block-error-shake 0.4s ease-in-out !important;
     }
 
     @keyframes block-error-pulse {
-      0%, 100% { filter: drop-shadow(0 0 6px rgba(254, 91, 106, 0.4)); }
-      50% { filter: drop-shadow(0 0 16px rgba(254, 91, 106, 0.9)); }
+      0%, 100% { filter: drop-shadow(0 0 4px rgba(255, 138, 101, 0.3)); }
+      50% { filter: drop-shadow(0 0 12px rgba(255, 138, 101, 0.8)); }
+    }
+    @keyframes block-error-shake {
+      0%, 100% { transform: translateX(0); }
+      15% { transform: translateX(-4px); }
+      30% { transform: translateX(4px); }
+      45% { transform: translateX(-3px); }
+      60% { transform: translateX(3px); }
+      75% { transform: translateX(-1px); }
     }
 
-    /* ═══ COLLISION FLASH OVERLAY ═══ */
+    /* ═══ COLLISION FLASH OVERLAY (soft) ═══ */
     #collision-flash {
       position: fixed;
       inset: 0;
       z-index: 850;
-      background: radial-gradient(ellipse at center, rgba(254, 91, 106, 0.0) 30%, rgba(254, 50, 60, 0.6) 100%);
+      background: radial-gradient(ellipse at center, rgba(255, 160, 100, 0.0) 40%, rgba(255, 120, 80, 0.3) 100%);
       pointer-events: none;
       opacity: 0;
     }
     #collision-flash.active {
-      animation: collision-flash-anim 0.6s ease-out forwards;
+      animation: collision-flash-anim 0.5s ease-out forwards;
     }
     @keyframes collision-flash-anim {
       0% { opacity: 1; }
-      15% { opacity: 0.8; }
-      30% { opacity: 1; }
-      45% { opacity: 0.5; }
+      30% { opacity: 0.6; }
       100% { opacity: 0; }
     }
 
@@ -509,32 +515,32 @@
       padding: 40px 48px;
       max-width: 420px;
       text-align: center;
-      box-shadow: 0 20px 60px rgba(255, 61, 90, 0.25), 0 8px 24px rgba(0,0,0,0.15);
-      border: 3px solid #ff3d5a;
+      box-shadow: 0 16px 48px rgba(255, 140, 60, 0.2), 0 6px 20px rgba(0,0,0,0.12);
+      border: 3px solid #ff9850;
       animation: crash-modal-pop 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
     }
     @keyframes crash-modal-pop {
-      0%   { transform: scale(0.6) rotate(-5deg); opacity: 0; }
-      60%  { transform: scale(1.08) rotate(2deg); }
-      100% { transform: scale(1) rotate(0deg); opacity: 1; }
+      0%   { transform: scale(0.7); opacity: 0; }
+      60%  { transform: scale(1.05); }
+      100% { transform: scale(1); opacity: 1; }
     }
     .crash-icon {
-      font-size: 80px;
+      font-size: 72px;
       margin-bottom: 16px;
-      animation: crash-icon-shake 0.5s ease 0.3s both;
+      animation: crash-icon-wobble 0.6s ease 0.3s both;
     }
-    @keyframes crash-icon-shake {
-      0%,100% { transform: rotate(0); }
-      20%     { transform: rotate(-12deg); }
-      40%     { transform: rotate(12deg); }
-      60%     { transform: rotate(-8deg); }
-      80%     { transform: rotate(8deg); }
+    @keyframes crash-icon-wobble {
+      0%,100% { transform: translateX(0); }
+      20%     { transform: translateX(-6px); }
+      40%     { transform: translateX(6px); }
+      60%     { transform: translateX(-3px); }
+      80%     { transform: translateX(3px); }
     }
     .crash-title {
       font-family: 'Baloo 2', 'Fredoka', sans-serif;
-      font-size: 28px;
-      font-weight: 900;
-      color: #ff3d5a;
+      font-size: 26px;
+      font-weight: 800;
+      color: #e67e22;
       margin-bottom: 12px;
     }
     .crash-message {
@@ -1633,12 +1639,12 @@
   <!-- ═══ CRASH MODAL OVERLAY ═══ -->
   <div id="crash-overlay">
     <div class="crash-modal">
-      <div class="crash-icon">💥</div>
-      <div class="crash-title">BONG! Duvara Çarptın!</div>
-      <div class="crash-message" id="crash-message">BIG-BOT bir duvara çarptı! Bloklarını düzenle ve tekrar dene.</div>
+      <div class="crash-icon">🤖</div>
+      <div class="crash-title">Oops! Duvara Çarptı</div>
+      <div class="crash-message" id="crash-message">Robot duvara çarptı. İlerlemeden önce yönünü ve adım sayını kontrol et.</div>
       <div class="crash-actions">
-        <button class="crash-btn crash-btn-retry" id="crash-retry-btn">🔄 Başa Dön</button>
-        <button class="crash-btn crash-btn-continue" id="crash-continue-btn">▶ Devam Et</button>
+        <button class="crash-btn crash-btn-retry" id="crash-retry-btn">🔄 Tekrar Dene</button>
+        <button class="crash-btn crash-btn-continue" id="crash-continue-btn">✏️ Koda Geri Dön</button>
       </div>
     </div>
   </div>
