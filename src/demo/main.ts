@@ -148,6 +148,14 @@ function applyGarageMode(mode: GarageMode, animate = false, notify = false) {
     controls.enableDamping = !roofVisible
   }
 
+  // Update exposure (brightness) based on roofing
+  if (renderer) {
+    renderer.toneMappingExposure = roofVisible ? BASE_EXPOSURE : BASE_EXPOSURE + DOOR_OPEN_EXPOSURE_BOOST
+  }
+  if (skyLight) {
+    skyLight.intensity = roofVisible ? 0 : 0.95
+  }
+
   const pose = getPrimaryCameraPose(mode)
   if (camera && controls) {
     if (animate) animateCameraTo(pose.pos, pose.target, 900)
@@ -1263,8 +1271,11 @@ function animateDoorOpening() {
     // Photo sensor laser: visible briefly then off
     if (photoSensorLaser) photoSensorLaser.visible = ease < 0.1
 
-    renderer.toneMappingExposure = BASE_EXPOSURE + ease * DOOR_OPEN_EXPOSURE_BOOST
-    if (skyLight) skyLight.intensity = ease * 0.95
+    // Only apply closing/opening brightness effects if in 'closed' (dark) mode
+    if (garageMode === 'closed') {
+      renderer.toneMappingExposure = BASE_EXPOSURE + ease * DOOR_OPEN_EXPOSURE_BOOST
+      if (skyLight) skyLight.intensity = ease * 0.95
+    }
 
     if (t < 1) requestAnimationFrame(animate)
     else {
@@ -1336,8 +1347,10 @@ function resetDoorVisualState() {
   }
   if (photoSensorLaser) photoSensorLaser.visible = true
 
-  renderer.toneMappingExposure = BASE_EXPOSURE
-  if (skyLight) skyLight.intensity = 0
+  if (garageMode === 'closed') {
+    renderer.toneMappingExposure = BASE_EXPOSURE
+    if (skyLight) skyLight.intensity = 0
+  }
 }
 
 function resetSimulationState() {
@@ -2402,9 +2415,16 @@ function renderLoop() {
       let idealZ = rp.z - dz * camDist
 
       // Clamp bounds so camera doesn't go through walls (allow a bit closer to walls since roof is higher)
-      // Duvar kalınlıkları ve objeler nedeniyle kameranın duvar içine girmemesi için limitleri artırdık
-      idealX = Math.max(0.5, Math.min(GRID_W - 1.5, idealX))
-      idealZ = Math.max(1.0, Math.min(GARAGE_DEPTH - 1.5, idealZ))
+      // Sadece robot (veya kamera) garajın içindeyken duvar sınırlarını uygula
+      // (Böylece robot dışarı çıkıp şarj olduğunda kamera zorla garaj içine hapsolup tavanı/duvarları delmez)
+      if (rp.z < GARAGE_DEPTH) {
+        idealX = Math.max(0.5, Math.min(GRID_W - 1.5, idealX))
+        idealZ = Math.max(1.0, Math.min(GARAGE_DEPTH - 0.5, idealZ))
+      } else {
+        // Robot dışarıdaysa harita sınırlarını (GRID_W, GRID_H vb.) aşmamasını sağla
+        idealX = Math.max(0.0, Math.min(GRID_W, idealX))
+        idealZ = Math.max(GARAGE_DEPTH, Math.min(GRID_H + 2, idealZ))
+      }
 
       // Higher camera angle since the wall is taller (WALL_H is now 4.5)
       // Tavan sınırını aşmamak için 4.3'e sabitlendi (önceki 8.0 çatıyı deliyordu)
