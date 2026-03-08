@@ -509,22 +509,32 @@ function createRobot(pos: Position): THREE.Group {
   antLight.position.y = 1.55; g.add(antLight)
 
 
-  // ── FLOATING CHARGE BAR (above robot) — bigger & with icon ──
+  // ── FLOATING CHARGE BAR (above robot) — Y-axis billboard ──
   const floatingBarGroup = new THREE.Group()
-  floatingBarGroup.position.set(0, 1.75, 0)
+  floatingBarGroup.position.set(0, 2.0, 0)
+  floatingBarGroup.name = 'floatingBarGroup'
 
-  // Background track (wider & taller)
+  // Background track (rounded look via wider geometry)
   robotFloatingBarBg = new THREE.Mesh(
-    new THREE.PlaneGeometry(1.2, 0.18),
-    new THREE.MeshBasicMaterial({ color: 0x0d1520, transparent: true, opacity: 0.9, depthTest: false })
+    new THREE.PlaneGeometry(2.0, 0.32),
+    new THREE.MeshBasicMaterial({ color: 0x1a1a2e, transparent: true, opacity: 0.95, depthTest: false })
   )
   robotFloatingBarBg.renderOrder = 999
   floatingBarGroup.add(robotFloatingBarBg)
 
-  // Fill bar (wider & taller)
+  // Border frame
+  const barBorder = new THREE.Mesh(
+    new THREE.PlaneGeometry(2.08, 0.40),
+    new THREE.MeshBasicMaterial({ color: 0x444466, transparent: true, opacity: 0.9, depthTest: false })
+  )
+  barBorder.renderOrder = 998
+  barBorder.position.z = -0.001
+  floatingBarGroup.add(barBorder)
+
+  // Fill bar
   robotFloatingBar = new THREE.Mesh(
-    new THREE.PlaneGeometry(1.14, 0.13),
-    new THREE.MeshBasicMaterial({ color: 0xff7043, transparent: true, opacity: 0.95, depthTest: false })
+    new THREE.PlaneGeometry(1.92, 0.24),
+    new THREE.MeshBasicMaterial({ color: 0x43a047, transparent: true, opacity: 0.95, depthTest: false })
   )
   robotFloatingBar.renderOrder = 1000
   robotFloatingBar.position.z = 0.001
@@ -544,12 +554,12 @@ function createRobot(pos: Position): THREE.Group {
   const batIconSprite = new THREE.Sprite(
     new THREE.SpriteMaterial({ map: batIconTex, transparent: true, depthTest: false })
   )
-  batIconSprite.scale.set(0.3, 0.3, 1)
-  batIconSprite.position.set(-0.75, 0, 0.001)
+  batIconSprite.scale.set(0.4, 0.4, 1)
+  batIconSprite.position.set(-1.25, 0, 0.001)
   batIconSprite.renderOrder = 1001
   floatingBarGroup.add(batIconSprite)
 
-  // Percentage text sprite (bigger)
+  // Percentage text sprite
   robotFloatingPctCanvas = document.createElement('canvas')
   robotFloatingPctCanvas.width = 256
   robotFloatingPctCanvas.height = 96
@@ -557,8 +567,8 @@ function createRobot(pos: Position): THREE.Group {
   robotFloatingPctTexture.minFilter = THREE.LinearFilter
   const pctMat = new THREE.SpriteMaterial({ map: robotFloatingPctTexture, transparent: true, depthTest: false })
   robotFloatingPctSprite = new THREE.Sprite(pctMat)
-  robotFloatingPctSprite.scale.set(0.8, 0.3, 1)
-  robotFloatingPctSprite.position.y = 0.22
+  robotFloatingPctSprite.scale.set(1.0, 0.4, 1)
+  robotFloatingPctSprite.position.y = 0.32
   robotFloatingPctSprite.renderOrder = 1001
   floatingBarGroup.add(robotFloatingPctSprite)
 
@@ -717,19 +727,16 @@ function createButton3D(pos: Position) {
   const lblCanvas = document.createElement('canvas')
   lblCanvas.width = 512; lblCanvas.height = 64
   const lctx = lblCanvas.getContext('2d')!
-  lctx.fillStyle = 'rgba(15, 20, 30, 0.75)'
+  lctx.fillStyle = 'rgba(10, 15, 25, 0.85)'
   lctx.roundRect(6, 4, 500, 56, 12)
   lctx.fill()
-  lctx.strokeStyle = 'rgba(255, 234, 0, 0.7)'
+  lctx.strokeStyle = 'rgba(255, 234, 0, 0.5)'
   lctx.lineWidth = 2
   lctx.roundRect(6, 4, 500, 56, 12)
   lctx.stroke()
-  lctx.shadowColor = '#FFEA00'; lctx.shadowBlur = 16
   lctx.font = 'bold 36px Arial'
   lctx.textAlign = 'center'; lctx.textBaseline = 'middle'
   lctx.fillStyle = '#FFEA00'
-  lctx.fillText('KAPI BUTONU', 256, 32)
-  lctx.shadowBlur = 6
   lctx.fillText('KAPI BUTONU', 256, 32)
   const lblTex = new THREE.CanvasTexture(lblCanvas)
   lblTex.minFilter = THREE.LinearFilter
@@ -874,26 +881,20 @@ function createChargingStation(pos: Position): THREE.Group {
   const labelCanvas = document.createElement('canvas')
   labelCanvas.width = 1024; labelCanvas.height = 128
   const ctx = labelCanvas.getContext('2d')!
-  // Background — brighter, more visible
-  ctx.fillStyle = 'rgba(0, 40, 60, 0.75)'
+  // Background — clean, readable
+  ctx.fillStyle = 'rgba(10, 30, 20, 0.85)'
   ctx.roundRect(12, 8, 1000, 112, 18)
   ctx.fill()
-  ctx.strokeStyle = 'rgba(100, 255, 230, 0.8)'
-  ctx.lineWidth = 4
+  ctx.strokeStyle = 'rgba(105, 240, 174, 0.5)'
+  ctx.lineWidth = 3
   ctx.roundRect(12, 8, 1000, 112, 18)
   ctx.stroke()
-  // Text — very large, bright white with strong glow
-  ctx.shadowColor = '#00ffcc'
-  ctx.shadowBlur = 30
+  // Text — clean, no excessive glow
   ctx.font = 'bold 72px Arial'
   ctx.textAlign = 'center'
   ctx.textBaseline = 'middle'
-  ctx.fillStyle = '#ffffff'
+  ctx.fillStyle = '#69f0ae'
   ctx.fillText('ŞARJ İSTASYONU', 512, 64)
-  // Second pass for extra brightness
-  ctx.shadowBlur = 10
-  ctx.fillText('ŞARJ İSTASYONU', 512, 64)
-  ctx.shadowBlur = 0
   const labelTex = new THREE.CanvasTexture(labelCanvas)
   labelTex.minFilter = THREE.LinearFilter
   const labelSprite = new THREE.Sprite(
@@ -1409,6 +1410,22 @@ function resetSimulationState() {
 }
 
 // ═══════════════════════════════════════════
+// ENERGY PANEL (always visible)
+// ═══════════════════════════════════════════
+function updateEnergyPanel(level?: number) {
+  const pct = level ?? battery.getCurrentLevel()
+  const totalEl = document.getElementById('ep-total')
+  const remainEl = document.getElementById('ep-remaining')
+  const perStepEl = document.getElementById('ep-per-step')
+  const stepsLeftEl = document.getElementById('ep-steps-left')
+  if (totalEl) totalEl.textContent = `${Math.round(pct)}%`
+  if (remainEl) remainEl.textContent = `${Math.round(pct)}%`
+  const costPerStep = BATTERY_COST.MOVE_FORWARD
+  if (perStepEl) perStepEl.textContent = `${costPerStep}%`
+  const stepsLeft = Math.floor(pct / costPerStep)
+  if (stepsLeftEl) stepsLeftEl.textContent = pct > 0 ? `~${stepsLeft}` : '0'
+}
+
 // EXECUTION INFO PANEL
 // ═══════════════════════════════════════════
 function showExecInfoPanel() {
@@ -1599,7 +1616,7 @@ function updateRobotChargeIndicator(level: number) {
     const barMat = robotFloatingBar.material as THREE.MeshBasicMaterial
     const t = Math.max(0.02, pct / 100)
     robotFloatingBar.scale.x = t
-    robotFloatingBar.position.x = -0.57 * (1 - t)
+    robotFloatingBar.position.x = -0.96 * (1 - t)
     barMat.color.setHex(color)
   }
 
@@ -1954,7 +1971,7 @@ function initGame() {
   applyReflectionState()
 
   // Events
-  EventBus.on('battery:updated', (l: number) => { ui.updateBatteryUI(l); updateRobotChargeIndicator(l) })
+  EventBus.on('battery:updated', (l: number) => { ui.updateBatteryUI(l); updateRobotChargeIndicator(l); updateEnergyPanel(l) })
   EventBus.on('battery:critical', () => ui.showToast('⚠️ Batarya kritik!', 'warning'))
   EventBus.on('door:opening', () => {
     animateDoorOpening()
@@ -2060,41 +2077,25 @@ function initGame() {
     gameState = GameState.COMPLETE
     blocklyMgr.clearHighlight()
 
-    // Show "GÖREV TAMAMLANDI" floating text above robot
-    showMissionCompleteOverlay()
-
-    // Celebration: jump, happy expression, spin, confetti
+    // Celebration: happy expression + jump
     EventBus.emit('robot:expression', EyeExpression.HAPPY)
-    if (particles) {
-      particles.emitConfetti(robotMesh.position.clone(), 60)
-      particles.emitChargeSparks(robotMesh.position.clone().add(new THREE.Vector3(0, 1, 0)), 40)
-    }
-    logPanel.addEntry('success', 'Batarya %100 dolu! Görev tamamlandı!')
-    const jumpDur = 1200;
-    const startY = robotMesh.position.y;
-    const startRot = robotMesh.rotation.y;
-    const startTime = Date.now();
+    logPanel.addEntry('success', 'Batarya %100 dolu!')
+    const jumpDur = 1200
+    const startY = robotMesh.position.y
+    const startRot = robotMesh.rotation.y
+    const startTime = Date.now()
     const jumpAnim = () => {
-      const t = Math.min((Date.now() - startTime) / jumpDur, 1);
-      const jumpH = Math.sin(t * Math.PI) * 1.5;
-      robotMesh.position.y = startY + jumpH;
-      robotMesh.rotation.y = startRot + t * Math.PI * 4;
-      if (t < 1) requestAnimationFrame(jumpAnim);
+      const t = Math.min((Date.now() - startTime) / jumpDur, 1)
+      const jumpH = Math.sin(t * Math.PI) * 1.5
+      robotMesh.position.y = startY + jumpH
+      robotMesh.rotation.y = startRot + t * Math.PI * 4
+      if (t < 1) requestAnimationFrame(jumpAnim)
       else {
-        robotMesh.position.y = startY;
-        robotMesh.rotation.y = startRot;
+        robotMesh.position.y = startY
+        robotMesh.rotation.y = startRot
       }
-    };
-    jumpAnim();
-
-    // Burst confetti again mid-jump
-    setTimeout(() => {
-      if (particles) particles.emitConfetti(robotMesh.position.clone().add(new THREE.Vector3(0, 1.5, 0)), 40)
-    }, 600)
-
-    setTimeout(() => {
-      ui.showSuccess('GÖREV TAMAMLANDI! ŞEHİR SENİ BEKLİYOR!', executor.getCommands().length, 100)
-    }, 1400)
+    }
+    jumpAnim()
   })
 
   EventBus.on('program:stopped', () => {
@@ -2105,22 +2106,49 @@ function initGame() {
   })
   EventBus.on('program:complete', () => {
     isExecuting = false; blocklyMgr.clearHighlight(); ui.updateStatus('Tamamlandı', 'ready')
-    // Check mission win condition
-    if (gameState !== GameState.COMPLETE && gameState !== GameState.FAILED) {
-      if (missionMgr.checkWinCondition(robot, grid, battery)) {
+    // Check mission win condition (allow COMPLETE state too — battery:full may have set it already)
+    if (gameState !== GameState.FAILED) {
+      const alreadyComplete = gameState === GameState.COMPLETE
+      if (alreadyComplete || missionMgr.checkWinCondition(robot, grid, battery)) {
+        if (!alreadyComplete) {
+          gameState = GameState.COMPLETE
+        }
         const score = missionMgr.completeCurrentMission(executor.getCommands().length, battery.getCurrentLevel())
-        gameState = GameState.COMPLETE
-        const starsStr = '⭐'.repeat(score.stars) + '☆'.repeat(3 - score.stars)
-        const starsEl = document.getElementById('success-stars')
-        if (starsEl) starsEl.textContent = starsStr
-        ui.showSuccess(`Görev tamamlandı! ${starsStr}`, score.commandsUsed, score.batteryRemaining)
+        const missionIdx = missionMgr.getCurrentIndex()
+        const missionNum = missionIdx + 1
+        const chapterMissions = missionMgr.getCurrentChapterMissions()
+        const currentMission = missionMgr.getCurrentMission()
+        const chapterIdx = chapterMissions.findIndex(m => m.id === currentMission.id)
+        const isLastMissionInChapter = chapterIdx === chapterMissions.length - 1
+
+        // Immediately update card to completed (green)
         updateMissionStarsDisplay()
+        loadMissionUI()
+
+        // Show confetti
         if (particles) {
           particles.emitConfetti(robotMesh.position.clone(), 50)
-          // Floating star-like sparks above robot
           particles.emitChargeSparks(robotMesh.position.clone().add(new THREE.Vector3(0, 1, 0)), 30)
         }
-        logPanel.addEntry('success', `Görev tamamlandı! ${starsStr}`)
+
+        logPanel.addEntry('success', `${missionNum}. Görev tamamlandı!`)
+
+        if (isLastMissionInChapter) {
+          // FINAL MISSION: big modal
+          setTimeout(() => {
+            ui.showFinalSuccess('HAZIRSIN! ŞEHİR SENİ BEKLİYOR!', score.commandsUsed, score.batteryRemaining)
+            setTimeout(() => {
+              EventBus.emit('mission:autoAdvance')
+            }, 3700)
+          }, 1200)
+        } else {
+          // INTERMEDIATE MISSION: card banner
+          ui.showCardSuccess(missionNum)
+          setTimeout(() => {
+            ui.hideCardSuccess()
+            EventBus.emit('mission:autoAdvance')
+          }, 2000)
+        }
       }
     }
   })
@@ -2292,6 +2320,19 @@ function renderLoop() {
     photoSensorLaserMat.opacity = 0.4 + Math.sin(time * 4) * 0.2
   }
   if (robotMesh) {
+    // Billboard: floating bar faces camera (Y-axis only, never tilts)
+    const barGroup = robotMesh.getObjectByName('floatingBarGroup')
+    if (barGroup && camera) {
+      const barWorldPos = new THREE.Vector3()
+      barGroup.getWorldPosition(barWorldPos)
+      // Get direction to camera on XZ plane only
+      const dx = camera.position.x - barWorldPos.x
+      const dz = camera.position.z - barWorldPos.z
+      const angle = Math.atan2(dx, dz)
+      // Convert world Y rotation to local: subtract parent (robot) Y rotation
+      const parentRot = robotMesh.rotation.y
+      barGroup.rotation.set(0, angle - parentRot, 0)
+    }
     // Antenna RGB color cycling + blink
     if (antennaBallMat) {
       const rgbColor = new THREE.Color()
@@ -2343,13 +2384,7 @@ function renderLoop() {
     }
     // Idle bob
     if (!isExecuting) robotMesh.position.y = Math.sin(time * 1.5) * 0.01
-    // Billboard floating bar toward camera
-    if (robotFloatingBarBg && camera) {
-      const barGroup = robotFloatingBarBg.parent
-      if (barGroup) {
-        barGroup.quaternion.copy(camera.quaternion)
-      }
-    }
+    // (billboard handled above in floatingBarGroup Y-axis rotation)
     // Floating bar glow pulse during charging
     if (robotFloatingBar && isChargingActive) {
       const barMat = robotFloatingBar.material as THREE.MeshBasicMaterial
@@ -2518,7 +2553,7 @@ if (garageModeSelect) {
 }
 
 // GREEN FLAG — run program
-// RUN TOGGLE — Başlat / Durdur
+// RUN TOGGLE — Çalıştır / Durdur
 document.getElementById('btn-run-toggle')!.addEventListener('click', async () => {
   const btn = document.getElementById('btn-run-toggle') as HTMLButtonElement
 
@@ -2534,7 +2569,7 @@ document.getElementById('btn-run-toggle')!.addEventListener('click', async () =>
     ui.updateStatus('Durduruldu', 'ready')
     ui.showToast('⏹ Durduruldu', 'warning')
     btn.classList.remove('running')
-    btn.innerHTML = '<span>🚀</span> Başlat'
+    btn.innerHTML = '<span>🚀</span> Çalıştır'
     return
   }
 
@@ -2574,7 +2609,7 @@ document.getElementById('btn-run-toggle')!.addEventListener('click', async () =>
   isExecuting = false
   isAntennaBlinking = false
   btn.classList.remove('running')
-  btn.innerHTML = '<span>🚀</span> Başlat'
+  btn.innerHTML = '<span>🚀</span> Çalıştır'
   cameraMode = previousCameraMode
   if (cameraMode === 'overview') {
     const pose = getPrimaryCameraPose()
@@ -2602,7 +2637,7 @@ document.getElementById('crash-retry-btn')!.addEventListener('click', () => {
   blocklyMgr.clearHighlight()
   const btn = document.getElementById('btn-run-toggle') as HTMLButtonElement
   btn.classList.remove('running')
-  btn.innerHTML = '<span>🚀</span> Başlat'
+  btn.innerHTML = '<span>🚀</span> Çalıştır'
   ui.showToast('🔄 Tekrar denemeye hazır!', 'info')
 })
 
@@ -2612,7 +2647,7 @@ document.getElementById('crash-continue-btn')!.addEventListener('click', () => {
   EventBus.emit('robot:expression', EyeExpression.NORMAL)
   const btn = document.getElementById('btn-run-toggle') as HTMLButtonElement
   btn.classList.remove('running')
-  btn.innerHTML = '<span>🚀</span> Başlat'
+  btn.innerHTML = '<span>🚀</span> Çalıştır'
   ui.showToast('✏️ Kodunu düzenle ve tekrar dene', 'info')
 })
 
@@ -2644,11 +2679,13 @@ function loadMissionUI() {
     hintEl.style.display = 'none'
   }
 
-  // Nav buttons
+  // Nav buttons — only allow next if current mission is completed
   const prevBtn = document.getElementById('mission-prev') as HTMLButtonElement
   const nextBtn = document.getElementById('mission-next') as HTMLButtonElement
   if (prevBtn) prevBtn.disabled = idx === 0
-  if (nextBtn) nextBtn.disabled = idx >= missionMgr.getTotalMissions() - 1
+  const isLastMission = idx >= missionMgr.getTotalMissions() - 1
+  const currentCompleted = missionMgr.isMissionCompleted(idx)
+  if (nextBtn) nextBtn.disabled = isLastMission || !currentCompleted
 
   updateMissionStarsDisplay()
 }
@@ -2656,14 +2693,11 @@ function loadMissionUI() {
 function updateMissionStarsDisplay() {
   const idx = missionMgr.getCurrentIndex()
   const starsEl = document.getElementById('mission-stars')
-  if (!starsEl) return
-  const best = missionMgr.getBestScore(idx)
+  if (starsEl) starsEl.style.display = 'none'
   const card = document.getElementById('mission-card')
-  if (best) {
-    starsEl.textContent = '⭐'.repeat(best.stars) + '☆'.repeat(3 - best.stars)
+  if (missionMgr.isMissionCompleted(idx)) {
     card?.classList.add('completed')
   } else {
-    starsEl.textContent = '☆☆☆'
     card?.classList.remove('completed')
   }
 }
@@ -2685,12 +2719,11 @@ document.getElementById('mission-prev')?.addEventListener('click', () => {
 document.getElementById('mission-next')?.addEventListener('click', () => {
   if (isExecuting) return
   const idx = missionMgr.getCurrentIndex()
-  if (idx < missionMgr.getTotalMissions() - 1) switchToMission(idx + 1)
+  if (idx < missionMgr.getTotalMissions() - 1 && missionMgr.isMissionCompleted(idx)) switchToMission(idx + 1)
 })
 
-// Success: advance to next mission
-document.getElementById('success-next-btn')!.addEventListener('click', () => {
-  ui.hideSuccess()
+// Success: auto-advance to next mission after modal dismisses (3s total)
+EventBus.on('mission:autoAdvance', () => {
   const next = missionMgr.nextMission()
   if (next) {
     resetSimulationState()
@@ -2888,6 +2921,7 @@ blocklyMgr.init((newExecutor, totalCost) => {
   if (stepModeEnabled) executor.setStepMode(true)
 })
 loadMissionUI()
+updateEnergyPanel()
 renderLoop()
 
 // Intro: animate robot eyes opening after 800ms

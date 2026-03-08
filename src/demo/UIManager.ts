@@ -47,16 +47,54 @@ export class UIManager {
     if (el) el.innerText = `${Math.ceil(totalCost)}%`
   }
 
-  showSuccess(msg: string, cmds: number, bat: number) {
+  /** Show card-level success banner (missions 1-3) */
+  showCardSuccess(missionNum: number) {
     soundManager.playSuccess()
-    document.getElementById('success-message')!.textContent = msg
+    const card = document.getElementById('mission-card')
+    if (!card) return
+
+    // Remove any existing banner
+    card.querySelector('.mission-card-success-banner')?.remove()
+
+    const banner = document.createElement('div')
+    banner.className = 'mission-card-success-banner'
+    banner.innerHTML = `
+      <div class="card-success-icon">✅</div>
+      <div class="card-success-text">${missionNum}. Görev Başarılı!</div>
+      <div class="card-success-sub">Sonraki göreve geçiliyor...</div>
+    `
+    card.appendChild(banner)
+  }
+
+  hideCardSuccess() {
+    const banner = document.querySelector('.mission-card-success-banner')
+    if (banner) banner.remove()
+  }
+
+  /** Show big final modal (mission 4 / chapter end) */
+  showFinalSuccess(msg: string, cmds: number, bat: number) {
+    soundManager.playSuccess()
+    const overlay = document.getElementById('success-overlay')!
+    const titleEl = document.getElementById('success-title')
+    if (titleEl) titleEl.textContent = msg
+    document.getElementById('success-message')!.textContent = 'Tüm görevleri tamamladın! Tebrikler!'
     document.getElementById('stat-commands')!.textContent = String(cmds)
     document.getElementById('stat-battery')!.textContent = `${Math.round(bat)}%`
-    document.getElementById('success-overlay')!.classList.add('visible')
+    overlay.classList.remove('dismissing')
+    overlay.classList.add('visible')
+
+    // Auto-dismiss after 3s
+    setTimeout(() => {
+      overlay.classList.add('dismissing')
+      setTimeout(() => {
+        overlay.classList.remove('visible', 'dismissing')
+      }, 500)
+    }, 3000)
   }
 
   hideSuccess() {
-    document.getElementById('success-overlay')!.classList.remove('visible')
+    const overlay = document.getElementById('success-overlay')!
+    overlay.classList.remove('visible', 'dismissing')
   }
 
   showFailure(msg: string) {

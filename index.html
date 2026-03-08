@@ -57,7 +57,7 @@
     }
 
     body {
-      font-family: 'Fredoka', 'Baloo 2', 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      font-family: 'Inter', 'Fredoka', 'Baloo 2', -apple-system, BlinkMacSystemFont, sans-serif;
       background: var(--bg-dark);
       color: var(--text-primary);
       overflow: hidden;
@@ -136,7 +136,7 @@
     }
 
     .intro-warning-text {
-      font-family: 'Fredoka', 'Baloo 2', sans-serif;
+      font-family: 'Inter', sans-serif;
       font-size: 18px;
       font-weight: 800;
       color: #ffb800;
@@ -144,6 +144,7 @@
       text-transform: uppercase;
       text-shadow: 0 0 15px rgba(255, 184, 0, 0.5), 0 0 30px rgba(255, 184, 0, 0.2);
       line-height: 1.4;
+      text-align: center;
     }
 
     .intro-warning-charge {
@@ -156,34 +157,36 @@
     .intro-warning-bar {
       display: flex;
       align-items: center;
-      gap: 10px;
-      margin-top: 8px;
+      justify-content: center;
+      gap: 14px;
+      margin-top: 12px;
     }
 
     .intro-warning-bar-track {
-      width: 180px;
-      height: 12px;
-      background: rgba(255, 255, 255, 0.08);
-      border-radius: 6px;
-      border: 1px solid rgba(255, 184, 0, 0.3);
+      width: 260px;
+      height: 18px;
+      background: rgba(255, 255, 255, 0.06);
+      border-radius: 9px;
+      border: 2px solid rgba(255, 184, 0, 0.35);
       overflow: hidden;
+      box-shadow: inset 0 2px 6px rgba(0, 0, 0, 0.3);
     }
 
     .intro-warning-bar-fill {
       width: 5%;
       height: 100%;
       background: linear-gradient(90deg, #ff3d5a, #ff6b35);
-      border-radius: 6px;
-      box-shadow: 0 0 8px rgba(255, 61, 90, 0.6);
+      border-radius: 7px;
+      box-shadow: 0 0 12px rgba(255, 61, 90, 0.7), 0 0 24px rgba(255, 61, 90, 0.3);
       animation: bar-critical-pulse 0.8s ease-in-out infinite alternate;
     }
 
     .intro-warning-bar-label {
-      font-family: 'Orbitron', monospace;
-      font-size: 14px;
-      font-weight: 800;
+      font-family: 'Inter', sans-serif;
+      font-size: 18px;
+      font-weight: 900;
       color: #ff3d5a;
-      text-shadow: 0 0 8px rgba(255, 61, 90, 0.5);
+      text-shadow: 0 0 10px rgba(255, 61, 90, 0.6);
     }
 
     @keyframes warning-appear {
@@ -223,7 +226,7 @@
       padding: 20px 24px;
       max-width: 480px;
       min-height: 60px;
-      font-family: 'Fredoka', sans-serif;
+      font-family: 'Inter', sans-serif;
       font-size: 16px;
       font-weight: 500;
       color: rgba(255, 255, 255, 0.9);
@@ -237,9 +240,9 @@
     }
 
     .intro-speech-label {
-      font-family: 'Fredoka', 'Baloo 2', sans-serif;
+      font-family: 'Inter', sans-serif;
       font-size: 15px;
-      font-weight: 700;
+      font-weight: 800;
       color: var(--accent-primary);
       text-transform: uppercase;
       letter-spacing: 3px;
@@ -316,7 +319,7 @@
     }
 
     .intro-subtitle {
-      font-family: 'Fredoka', sans-serif;
+      font-family: 'Inter', sans-serif;
       font-size: 17px;
       font-weight: 600;
       color: rgba(255, 255, 255, 0.5);
@@ -328,7 +331,7 @@
     }
 
     .intro-start-btn {
-      font-family: 'Baloo 2', 'Fredoka', sans-serif;
+      font-family: 'Inter', sans-serif;
       font-size: 22px;
       font-weight: 700;
       padding: 18px 60px;
@@ -378,115 +381,103 @@
     }
 
     /* ═══════════════════════════════════
-       SUCCESS OVERLAY
+       SUCCESS OVERLAY (crash-modal style)
     ═══════════════════════════════════ */
     #success-overlay {
       position: fixed;
       inset: 0;
-      z-index: 900;
+      z-index: 960;
       background: rgba(0, 0, 0, 0.5);
-      backdrop-filter: blur(6px);
+      backdrop-filter: blur(4px);
       display: none;
       flex-direction: column;
       align-items: center;
       justify-content: center;
-      animation: overlay-fade-in 0.5s ease;
+      animation: overlay-fade-in 0.3s ease;
     }
 
     #success-overlay.visible {
       display: flex;
     }
 
+    #success-overlay.dismissing {
+      animation: overlay-fade-out 0.5s ease forwards;
+    }
+
+    @keyframes overlay-fade-out {
+      0% { opacity: 1; }
+      100% { opacity: 0; }
+    }
+
+    .success-modal {
+      background: #fff;
+      border-radius: 24px;
+      padding: 40px 48px;
+      max-width: 420px;
+      text-align: center;
+      box-shadow: 0 16px 48px rgba(40, 180, 100, 0.3), 0 6px 20px rgba(0, 0, 0, 0.12);
+      border: 3px solid #43a047;
+      animation: crash-modal-pop 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+    }
+
     .success-icon {
-      font-size: 120px;
-      margin-bottom: 20px;
-      animation: success-bounce 0.8s cubic-bezier(0.34, 1.56, 0.64, 1);
+      font-size: 72px;
+      margin-bottom: 16px;
+      animation: success-icon-celebrate 0.8s ease 0.2s both;
+    }
+
+    @keyframes success-icon-celebrate {
+      0% { transform: scale(0) rotate(-20deg); opacity: 0; }
+      50% { transform: scale(1.3) rotate(10deg); }
+      70% { transform: scale(0.95) rotate(-5deg); }
+      100% { transform: scale(1) rotate(0deg); opacity: 1; }
     }
 
     .success-title {
-      font-family: 'Baloo 2', 'Fredoka', sans-serif;
-      font-size: 42px;
-      font-weight: 900;
-      background: linear-gradient(135deg, #00e6b8, #7e95ff, #ff6eb4);
-      -webkit-background-clip: text;
-      -webkit-text-fill-color: transparent;
-      background-clip: text;
-      margin-bottom: 10px;
-      filter: drop-shadow(0 0 20px rgba(0, 230, 184, 0.4));
+      font-family: 'Inter', sans-serif;
+      font-size: 26px;
+      font-weight: 800;
+      color: #2e7d32;
+      margin-bottom: 12px;
     }
 
-    .success-subtitle {
-      font-size: 18px;
-      color: var(--text-secondary);
-      margin-bottom: 30px;
-    }
-
-    .success-stars {
-      font-size: 56px;
-      letter-spacing: 12px;
-      margin-bottom: 20px;
-      animation: stars-pop 0.8s cubic-bezier(0.34, 1.56, 0.64, 1);
-    }
-
-    @keyframes stars-pop {
-      0% {
-        transform: scale(0);
-        opacity: 0;
-      }
-
-      50% {
-        transform: scale(1.3);
-      }
-
-      100% {
-        transform: scale(1);
-        opacity: 1;
-      }
+    .success-message {
+      font-family: 'Inter', sans-serif;
+      font-size: 17px;
+      color: #3d3d6b;
+      line-height: 1.6;
+      margin-bottom: 24px;
     }
 
     .success-stats {
       display: flex;
-      gap: 30px;
-      margin-bottom: 30px;
+      gap: 24px;
+      justify-content: center;
+      margin-bottom: 8px;
     }
 
-    .stat-item {
-      text-align: center;
+    .success-stat-box {
+      background: #f0faf0;
+      border: 2px solid #c8e6c9;
+      border-radius: 14px;
+      padding: 12px 24px;
+      min-width: 100px;
     }
 
     .stat-value {
-      font-family: 'Baloo 2', 'Fredoka', sans-serif;
-      font-size: 28px;
+      font-family: 'Inter', sans-serif;
+      font-size: 26px;
       font-weight: 800;
-      color: var(--accent-primary);
+      color: #2e7d32;
     }
 
     .stat-label {
+      font-family: 'Inter', sans-serif;
       font-size: 12px;
-      color: var(--text-muted);
+      color: #666;
       text-transform: uppercase;
       letter-spacing: 1px;
-    }
-
-    .success-next-btn {
-      font-family: 'Baloo 2', 'Fredoka', sans-serif;
-      font-size: 15px;
-      font-weight: 700;
-      padding: 16px 48px;
-      background: linear-gradient(135deg, var(--accent-primary), #00a885);
-      color: #000;
-      border: none;
-      border-radius: 14px;
-      cursor: pointer;
-      transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
-      text-transform: uppercase;
-      box-shadow: 0 4px 20px rgba(0, 230, 184, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.2);
-      letter-spacing: 2px;
-    }
-
-    .success-next-btn:hover {
-      transform: translateY(-2px);
-      box-shadow: 0 6px 25px rgba(0, 212, 170, 0.4);
+      margin-top: 2px;
     }
 
     /* ═══════════════════════════════════
@@ -502,7 +493,7 @@
       color: var(--text-secondary);
       padding: 6px 14px;
       border-radius: var(--radius-sm);
-      font-family: 'Fredoka', sans-serif;
+      font-family: 'Inter', sans-serif;
       font-size: 12px;
       font-weight: 600;
       cursor: pointer;
@@ -798,7 +789,7 @@
     }
 
     .crash-title {
-      font-family: 'Baloo 2', 'Fredoka', sans-serif;
+      font-family: 'Inter', sans-serif;
       font-size: 26px;
       font-weight: 800;
       color: #e67e22;
@@ -806,7 +797,7 @@
     }
 
     .crash-message {
-      font-family: 'Fredoka', sans-serif;
+      font-family: 'Inter', sans-serif;
       font-size: 17px;
       color: #3d3d6b;
       line-height: 1.6;
@@ -820,7 +811,7 @@
     }
 
     .crash-btn {
-      font-family: 'Baloo 2', 'Fredoka', sans-serif;
+      font-family: 'Inter', sans-serif;
       font-size: 15px;
       font-weight: 700;
       padding: 14px 32px;
@@ -899,7 +890,7 @@
     }
 
     .failure-title {
-      font-family: 'Baloo 2', 'Fredoka', sans-serif;
+      font-family: 'Inter', sans-serif;
       font-size: 36px;
       font-weight: 900;
       color: var(--accent-danger);
@@ -917,7 +908,7 @@
     }
 
     .failure-retry-btn {
-      font-family: 'Baloo 2', 'Fredoka', sans-serif;
+      font-family: 'Inter', sans-serif;
       font-size: 15px;
       font-weight: 700;
       padding: 16px 48px;
@@ -979,7 +970,7 @@
       top: 0;
       left: 0;
       right: 0;
-      height: 48px;
+      height: 56px;
       background: linear-gradient(90deg, #7c4dff 0%, #9c27b0 50%, #7c4dff 100%);
       border-bottom: 3px solid transparent;
       border-image: linear-gradient(90deg, #ff6b35, #ffb800, #00c853, #00bcd4, #ff5fa0) 1;
@@ -1013,7 +1004,7 @@
       display: flex;
       align-items: center;
       gap: 6px;
-      font-family: 'Baloo 2', 'Fredoka', sans-serif;
+      font-family: 'Inter', sans-serif;
       font-weight: 800;
       font-size: 18px;
       color: #fff;
@@ -1031,7 +1022,7 @@
     }
 
     .brand-badge {
-      font-family: 'Baloo 2', 'Fredoka', sans-serif;
+      font-family: 'Inter', sans-serif;
       font-size: 13px;
       font-weight: 700;
       color: rgba(255, 255, 255, 0.9);
@@ -1049,7 +1040,7 @@
       color: #fff;
       padding: 8px 16px;
       border-radius: 12px;
-      font-family: 'Fredoka', sans-serif;
+      font-family: 'Inter', sans-serif;
       font-size: 14px;
       font-weight: 800;
       cursor: pointer;
@@ -1082,7 +1073,7 @@
       border: none;
       padding: 6px 14px;
       border-radius: 12px;
-      font-family: 'Fredoka', sans-serif;
+      font-family: 'Inter', sans-serif;
       font-size: 13px;
       font-weight: 800;
       cursor: pointer;
@@ -1105,35 +1096,52 @@
     #btn-run-toggle {
       background: linear-gradient(135deg, #ff6b35, #ffb800);
       color: #fff;
-      box-shadow: 0 4px 15px rgba(255, 107, 53, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.25);
-      font-size: 14px;
-      padding: 8px 24px;
+      box-shadow: 0 4px 18px rgba(255, 107, 53, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.3);
+      font-size: 16px;
+      font-family: 'Inter', sans-serif;
+      font-weight: 800;
+      padding: 12px 32px;
+      border-radius: 16px;
+      letter-spacing: 1px;
     }
 
     #btn-run-toggle:hover {
-      box-shadow: 0 0 30px rgba(255, 107, 53, 0.6), 0 6px 20px rgba(255, 184, 0, 0.4);
+      box-shadow: 0 0 35px rgba(255, 107, 53, 0.7), 0 8px 24px rgba(255, 184, 0, 0.5);
+      transform: translateY(-3px) scale(1.08);
     }
 
     #btn-run-toggle.running {
       background: linear-gradient(135deg, #ff3d5a, #c62828);
-      box-shadow: 0 4px 15px rgba(255, 61, 90, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.2);
+      box-shadow: 0 4px 18px rgba(255, 61, 90, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.2);
+      animation: running-pulse 1.5s ease-in-out infinite alternate;
+    }
+
+    @keyframes running-pulse {
+      from { box-shadow: 0 4px 18px rgba(255, 61, 90, 0.4); }
+      to { box-shadow: 0 4px 30px rgba(255, 61, 90, 0.7); }
     }
 
     #btn-run-toggle.running:hover {
-      box-shadow: 0 0 30px rgba(255, 61, 90, 0.6);
+      box-shadow: 0 0 35px rgba(255, 61, 90, 0.7);
     }
 
     #btn-reset {
       background: rgba(255, 255, 255, 0.15);
-      border: 2px solid rgba(255, 255, 255, 0.25);
+      border: 2px solid rgba(255, 255, 255, 0.3);
       color: #fff;
-      padding: 8px 16px;
+      font-size: 15px;
+      font-family: 'Inter', sans-serif;
+      font-weight: 700;
+      padding: 11px 24px;
+      border-radius: 14px;
+      letter-spacing: 0.5px;
     }
 
     #btn-reset:hover {
-      background: rgba(255, 255, 255, 0.25);
-      border-color: rgba(255, 255, 255, 0.4);
-      box-shadow: 0 0 15px rgba(255, 255, 255, 0.15);
+      background: rgba(255, 255, 255, 0.28);
+      border-color: rgba(255, 255, 255, 0.5);
+      box-shadow: 0 0 20px rgba(255, 255, 255, 0.2);
+      transform: translateY(-3px) scale(1.05);
     }
 
     #btn-load-code,
@@ -1310,7 +1318,7 @@
       color: var(--text-secondary);
       cursor: pointer;
       transition: all 0.15s;
-      font-family: 'Fredoka', sans-serif;
+      font-family: 'Inter', sans-serif;
     }
 
     .tb-btn:hover {
@@ -1338,7 +1346,7 @@
       color: var(--text-secondary);
       cursor: pointer;
       transition: all 0.15s;
-      font-family: 'Fredoka', sans-serif;
+      font-family: 'Inter', sans-serif;
     }
 
     .quality-btn:hover {
@@ -1361,7 +1369,7 @@
       border: 1px solid var(--border-color);
       border-radius: 6px;
       font-size: 11px;
-      font-family: 'Fredoka', sans-serif;
+      font-family: 'Inter', sans-serif;
       padding: 4px 8px;
       cursor: pointer;
       outline: none;
@@ -1424,14 +1432,7 @@
     }
 
     .battery-widget {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      background: rgba(255, 255, 255, 0.92);
-      padding: 8px 16px;
-      border-radius: var(--radius-sm);
-      border: 1px solid rgba(126, 149, 255, 0.3);
-      box-shadow: inset 0 0 12px rgba(126, 149, 255, 0.1), 0 2px 8px rgba(0, 0, 0, 0.2);
+      display: none;
     }
 
     .garage-mode-wrap {
@@ -1453,7 +1454,7 @@
       border-radius: 6px;
       font-size: 13px;
       font-weight: 600;
-      font-family: 'Fredoka', sans-serif;
+      font-family: 'Inter', sans-serif;
       padding: 6px 10px;
       outline: none;
       transition: var(--transition);
@@ -1471,28 +1472,28 @@
     }
 
     .battery-bar-mini {
-      width: 70px;
-      height: 16px;
-      background: var(--bg-dark);
-      border-radius: 8px;
+      width: 80px;
+      height: 18px;
+      background: #e0e0e0;
+      border-radius: 10px;
       overflow: hidden;
-      border: 1px solid rgba(255, 255, 255, 0.08);
+      border: 2px solid #999;
+      box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.2);
     }
 
     .battery-fill-mini {
       height: 100%;
-      background: linear-gradient(90deg, var(--accent-success), #00f5cc);
+      background: linear-gradient(90deg, #43a047, #66bb6a);
       transition: width 0.4s ease, background 0.3s ease;
       border-radius: 8px;
-      box-shadow: 0 0 8px rgba(0, 230, 184, 0.3);
     }
 
     .battery-fill-mini.low {
-      background: linear-gradient(90deg, var(--accent-warning), #ff9800);
+      background: linear-gradient(90deg, #f57c00, #ffb74d);
     }
 
     .battery-fill-mini.critical {
-      background: linear-gradient(90deg, var(--accent-danger), #ff6b81);
+      background: linear-gradient(90deg, #e53935, #ff6b81);
       animation: pulse-battery 1s infinite;
     }
 
@@ -1522,7 +1523,7 @@
       color: var(--text-primary);
       padding: 8px 14px;
       border-radius: var(--radius-sm);
-      font-family: 'Fredoka', sans-serif;
+      font-family: 'Inter', sans-serif;
       font-size: 13px;
       font-weight: 600;
       cursor: pointer;
@@ -1544,7 +1545,7 @@
       height: 100vh;
       display: flex;
       flex-direction: row;
-      padding-top: 48px;
+      padding-top: 56px;
     }
 
     #coding-panel {
@@ -1573,7 +1574,7 @@
     }
 
     .panel-title {
-      font-family: 'Baloo 2', 'Fredoka', sans-serif;
+      font-family: 'Inter', sans-serif;
       font-size: 16px;
       font-weight: 700;
       color: var(--text-primary);
@@ -1619,6 +1620,53 @@
       height: 100%;
     }
 
+    /* Energy panel — bottom-left */
+    #energy-panel {
+      position: absolute;
+      bottom: 16px;
+      left: 16px;
+      z-index: 25;
+      background: rgba(10, 15, 30, 0.88);
+      backdrop-filter: blur(12px);
+      border: 2px solid rgba(105, 240, 174, 0.3);
+      border-radius: 14px;
+      padding: 12px 16px;
+      min-width: 160px;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+    }
+
+    .energy-panel-title {
+      font-family: 'Inter', sans-serif;
+      font-size: 13px;
+      font-weight: 800;
+      color: #69f0ae;
+      text-transform: uppercase;
+      letter-spacing: 1.5px;
+      margin-bottom: 10px;
+      text-shadow: 0 0 8px rgba(105, 240, 174, 0.3);
+    }
+
+    .energy-panel-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 3px 0;
+    }
+
+    .energy-panel-label {
+      font-family: 'Inter', sans-serif;
+      font-size: 11px;
+      font-weight: 600;
+      color: rgba(255, 255, 255, 0.55);
+    }
+
+    .energy-panel-value {
+      font-family: 'Inter', sans-serif;
+      font-size: 14px;
+      font-weight: 800;
+      color: #fff;
+    }
+
     /* ═══════════════════════════════════
        OVERLAYS ON CANVAS
     ═══════════════════════════════════ */
@@ -1635,21 +1683,21 @@
     /* ═══ EXECUTION INFO PANEL (top-center, horizontal) ═══ */
     #exec-info-panel {
       position: absolute;
-      top: 16px;
+      top: 12px;
       left: 50%;
       transform: translateX(-50%);
       z-index: 25;
-      background: rgba(255, 255, 255, 0.97);
+      background: rgba(15, 20, 40, 0.92);
       backdrop-filter: blur(16px);
-      border: 2px solid var(--accent-secondary);
+      border: 2px solid #7c4dff;
       border-radius: 20px;
-      padding: 14px 28px;
-      min-width: 340px;
+      padding: 18px 36px;
+      min-width: 480px;
       display: none;
       flex-direction: row;
       align-items: center;
-      gap: 20px;
-      box-shadow: 0 6px 28px rgba(124, 77, 255, 0.2), 0 2px 8px rgba(0, 0, 0, 0.08);
+      gap: 24px;
+      box-shadow: 0 8px 32px rgba(124, 77, 255, 0.35), 0 2px 8px rgba(0, 0, 0, 0.3);
       animation: exec-panel-slide-in 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
     }
 
@@ -1670,17 +1718,19 @@
     }
 
     .exec-info-title {
-      font-family: 'Fredoka', sans-serif;
-      font-size: 15px;
-      font-weight: 700;
-      color: var(--accent-secondary);
+      font-family: 'Inter', sans-serif;
+      font-size: 17px;
+      font-weight: 800;
+      color: #b388ff;
       white-space: nowrap;
+      letter-spacing: 0.5px;
     }
 
     .exec-info-separator {
-      width: 1px;
-      height: 32px;
-      background: var(--border-color);
+      width: 2px;
+      height: 36px;
+      background: rgba(124, 77, 255, 0.3);
+      border-radius: 1px;
       flex-shrink: 0;
     }
 
@@ -1688,30 +1738,31 @@
       display: flex;
       flex-direction: column;
       align-items: center;
-      gap: 2px;
+      gap: 4px;
     }
 
     .exec-info-label {
-      font-family: 'Fredoka', sans-serif;
-      font-size: 12px;
-      color: var(--text-muted);
+      font-family: 'Inter', sans-serif;
+      font-size: 13px;
+      font-weight: 600;
+      color: rgba(255, 255, 255, 0.6);
       white-space: nowrap;
     }
 
     .exec-info-value {
-      font-family: 'Baloo 2', sans-serif;
-      font-size: 18px;
+      font-family: 'Inter', sans-serif;
+      font-size: 22px;
       font-weight: 800;
-      color: var(--text-primary);
+      color: #fff;
       white-space: nowrap;
     }
 
     .exec-info-value.energy-used {
-      color: var(--accent-warning);
+      color: #ffab40;
     }
 
     .exec-info-value.energy-left {
-      color: var(--accent-success);
+      color: #69f0ae;
     }
 
     .exec-info-value.energy-left.low {
@@ -1777,6 +1828,8 @@
     }
 
     .mission-card {
+      position: relative;
+      overflow: hidden;
       background: linear-gradient(145deg, rgba(20, 10, 50, 0.92), rgba(40, 20, 80, 0.88));
       backdrop-filter: blur(16px);
       border: 2px solid rgba(255, 184, 0, 0.5);
@@ -1815,24 +1868,24 @@
     }
 
     .mission-label {
-      font-family: 'Fredoka', 'Baloo 2', sans-serif;
-      font-size: 10px;
-      font-weight: 700;
+      font-family: 'Inter', sans-serif;
+      font-size: 16px;
+      font-weight: 900;
       text-transform: uppercase;
-      letter-spacing: 2.5px;
-      color: var(--accent-warning);
-      margin-bottom: 8px;
+      letter-spacing: 2px;
+      color: #fff;
+      margin-bottom: 10px;
       text-shadow: 0 0 12px rgba(255, 184, 51, 0.5);
-      animation: mission-label-glow 2.5s ease-in-out infinite alternate;
+      background: linear-gradient(90deg, var(--accent-warning), #ffe082);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
     }
 
-    @keyframes mission-label-glow {
-      from { text-shadow: 0 0 8px rgba(255, 184, 51, 0.3); }
-      to { text-shadow: 0 0 18px rgba(255, 184, 51, 0.7), 0 0 40px rgba(255, 184, 51, 0.2); }
-    }
+    /* mission-label-glow removed — less distraction */
 
     .mission-title {
-      font-family: 'Baloo 2', 'Fredoka', sans-serif;
+      font-family: 'Inter', sans-serif;
       font-size: 17px;
       font-weight: 800;
       color: #fff;
@@ -1841,6 +1894,7 @@
     }
 
     .mission-desc {
+      font-family: 'Inter', sans-serif;
       font-size: 13px;
       color: rgba(255, 255, 255, 0.75);
       line-height: 1.7;
@@ -1865,6 +1919,54 @@
 
     .mission-card.completed .mission-desc {
       color: rgba(165, 214, 167, 0.8);
+    }
+
+    /* ═══ Card success banner (görev 1-3 tamamlama) ═══ */
+    .mission-card-success-banner {
+      position: absolute;
+      inset: 0;
+      border-radius: 16px;
+      background: linear-gradient(145deg, rgba(0, 120, 60, 0.95), rgba(10, 80, 40, 0.95));
+      border: 3px solid #43a047;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      z-index: 10;
+      animation: card-success-pop 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+      box-shadow: 0 0 30px rgba(67, 160, 71, 0.5), 0 8px 32px rgba(0, 0, 0, 0.4);
+    }
+
+    @keyframes card-success-pop {
+      0% { transform: scale(0.7); opacity: 0; }
+      60% { transform: scale(1.05); }
+      100% { transform: scale(1); opacity: 1; }
+    }
+
+    .card-success-icon {
+      font-size: 48px;
+      animation: card-success-bounce 0.6s ease 0.2s both;
+    }
+
+    @keyframes card-success-bounce {
+      0% { transform: scale(0); }
+      50% { transform: scale(1.3); }
+      100% { transform: scale(1); }
+    }
+
+    .card-success-text {
+      font-family: 'Inter', sans-serif;
+      font-size: 20px;
+      font-weight: 800;
+      color: #fff;
+      text-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+    }
+
+    .card-success-sub {
+      font-family: 'Inter', sans-serif;
+      font-size: 13px;
+      color: rgba(255, 255, 255, 0.8);
     }
 
     .mission-energy {
@@ -2041,23 +2143,23 @@
     </div>
   </div>
 
-  <!-- ═══ SUCCESS OVERLAY ═══ -->
+  <!-- ═══ SUCCESS OVERLAY (crash-modal style) ═══ -->
   <div id="success-overlay">
-    <div class="success-icon">🎉</div>
-    <div class="success-title">GÖREV TAMAMLANDI!</div>
-    <div class="success-subtitle" id="success-message">Tebrikler! BIG-BOT şarj oldu.</div>
-    <div class="success-stars" id="success-stars"></div>
-    <div class="success-stats">
-      <div class="stat-item">
-        <div class="stat-value" id="stat-commands">0</div>
-        <div class="stat-label">Komut</div>
-      </div>
-      <div class="stat-item">
-        <div class="stat-value" id="stat-battery">100%</div>
-        <div class="stat-label">Batarya</div>
+    <div class="success-modal">
+      <div class="success-icon">🏆</div>
+      <div class="success-title" id="success-title">HAZIRSIN! ŞEHİR SENİ BEKLİYOR!</div>
+      <div class="success-message" id="success-message">Tüm görevleri tamamladın!</div>
+      <div class="success-stats">
+        <div class="success-stat-box">
+          <div class="stat-value" id="stat-commands">0</div>
+          <div class="stat-label">Komut</div>
+        </div>
+        <div class="success-stat-box">
+          <div class="stat-value" id="stat-battery">100%</div>
+          <div class="stat-label">Batarya</div>
+        </div>
       </div>
     </div>
-    <button class="success-next-btn" id="success-next-btn">SONRAKİ GÖREV →</button>
   </div>
 
   <!-- ═══ FAILURE OVERLAY ═══ -->
@@ -2092,7 +2194,7 @@
       <button id="toggle-panel-btn"><span class="toggle-icon">☰</span> Kodlama</button>
     </div>
     <div class="toolbar-center">
-      <button class="ctrl-btn" id="btn-run-toggle"><span>🚀</span> Başlat</button>
+      <button class="ctrl-btn" id="btn-run-toggle"><span>🚀</span> Çalıştır</button>
       <button class="ctrl-btn" id="btn-reset">↻ Sıfırla</button>
     </div>
     <div class="toolbar-right">
@@ -2237,6 +2339,27 @@
         <div class="exec-info-item">
           <span class="exec-info-label">💡 Adım Başı</span>
           <span class="exec-info-value" id="exec-cost-per-step">0.1%</span>
+        </div>
+      </div>
+
+      <!-- Energy info panel — always visible, bottom-left -->
+      <div id="energy-panel">
+        <div class="energy-panel-title">⚡ Enerji</div>
+        <div class="energy-panel-row">
+          <span class="energy-panel-label">Toplam</span>
+          <span class="energy-panel-value" id="ep-total">5%</span>
+        </div>
+        <div class="energy-panel-row">
+          <span class="energy-panel-label">Kalan</span>
+          <span class="energy-panel-value" id="ep-remaining">5%</span>
+        </div>
+        <div class="energy-panel-row">
+          <span class="energy-panel-label">Adım Başı</span>
+          <span class="energy-panel-value" id="ep-per-step">—</span>
+        </div>
+        <div class="energy-panel-row">
+          <span class="energy-panel-label">Kalan Adım</span>
+          <span class="energy-panel-value" id="ep-steps-left">—</span>
         </div>
       </div>
 

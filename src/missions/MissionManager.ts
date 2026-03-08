@@ -29,6 +29,11 @@ export class MissionManager {
     return this.missions.length
   }
 
+  getCurrentChapterMissions(): MissionDefinition[] {
+    const current = this.getCurrentMission()
+    return this.missions.filter(m => m.chapter === current.chapter)
+  }
+
   setMission(index: number): MissionDefinition {
     this.currentIndex = Math.max(0, Math.min(index, this.missions.length - 1))
     this.doorOpened = false

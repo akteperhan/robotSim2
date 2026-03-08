@@ -31,6 +31,9 @@ export interface EventMap {
   'program:complete': void
   'program:stopped': { stoppedAt: number }
 
+  // Mission
+  'mission:autoAdvance': void
+
   // Execution control
   'execution:paused': number
 }
