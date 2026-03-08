@@ -121,8 +121,8 @@ let gameState = GameState.INTRO
 function getPrimaryCameraPose(mode: GarageMode = garageMode): { pos: { x: number, y: number, z: number }, target: { x: number, y: number, z: number } } {
   if (mode === 'closed') {
     return {
-      pos: { x: GRID_CENTER_X, y: 3.5, z: -2.5 },
-      target: { x: GRID_CENTER_X, y: 0.5, z: 2.0 }
+      pos: { x: GRID_CENTER_X, y: 2.8, z: 1.5 },
+      target: { x: GRID_CENTER_X, y: 0.5, z: 8.0 }
     }
   }
   return { pos: CAM_POS, target: CAM_TARGET }
