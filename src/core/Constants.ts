@@ -8,7 +8,7 @@ export const GRID_H = 34
 export const GARAGE_DEPTH = 20
 export const DOOR_ROW = 20
 export const GRID_CENTER_X = Math.floor((GRID_W - 1) / 2)
-export const WALL_H = 3.0
+export const WALL_H = 4.5
 export const DOOR_PANEL_H = 0.50
 export const DOOR_Z = DOOR_ROW - 0.1
 

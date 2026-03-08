@@ -569,14 +569,25 @@ function createRobot(pos: Position): THREE.Group {
     vLine.position.set(px, 0.46, 0); g.add(vLine)
   }
 
-  // ── ARKA HAVALANDIRMA IZGARASI ──
+  // ── ARKA HAVALANDIRMA VE LOGO (titreme düzeltildi) ──
   const ventBackMat = new THREE.MeshStandardMaterial({ color: 0x4a7a8a, roughness: 0.4, metalness: 0.5 })
   const ventBack = new THREE.Mesh(new RoundedBoxGeometry(0.50, 0.28, 0.04, 2, 0.01), ventBackMat)
   ventBack.position.set(0, 0.40, -0.50); g.add(ventBack)
-  for (let vi = 0; vi < 5; vi++) {
-    const slat = new THREE.Mesh(new THREE.BoxGeometry(0.44, 0.015, 0.02), panelLineMat)
-    slat.position.set(0, 0.30 + vi * 0.05, -0.51); g.add(slat)
-  }
+
+  // Titreyen (z-fighting) slat'ler yerine Logo kullanımı
+  const logoTex = new THREE.TextureLoader().load('/logo.png')
+  logoTex.minFilter = THREE.LinearFilter
+  const logoMat = new THREE.MeshStandardMaterial({
+    map: logoTex,
+    transparent: true,
+    roughness: 0.5,
+    metalness: 0.1
+  })
+  // PlaneGeometry kullanarak logoyu ventBack'in biraz dışına yerleştir (z-fighting'i önlemek için)
+  const logoMesh = new THREE.Mesh(new THREE.PlaneGeometry(0.44, 0.24), logoMat)
+  logoMesh.position.set(0, 0.40, -0.521)
+  logoMesh.rotation.y = Math.PI // Arkaya dönük olması için 180 derece çevir
+  g.add(logoMesh)
 
   // ── YAN TUTAMAKLAR (taşıma kulpu) ──
   const handleMat = new THREE.MeshStandardMaterial({ color: 0x455a64, roughness: 0.3, metalness: 0.7 })
@@ -2367,11 +2378,39 @@ function renderLoop() {
   // Camera modes
   if (cameraMode === 'follow' && robotMesh) {
     const rp = robotMesh.position
-    // High overhead-behind angle for cinematic follow (wide view)
-    _tmpVec3A.set(rp.x + 4, rp.y + 14, rp.z - 9)
-    camera.position.lerp(_tmpVec3A, 0.04)
-    _tmpVec3B.set(rp.x, rp.y + 0.2, rp.z)
-    controls.target.lerp(_tmpVec3B, 0.04)
+    // Get robot's forward direction (it faces -Z by default, so its rotation affects this)
+    const rot = robotMesh.rotation.y
+    const dx = Math.sin(rot)
+    const dz = Math.cos(rot)
+
+    if (garageMode === 'closed') {
+      // Third-person view: behind the robot, looking forward
+      const camDist = 7.0 // Distance behind (increased for taller roof and wider view)
+
+      // Calculate ideal camera position (behind robot)
+      let idealX = rp.x - dx * camDist
+      let idealZ = rp.z - dz * camDist
+
+      // Clamp bounds so camera doesn't go through walls (allow a bit closer to walls since roof is higher)
+      // Duvar kalınlıkları ve objeler nedeniyle kameranın duvar içine girmemesi için limitleri artırdık
+      idealX = Math.max(0.5, Math.min(GRID_W - 1.5, idealX))
+      idealZ = Math.max(1.0, Math.min(GARAGE_DEPTH - 1.5, idealZ))
+
+      // Higher camera angle since the wall is taller (WALL_H is now 4.5)
+      // Tavan sınırını aşmamak için 4.3'e sabitlendi (önceki 8.0 çatıyı deliyordu)
+      _tmpVec3A.set(idealX, rp.y + 4.3, idealZ)
+      camera.position.lerp(_tmpVec3A, 0.08)
+
+      // Target slightly ahead of the robot
+      _tmpVec3B.set(rp.x + dx * 2, rp.y + 0.2, rp.z + dz * 2)
+      controls.target.lerp(_tmpVec3B, 0.08)
+    } else {
+      // High overhead-behind angle for open mode
+      _tmpVec3A.set(rp.x + 4, rp.y + 14, rp.z - 9)
+      camera.position.lerp(_tmpVec3A, 0.04)
+      _tmpVec3B.set(rp.x, rp.y + 0.2, rp.z)
+      controls.target.lerp(_tmpVec3B, 0.04)
+    }
     controls.update()
   } else if (cameraMode === 'cinematic') {
     cinematicAngle += 0.003
