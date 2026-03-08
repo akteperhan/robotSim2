@@ -137,4 +137,22 @@ export class UIManager {
     c.appendChild(t)
     setTimeout(() => t.remove(), 5000)
   }
+
+  /** Show alert below mission card */
+  showMissionAlert(icon: string, text: string, type: 'warning' | 'danger' | 'success' | 'info' = 'info', duration = 4000) {
+    const container = document.getElementById('mission-alerts')
+    if (!container) return
+    const alert = document.createElement('div')
+    alert.className = `mission-alert ${type}`
+    alert.innerHTML = `<span class="mission-alert-icon">${icon}</span><span class="mission-alert-text">${text}</span>`
+    container.appendChild(alert)
+    if (duration > 0) {
+      setTimeout(() => alert.remove(), duration)
+    }
+  }
+
+  clearMissionAlerts() {
+    const container = document.getElementById('mission-alerts')
+    if (container) container.innerHTML = ''
+  }
 }

@@ -1367,6 +1367,7 @@ function resetSimulationState() {
 
   ui.hideSuccess()
   ui.hideFailure()
+  ui.clearMissionAlerts()
   blocklyMgr.clearHighlight()
 
   robot = new Robot(ROBOT_START, Direction.NORTH)
@@ -1405,7 +1406,6 @@ function resetSimulationState() {
   updateRobotChargeIndicator(INITIAL_BATTERY_LEVEL)
   ui.updatePositionDisplay(robot)
   ui.updateStatus('Hazır', 'ready')
-  ui.updateMission(1, 'Tarayıcıya Ulaş', 'Robotu duvardaki mavi tarayıcı paneline kadar sür ve butona basarak kapıyı aç.')
   hideExecInfoPanel()
 }
 
@@ -1972,14 +1972,18 @@ function initGame() {
 
   // Events
   EventBus.on('battery:updated', (l: number) => { ui.updateBatteryUI(l); updateRobotChargeIndicator(l); updateEnergyPanel(l) })
-  EventBus.on('battery:critical', () => ui.showToast('⚠️ Batarya kritik!', 'warning'))
+  EventBus.on('battery:critical', () => {
+    ui.showMissionAlert('🔋', 'Batarya kritik seviyede!', 'danger', 5000)
+  })
   EventBus.on('door:opening', () => {
     animateDoorOpening()
     logPanel.addEntry('event', 'Garaj kapısı açılıyor')
+    ui.showMissionAlert('🚪', 'Kapı açılıyor!', 'success', 4000)
   })
   EventBus.on('button:pressed', () => {
     soundManager.playButtonPress()
     logPanel.addEntry('command', 'Butona basıldı')
+    ui.showMissionAlert('🔘', 'Butona basıldı!', 'info', 3000)
 
     // Button press animation
     if (buttonScreenMesh && buttonScreenMat) {
@@ -2029,6 +2033,7 @@ function initGame() {
     playChargingAnimation()
     if (particles) particles.emitChargeSparks(new THREE.Vector3(CHARGE_POS.x, 0.3, CHARGE_POS.y), 25)
     logPanel.addEntry('event', 'Şarj istasyonuna bağlandı')
+    ui.showMissionAlert('🔌', 'Şarj istasyonuna bağlandı!', 'info', 3000)
   })
 
   EventBus.on('robot:moved', () => {
@@ -2066,6 +2071,7 @@ function initGame() {
     isExecuting = false; gameState = GameState.FAILED
     blocklyMgr.clearHighlight()
     ui.showFailure('BIG-BOT\'un bataryası bitti! Daha verimli bir rota dene.')
+    ui.showMissionAlert('💀', 'Batarya bitti!', 'danger', 5000)
     logPanel.addEntry('error', 'Batarya bitti! Görev başarısız.')
   })
 
@@ -2075,6 +2081,7 @@ function initGame() {
     chargePulseUntil = 0
     ui.updateBatteryUI(100)
     gameState = GameState.COMPLETE
+    ui.showMissionAlert('⚡', 'Batarya %100 dolu!', 'success', 4000)
     blocklyMgr.clearHighlight()
 
     // Celebration: happy expression + jump
@@ -2120,6 +2127,7 @@ function initGame() {
         const currentMission = missionMgr.getCurrentMission()
         const chapterIdx = chapterMissions.findIndex(m => m.id === currentMission.id)
         const isLastMissionInChapter = chapterIdx === chapterMissions.length - 1
+        console.log('[MISSION] completed:', currentMission.id, 'chapterIdx:', chapterIdx, '/', chapterMissions.length, 'isLast:', isLastMissionInChapter)
 
         // Immediately update card to completed (green)
         updateMissionStarsDisplay()
