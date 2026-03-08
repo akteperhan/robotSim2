@@ -387,14 +387,14 @@ export class BlocklyManager {
       cur = b
     }
 
-    add('move_forward', { COUNT: 4 })
-    add('turn_left', { COUNT: 1 })
+    add('move_forward', { COUNT: 6 })
+    add('turn_right', { COUNT: 1 })
     add('move_forward', { COUNT: 5 })
     add('press_button')
-    add('turn_right', { COUNT: 1 })
-    add('move_forward', { COUNT: 17 })
-    add('turn_right', { COUNT: 1 })
-    add('move_forward', { COUNT: 2 })
+    add('turn_left', { COUNT: 1 })
+    add('move_forward', { COUNT: 18 })
+    add('turn_left', { COUNT: 1 })
+    add('move_forward', { COUNT: 5 })
     add('charge')
 
     this.updateProgramFromBlockly()

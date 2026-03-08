@@ -2,10 +2,10 @@ import { ICommand, CommandType, CommandResult, Color } from '../../core/ICommand
 import { Robot } from '../../entities/Robot'
 import { Grid } from '../Grid'
 import { InteractableType } from '../../core/IInteractable'
-import { BATTERY_COST } from '../../core/Constants'
+import { BATTERY_COST, DOOR_ANIMATION_DURATION } from '../../core/Constants'
 
 export class PressButtonCommand implements ICommand {
-  execute(robot: Robot, grid: Grid): CommandResult {
+  async execute(robot: Robot, grid: Grid): Promise<CommandResult> {
     const nearbyButton = grid.getInteractableInRange(robot.getPosition())
 
     if (!nearbyButton || nearbyButton.getType() !== InteractableType.BUTTON) {
@@ -17,6 +17,10 @@ export class PressButtonCommand implements ICommand {
     }
 
     nearbyButton.interact()
+
+    // Wait for door animation + cinematic camera sequence to complete
+    await new Promise(resolve => setTimeout(resolve, DOOR_ANIMATION_DURATION + 4000))
+
     return {
       success: true,
       batteryConsumed: BATTERY_COST.PRESS_BUTTON

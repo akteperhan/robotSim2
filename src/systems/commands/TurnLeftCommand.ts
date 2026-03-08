@@ -5,7 +5,7 @@ import { BATTERY_COST } from '../../core/Constants'
 
 export class TurnLeftCommand implements ICommand {
   execute(robot: Robot, grid: Grid): CommandResult {
-    robot.rotateLeft()
+    robot.rotateRight()
     return {
       success: true,
       batteryConsumed: BATTERY_COST.TURN_LEFT

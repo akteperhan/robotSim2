@@ -9,6 +9,8 @@ export interface GarageConfig {
     WALL_H: number
     DOOR_ROW: number
     BUTTON_X?: number
+    BUTTON_Y?: number
+    START_Y?: number
     CHARGE_X?: number
     CHARGE_Y?: number
 }
@@ -112,8 +114,8 @@ export function createGarage(config: GarageConfig) {
     const _tileChargeMat = new THREE.MeshStandardMaterial({ color: 0x29b6f6, emissive: 0x29b6f6, emissiveIntensity: 0.4, roughness: 0.3, metalness: 0.2 })
     void _tileChargeMat // suppress unused warning
 
-    const startX = config.GRID_CENTER_X, startZ = 3
-    const buttonX = config.BUTTON_X ?? 0, buttonZ = 7
+    const startX = config.GRID_CENTER_X, startZ = config.START_Y ?? 3
+    const buttonX = config.BUTTON_X ?? 0, buttonZ = config.BUTTON_Y ?? 7
     const chargeX = config.CHARGE_X ?? config.GRID_CENTER_X
     const chargeZ = (config.CHARGE_Y ?? (config.DOOR_ROW + 2))
 
