@@ -2383,10 +2383,42 @@
         font-size: 60px;
       }
     }
+
+  /* ═══ INTRO DRONE MODE: hide all game UI until user clicks start ═══ */
+  /* Layout elements: display:none so canvas fills full screen */
+  body.intro-active #top-toolbar,
+  body.intro-active #coding-panel {
+    display: none !important;
+  }
+  /* Canvas fills full viewport during intro */
+  body.intro-active #canvas-container {
+    position: fixed !important;
+    inset: 0 !important;
+    width: 100vw !important;
+    height: 100vh !important;
+    z-index: 1;
+  }
+  /* In-canvas UI elements: completely hidden */
+  body.intro-active #mission-overlay,
+  body.intro-active #exec-info-panel,
+  body.intro-active #energy-panel,
+  body.intro-active #status-overlay,
+  body.intro-active #toolbox-panel,
+  body.intro-active .toolbox-wrapper,
+  body.intro-active #toast-container,
+  body.intro-active #collision-flash {
+    display: none !important;
+  }
+  /* Fade-in for canvas UI elements when intro ends */
+  #mission-overlay, #exec-info-panel, #energy-panel,
+  #status-overlay, #toolbox-panel, .toolbox-wrapper {
+    transition: opacity 0.8s ease;
+  }
+
   </style>
 </head>
 
-<body>
+<body class="intro-active">
   <!-- ═══ INTRO CINEMATIC ═══ -->
   <div id="intro-overlay">
     <div class="intro-warning">

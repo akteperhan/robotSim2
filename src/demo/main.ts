@@ -2338,11 +2338,25 @@ function updateDroneCamera() {
   const angle  = droneTime * 0.42
   const radius = 22 + Math.sin(droneTime * 0.27) * 6   // 16 – 28 birim
   const height = 19 + Math.sin(droneTime * 0.18) * 4   // 15 – 23 birim
-  camera.position.set(
-    GRID_CENTER_X + Math.cos(angle) * radius,
-    height,
-    DOOR_ROW + 8 + Math.sin(angle) * radius * 0.72
-  )
+
+  let nx = GRID_CENTER_X + Math.cos(angle) * radius
+  let nz = DOOR_ROW + 8 + Math.sin(angle) * radius * 0.72
+
+  // Push drone out of building boxes (same logic as player camera)
+  for (const box of buildingBoxes) {
+    if (nx > box.min.x && nx < box.max.x &&
+        height > box.min.y && height < box.max.y &&
+        nz > box.min.z && nz < box.max.z) {
+      const bcx = (box.min.x + box.max.x) * 0.5
+      const bcz = (box.min.z + box.max.z) * 0.5
+      const penX = (box.max.x - box.min.x) * 0.5 - Math.abs(nx - bcx)
+      const penZ = (box.max.z - box.min.z) * 0.5 - Math.abs(nz - bcz)
+      if (penX <= penZ) { nx = nx < bcx ? box.min.x : box.max.x }
+      else              { nz = nz < bcz ? box.min.z : box.max.z }
+    }
+  }
+
+  camera.position.set(nx, height, nz)
   controls.target.set(GRID_CENTER_X, 1.2, DOOR_ROW + 8)
   controls.update()
 }
@@ -2605,8 +2619,25 @@ document.getElementById('intro-start-btn')!.addEventListener('click', () => {
   if (mainAmbientLight) mainAmbientLight.intensity = (garageMode === 'closed' ? 1.5 : 0.35) * lightMultiplier
   controls.maxPolarAngle = roofVisible ? Math.PI / 2.25 : Math.PI / 2.05
 
-  // Stop drone, animate camera down to overview
+  // Stop drone, reveal game UI with fade-in
   droneActive = false
+  // Step 1: remove intro-active → layout restores (display:none lifts)
+  document.body.classList.remove('intro-active')
+  // Step 2: resize Blockly + camera after layout reflow
+  setTimeout(() => {
+    blocklyMgr.resize()
+    const c = document.getElementById('canvas-container')!
+    camera.aspect = c.clientWidth / c.clientHeight
+    camera.updateProjectionMatrix()
+    renderer.setSize(c.clientWidth, c.clientHeight)
+  }, 50)
+  // Step 3: fade-in canvas UI elements
+  const fadeEls = ['mission-overlay', 'exec-info-panel', 'energy-panel',
+    'status-overlay', 'toolbox-panel'].map(id => document.getElementById(id))
+  fadeEls.forEach(el => { if (el) el.style.opacity = '0' })
+  requestAnimationFrame(() => {
+    fadeEls.forEach(el => { if (el) el.style.opacity = '' })
+  })
   const pose = getPrimaryCameraPose()
   animateCameraTo(pose.pos, pose.target, 2200)
 })
