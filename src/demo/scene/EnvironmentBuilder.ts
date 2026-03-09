@@ -3,20 +3,21 @@ import { Sky } from 'three/examples/jsm/objects/Sky.js'
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js'
 
 // ═══════════════════════════════════════════
-// SKY GRADIENT TEXTURE
+// SKY GRADIENT TEXTURE — vibrant city morning
 // ═══════════════════════════════════════════
 export function createSkyGradient(): THREE.Texture {
     const canvas = document.createElement('canvas')
     canvas.width = 2; canvas.height = 512
     const ctx = canvas.getContext('2d')!
     const g = ctx.createLinearGradient(0, 0, 0, 512)
-    g.addColorStop(0, '#1565c0')
-    g.addColorStop(0.15, '#1e88e5')
-    g.addColorStop(0.30, '#42a5f5')
-    g.addColorStop(0.50, '#64b5f6')
-    g.addColorStop(0.70, '#90caf9')
-    g.addColorStop(0.85, '#bbdefb')
-    g.addColorStop(1.0, '#e3f2fd')
+    g.addColorStop(0,    '#0d47a1')   // Deep cobalt at zenith
+    g.addColorStop(0.10, '#1565c0')   // Strong blue
+    g.addColorStop(0.25, '#1e88e5')   // Medium blue
+    g.addColorStop(0.42, '#42a5f5')   // Bright sky blue
+    g.addColorStop(0.60, '#81d4fa')   // Light azure
+    g.addColorStop(0.78, '#b3e5fc')   // Near horizon, pale blue-white
+    g.addColorStop(0.90, '#e1f5fe')   // Horizon haze
+    g.addColorStop(1.0,  '#fff8e1')   // Warm horizon glow
     ctx.fillStyle = g; ctx.fillRect(0, 0, 2, 512)
     const tex = new THREE.CanvasTexture(canvas)
     tex.mapping = THREE.EquirectangularReflectionMapping
@@ -47,33 +48,36 @@ export function createOutdoorScene(
     // === Atmospheric Fog (light and airy) ===
     scene.fog = new THREE.FogExp2(0xe8f4fd, 0.004)
 
-    // === Sky Shader (bright, cheerful, child-friendly) ===
+    // === Sky Shader (vivid blue, midday sun) ===
     const sky = new Sky()
     sky.scale.setScalar(480)
     sky.position.set(config.GRID_CENTER_X, 0, config.DOOR_ROW + 10)
     const skyUniforms = (sky.material as THREE.ShaderMaterial).uniforms as Record<string, THREE.IUniform<unknown>>
-        ; (skyUniforms['turbidity'] as THREE.IUniform<number>).value = 1.5
-        ; (skyUniforms['rayleigh'] as THREE.IUniform<number>).value = 1.2
-        ; (skyUniforms['mieCoefficient'] as THREE.IUniform<number>).value = 0.005
-        ; (skyUniforms['mieDirectionalG'] as THREE.IUniform<number>).value = 0.92
+        ; (skyUniforms['turbidity'] as THREE.IUniform<number>).value = 0.6
+        ; (skyUniforms['rayleigh'] as THREE.IUniform<number>).value = 3.5
+        ; (skyUniforms['mieCoefficient'] as THREE.IUniform<number>).value = 0.003
+        ; (skyUniforms['mieDirectionalG'] as THREE.IUniform<number>).value = 0.96
     const sunDir = new THREE.Vector3()
-    const elevation = 55, azimuth = 160
+    const elevation = 38, azimuth = 210
     sunDir.setFromSphericalCoords(1, THREE.MathUtils.degToRad(90 - elevation), THREE.MathUtils.degToRad(azimuth))
         ; (skyUniforms['sunPosition'] as THREE.IUniform<THREE.Vector3>).value.copy(sunDir)
         ; (sky.material as THREE.ShaderMaterial).depthWrite = false
     sky.name = 'env_sky'
     scene.add(sky)
 
-    // === Sun Disc ===
-    const sunWorldPos = sunDir.clone().multiplyScalar(150).add(new THREE.Vector3(config.GRID_CENTER_X, 0, config.DOOR_ROW + 10))
-    const sunDisc = new THREE.Mesh(new THREE.SphereGeometry(2.8, 32, 32),
+    // === Sun Disc (larger, clearly visible) ===
+    const skyCenter = new THREE.Vector3(config.GRID_CENTER_X, 0, config.DOOR_ROW + 10)
+    const sunWorldPos = sunDir.clone().multiplyScalar(200).add(skyCenter)
+    const sunDisc = new THREE.Mesh(new THREE.SphereGeometry(4.5, 32, 32),
         new THREE.MeshBasicMaterial({ color: 0xfffde7, depthTest: false }))
     sunDisc.position.copy(sunWorldPos); sunDisc.renderOrder = 999; sunDisc.name = 'env_sun_disc'
     scene.add(sunDisc)
-    const sunGlow = new THREE.Mesh(new THREE.SphereGeometry(5.5, 32, 32),
-        new THREE.MeshBasicMaterial({ color: 0xfff59d, transparent: true, opacity: 0.3, depthTest: false }))
-    sunGlow.position.copy(sunWorldPos); sunGlow.renderOrder = 998
-    scene.add(sunGlow)
+    const sunGlow1 = new THREE.Mesh(new THREE.SphereGeometry(7.5, 32, 32),
+        new THREE.MeshBasicMaterial({ color: 0xfff59d, transparent: true, opacity: 0.35, depthTest: false }))
+    sunGlow1.position.copy(sunWorldPos); sunGlow1.renderOrder = 998; scene.add(sunGlow1)
+    const sunGlow2 = new THREE.Mesh(new THREE.SphereGeometry(12, 32, 32),
+        new THREE.MeshBasicMaterial({ color: 0xffe082, transparent: true, opacity: 0.12, depthTest: false }))
+    sunGlow2.position.copy(sunWorldPos); sunGlow2.renderOrder = 997; scene.add(sunGlow2)
 
     // === Directional Sun Light ===
     const outdoorSun = new THREE.DirectionalLight(0xffffff, 1.2)
@@ -107,24 +111,42 @@ export function createOutdoorScene(
         scene.add(cloud); animatedObjects.clouds.push(cloud)
     })
 
-    // === Birds ===
-    const birdMat = new THREE.MeshStandardMaterial({ color: 0x333333, roughness: 0.8 })
-    for (let f = 0; f < 3; f++) {
+    // === Birds — multiple flocks, varied colors, lower altitude ===
+    const birdColors = [0x222222, 0x5a3a2a, 0x888888, 0xf0ece0, 0x3a3a5a, 0x4a3a3a, 0xc8c8c8]
+    const _DR = config.DOOR_ROW
+    const birdFlocks: [number, number, number, number, number][] = [
+        // [x, y, z, count, colorIdx]
+        [-18, 7,  _DR + 10, 5, 0],
+        [ -5, 9,  _DR + 22, 4, 2],
+        [ 10, 6,  _DR + 15, 6, 3],
+        [ 20, 8,  _DR + 30, 4, 1],
+        [-12, 10, _DR + 40, 5, 4],
+        [ 25, 7,  _DR +  5, 3, 6],
+        [  0, 8,  _DR + 35, 5, 5],
+        [-20, 6,  _DR -  5, 4, 2],
+        [ 18, 9,  _DR + 50, 4, 0],
+    ]
+    birdFlocks.forEach(([fx, fy, fz, count, cIdx]) => {
+        const mat = new THREE.MeshStandardMaterial({ color: birdColors[cIdx], roughness: 0.8 })
         const flock = new THREE.Group()
-        for (let b = 0; b < 4; b++) {
-            const wing1 = new THREE.Mesh(new THREE.BoxGeometry(0.25, 0.02, 0.08), birdMat)
-            wing1.position.set(-0.1, 0, 0); wing1.rotation.z = 0.3
-            const wing2 = new THREE.Mesh(new THREE.BoxGeometry(0.25, 0.02, 0.08), birdMat)
-            wing2.position.set(0.1, 0, 0); wing2.rotation.z = -0.3
-            const body = new THREE.Mesh(new THREE.SphereGeometry(0.04, 10, 8), birdMat)
+        for (let b = 0; b < count; b++) {
+            const wing1 = new THREE.Mesh(new THREE.BoxGeometry(0.28, 0.025, 0.09), mat)
+            wing1.position.set(-0.12, 0, 0); wing1.rotation.z = 0.35
+            const wing2 = new THREE.Mesh(new THREE.BoxGeometry(0.28, 0.025, 0.09), mat)
+            wing2.position.set(0.12, 0, 0); wing2.rotation.z = -0.35
+            const body = new THREE.Mesh(new THREE.SphereGeometry(0.045, 10, 8), mat)
             const bird = new THREE.Group()
             bird.add(wing1, wing2, body)
-            bird.position.set((Math.random() - 0.5) * 3, (Math.random() - 0.5) * 1, (Math.random() - 0.5) * 2)
+            bird.position.set(
+                (Math.random() - 0.5) * 4,
+                (Math.random() - 0.5) * 1.2,
+                (Math.random() - 0.5) * 3
+            )
             flock.add(bird)
         }
-        flock.position.set(-15 + f * 12, 14 + f * 2, 20 + f * 8)
+        flock.position.set(fx, fy, fz)
         scene.add(flock); animatedObjects.birds.push(flock)
-    }
+    })
 
     // === Airplanes ===
     const planeMat = new THREE.MeshStandardMaterial({ color: 0xfafafa, roughness: 0.3, metalness: 0.2 })
@@ -154,167 +176,165 @@ export function createOutdoorScene(
         animatedObjects.planes.push(planeGroup)
     }
 
-    // === DIORAMA BASE PLATFORM ===
-    const platformMat = new THREE.MeshStandardMaterial({ color: 0x5a6a5a, roughness: 0.85, metalness: 0.05 })
-    const platformGeom = new THREE.BoxGeometry(50, 0.3, 60)
-    platformGeom.translate(config.GRID_CENTER_X, -0.35, 22)
-    collect('platform', platformMat, platformGeom, false, true)
+    // ═══════════════════════════════════════════
+    // GROUND SYSTEM — eliminates floating/empty feel
+    // ═══════════════════════════════════════════
+    const CX = config.GRID_CENTER_X  // = 5
+    const DR = config.DOOR_ROW       // = 20
+    const GW = config.GRID_W         // = 12
 
-    // === ROAD SURFACE (darker asphalt) ===
-    const roadMat = new THREE.MeshStandardMaterial({ color: 0x3a3a3a, roughness: 0.85, metalness: 0.0 })
-    const roadGeom = new THREE.PlaneGeometry(config.GRID_W + 6, 44)
-    roadGeom.rotateX(-Math.PI / 2)
-    roadGeom.translate(config.GRID_CENTER_X, -0.14, config.DOOR_ROW + 10)
-    collect('road', roadMat, roadGeom, false, true)
+    // 1. MEGA earth base — 400×400, fills everything below
+    const earthMat = new THREE.MeshStandardMaterial({ color: 0x5c7a4a, roughness: 0.95, metalness: 0.0 })
+    const earthGeom = new THREE.PlaneGeometry(400, 400)
+    earthGeom.rotateX(-Math.PI / 2)
+    earthGeom.translate(CX, -0.6, DR + 15)
+    collect('earth', earthMat, earthGeom, false, true)
 
-    // === SIDEWALKS (scored concrete) ===
-    const sidewalkMat = new THREE.MeshStandardMaterial({ color: 0xc8c8c0, roughness: 0.7, metalness: 0.0 })
-    const leftSWGeom = new THREE.BoxGeometry(5, 0.12, 44)
-    leftSWGeom.translate(-3.5, -0.12, config.DOOR_ROW + 10)
-    collect('sidewalk', sidewalkMat, leftSWGeom, false, true)
-    const rightSWGeom = new THREE.BoxGeometry(5, 0.12, 44)
-    rightSWGeom.translate(config.GRID_W + 2.5, -0.12, config.DOOR_ROW + 10)
-    collect('sidewalk', sidewalkMat, rightSWGeom, false, true)
+    // 2. City block concrete — large flat concrete surface (120×90)
+    const concreteMat = new THREE.MeshStandardMaterial({ color: 0xb0aca0, roughness: 0.82, metalness: 0.0 })
+    const concreteGeom = new THREE.PlaneGeometry(120, 90)
+    concreteGeom.rotateX(-Math.PI / 2)
+    concreteGeom.translate(CX, -0.22, DR + 12)
+    collect('concrete', concreteMat, concreteGeom, false, true)
 
-    // Sidewalk joint lines (scored concrete look)
-    const jointMat = new THREE.MeshStandardMaterial({ color: 0x9a9a90, roughness: 0.8 })
-    for (let z = config.DOOR_ROW - 6; z < config.DOOR_ROW + 32; z += 1.5) {
-        // Left sidewalk joints
-        const ljG = new THREE.BoxGeometry(5, 0.005, 0.03)
-        ljG.translate(-3.5, -0.055, z)
-        collect('swJoints', jointMat, ljG)
-        // Right sidewalk joints
-        const rjG = new THREE.BoxGeometry(5, 0.005, 0.03)
-        rjG.translate(config.GRID_W + 2.5, -0.055, z)
-        collect('swJoints', jointMat, rjG)
+    // 3. MAIN ROAD (north-south, wider: 14 units wide, 100 long)
+    const roadMat = new THREE.MeshStandardMaterial({ color: 0x323232, roughness: 0.88, metalness: 0.0 })
+    const mainRoadG = new THREE.PlaneGeometry(14, 100)
+    mainRoadG.rotateX(-Math.PI / 2)
+    mainRoadG.translate(CX, -0.18, DR + 15)
+    collect('road', roadMat, mainRoadG, false, true)
+
+    // 4. CROSS ROADS (east-west, at DR+3, DR+24, DR+44)
+    for (const cz of [DR + 3, DR + 24, DR + 44]) {
+        const crG = new THREE.PlaneGeometry(100, 8)
+        crG.rotateX(-Math.PI / 2)
+        crG.translate(CX, -0.17, cz)
+        collect('road', roadMat, crG, false, true)
+    }
+    // Back road (behind garage)
+    const backRoadG = new THREE.PlaneGeometry(100, 8)
+    backRoadG.rotateX(-Math.PI / 2)
+    backRoadG.translate(CX, -0.17, DR - 28)
+    collect('road', roadMat, backRoadG, false, true)
+
+    // 5. SIDEWALKS — wider, on both sides, longer
+    const sidewalkMat = new THREE.MeshStandardMaterial({ color: 0xc4c0b4, roughness: 0.72, metalness: 0.0 })
+    // Left sidewalk (x = CX - 10 to CX - 7)
+    const lsw = new THREE.BoxGeometry(6, 0.1, 100)
+    lsw.translate(CX - 10, -0.19, DR + 15)
+    collect('sidewalk', sidewalkMat, lsw, false, true)
+    // Right sidewalk (x = CX + 7 to CX + 10)
+    const rsw = new THREE.BoxGeometry(6, 0.1, 100)
+    rsw.translate(CX + 11, -0.19, DR + 15)
+    collect('sidewalk', sidewalkMat, rsw, false, true)
+    // Cross-road sidewalks (perpendicular)
+    for (const cz of [DR + 3, DR + 24]) {
+        const csw1 = new THREE.BoxGeometry(100, 0.1, 3)
+        csw1.translate(CX, -0.19, cz - 5.5)
+        collect('sidewalk', sidewalkMat, csw1, false, true)
+        const csw2 = new THREE.BoxGeometry(100, 0.1, 3)
+        csw2.translate(CX, -0.19, cz + 5.5)
+        collect('sidewalk', sidewalkMat, csw2, false, true)
     }
 
-    // === RAISED CURBS ===
-    const curbMat = new THREE.MeshStandardMaterial({ color: 0xa0a0a0, roughness: 0.7, metalness: 0.0 })
-    // Left curb
-    const lcurbG = new THREE.BoxGeometry(0.18, 0.15, 44)
-    lcurbG.translate(-0.9, -0.075, config.DOOR_ROW + 10)
-    collect('curbs', curbMat, lcurbG)
-    // Right curb
-    const rcurbG = new THREE.BoxGeometry(0.18, 0.15, 44)
-    rcurbG.translate(config.GRID_W - 0.1, -0.075, config.DOOR_ROW + 10)
-    collect('curbs', curbMat, rcurbG)
-
-    // === WHITE ROAD MARKINGS ===
-    const whiteMat = new THREE.MeshStandardMaterial({ color: 0xe8e8e8, roughness: 0.5 })
-    // Solid edge lines
-    for (const xPos of [-0.7, config.GRID_W - 0.3]) {
-        const lineGeom = new THREE.BoxGeometry(0.10, 0.02, 40)
-        lineGeom.translate(xPos, -0.06, config.DOOR_ROW + 10)
-        collect('roadMarkings', whiteMat, lineGeom)
-    }
-    // Center dashed white line
-    for (let z = config.DOOR_ROW - 6; z < config.DOOR_ROW + 32; z += 2.5) {
-        const dashGeom = new THREE.BoxGeometry(0.08, 0.02, 1.2)
-        dashGeom.translate(config.GRID_CENTER_X, -0.06, z)
-        collect('roadMarkings', whiteMat, dashGeom)
+    // 6. RAISED CURBS
+    const curbMat = new THREE.MeshStandardMaterial({ color: 0x9a9890, roughness: 0.72, metalness: 0.0 })
+    for (const [cx2, cz2, w, d] of [
+        [CX - 7, DR + 15, 0.2, 100],   // left inner curb
+        [CX + 8, DR + 15, 0.2, 100],   // right inner curb
+    ] as [number, number, number, number][]) {
+        const cG = new THREE.BoxGeometry(w, 0.14, d)
+        cG.translate(cx2, -0.1, cz2)
+        collect('curbs', curbMat, cG)
     }
 
-    // === CROSSWALK STRIPES ===
-    for (let i = 0; i < 7; i++) {
-        const stripeGeom = new THREE.BoxGeometry(1.0, 0.02, 0.35)
-        stripeGeom.translate(-0.5 + i * ((config.GRID_W + 0.6) / 6), -0.06, config.DOOR_ROW + 3)
-        collect('roadMarkings', whiteMat, stripeGeom)
-    }
-    for (let i = 0; i < 7; i++) {
-        const stripeGeom = new THREE.BoxGeometry(1.0, 0.02, 0.35)
-        stripeGeom.translate(-0.5 + i * ((config.GRID_W + 0.6) / 6), -0.06, config.DOOR_ROW + 28)
-        collect('roadMarkings', whiteMat, stripeGeom)
+    // 7. GRASS STRIPS (between sidewalk and buildings, both sides)
+    const grassMat = new THREE.MeshStandardMaterial({ color: 0x66a836, roughness: 0.92, metalness: 0.0 })
+    // Left grass
+    const lgG = new THREE.BoxGeometry(4, 0.06, 100)
+    lgG.translate(CX - 15, -0.24, DR + 15)
+    collect('grass', grassMat, lgG, false, true)
+    // Right grass
+    const rgG = new THREE.BoxGeometry(4, 0.06, 100)
+    rgG.translate(CX + 15, -0.24, DR + 15)
+    collect('grass', grassMat, rgG, false, true)
+    // Far side grass zones
+    for (const [gx, gz, gw, gd] of [
+        [CX - 35, DR + 15, 30, 100],
+        [CX + 35, DR + 15, 30, 100],
+        [CX, DR + 68, 120, 20],
+        [CX, DR - 40, 120, 16],
+    ] as [number, number, number, number][]) {
+        const fgG = new THREE.BoxGeometry(gw, 0.05, gd)
+        fgG.translate(gx, -0.25, gz)
+        collect('grass', grassMat, fgG, false, true)
     }
 
-    // === CROSS STREETS ===
-    for (const cz of [config.DOOR_ROW + 3, config.DOOR_ROW + 28]) {
-        const crossRoadGeom = new THREE.PlaneGeometry(50, 5)
-        crossRoadGeom.rotateX(-Math.PI / 2)
-        crossRoadGeom.translate(config.GRID_CENTER_X, -0.13, cz)
-        collect('road', roadMat, crossRoadGeom, false, true)
-        for (const edgeOff of [-2.3, 2.3]) {
-            const edgeLineGeom = new THREE.BoxGeometry(50, 0.02, 0.08)
-            edgeLineGeom.translate(config.GRID_CENTER_X, -0.05, cz + edgeOff)
-            collect('roadMarkings', whiteMat, edgeLineGeom)
+    // 8. WHITE ROAD MARKINGS
+    const whiteMat = new THREE.MeshStandardMaterial({ color: 0xe0e0de, roughness: 0.5 })
+    // Main road center dashes
+    for (let z = DR - 8; z < DR + 68; z += 3.5) {
+        const dashG = new THREE.BoxGeometry(0.1, 0.02, 1.8)
+        dashG.translate(CX, -0.14, z)
+        collect('roadMarkings', whiteMat, dashG)
+    }
+    // Main road edge lines
+    for (const xOff of [-6.9, 6.9]) {
+        const elG = new THREE.BoxGeometry(0.12, 0.02, 100)
+        elG.translate(CX + xOff, -0.14, DR + 15)
+        collect('roadMarkings', whiteMat, elG)
+    }
+    // Crosswalk stripes at DR+3 and DR+24
+    for (const cz of [DR + 3, DR + 24]) {
+        for (let i = 0; i < 9; i++) {
+            const sw = new THREE.BoxGeometry(1.1, 0.02, 0.42)
+            sw.translate(CX - 4.4 + i * 1.1, -0.14, cz)
+            collect('roadMarkings', whiteMat, sw)
+        }
+    }
+    // Cross road edge lines
+    for (const cz of [DR + 3, DR + 24]) {
+        for (const zOff of [-4.1, 4.1]) {
+            const elG2 = new THREE.BoxGeometry(100, 0.02, 0.1)
+            elG2.translate(CX, -0.14, cz + zOff)
+            collect('roadMarkings', whiteMat, elG2)
         }
     }
 
-    // === COURTYARD ===
-    const courtyardMat = new THREE.MeshStandardMaterial({ color: 0xb8b8b0, roughness: 0.7 })
-    const courtyardGeom = new THREE.BoxGeometry(config.GRID_W + 2, 0.06, 3)
-    courtyardGeom.translate(config.GRID_CENTER_X, -0.1, config.DOOR_ROW + 1)
-    collect('courtyard', courtyardMat, courtyardGeom, false, true)
+    // 9. GARAGE ENTRANCE APRON (wider, cleaner)
+    const apronMat = new THREE.MeshStandardMaterial({ color: 0xcac6ba, roughness: 0.78, metalness: 0.0 })
+    const apronG = new THREE.BoxGeometry(GW + 4, 0.05, 4)
+    apronG.translate(CX, -0.17, DR - 1)
+    collect('apron', apronMat, apronG, false, true)
 
-    // === PARKING AREA (near garage entrance) ===
-    const parkLinesMat = new THREE.MeshStandardMaterial({ color: 0xe0e0e0, roughness: 0.5 })
-    // 4 parking spaces to the right of garage entrance
-    for (let pi = 0; pi < 4; pi++) {
-        const pz = config.DOOR_ROW + 1.5 + pi * 2.2
-        // Left line
-        const plG = new THREE.BoxGeometry(0.05, 0.01, 2.0)
-        plG.translate(config.GRID_W + 1.0, -0.06, pz)
+    // 10. PARKING AREA (right side, more spaces)
+    const parkLinesMat = new THREE.MeshStandardMaterial({ color: 0xe0e0d8, roughness: 0.52 })
+    for (let pi = 0; pi < 6; pi++) {
+        const pz = DR + 1 + pi * 2.4
+        const plG = new THREE.BoxGeometry(0.06, 0.01, 2.2)
+        plG.translate(GW + 1.5, -0.14, pz)
         collect('parkLines', parkLinesMat, plG)
-        // Right line
-        const prG = new THREE.BoxGeometry(0.05, 0.01, 2.0)
-        prG.translate(config.GRID_W + 3.5, -0.06, pz)
+        const prG = new THREE.BoxGeometry(0.06, 0.01, 2.2)
+        prG.translate(GW + 4.5, -0.14, pz)
         collect('parkLines', parkLinesMat, prG)
     }
-    // Front and back lines
-    const parkFrontG = new THREE.BoxGeometry(2.5, 0.01, 0.05)
-    parkFrontG.translate(config.GRID_W + 2.25, -0.06, config.DOOR_ROW + 0.5)
+    const parkFrontG = new THREE.BoxGeometry(3, 0.01, 0.06)
+    parkFrontG.translate(GW + 3, -0.14, DR)
     collect('parkLines', parkLinesMat, parkFrontG)
-    const parkBackG = new THREE.BoxGeometry(2.5, 0.01, 0.05)
-    parkBackG.translate(config.GRID_W + 2.25, -0.06, config.DOOR_ROW + 9.3)
+    const parkBackG = new THREE.BoxGeometry(3, 0.01, 0.06)
+    parkBackG.translate(GW + 3, -0.14, DR + 15)
     collect('parkLines', parkLinesMat, parkBackG)
 
-    // Concrete bollards at parking corners
-    const bollardMat = new THREE.MeshStandardMaterial({ color: 0x909090, roughness: 0.7 })
+    // 11. BOLLARDS at parking & key corners
+    const bollardMat = new THREE.MeshStandardMaterial({ color: 0x8a8880, roughness: 0.7 })
     for (const [bx, bz] of [
-        [config.GRID_W + 0.8, config.DOOR_ROW + 0.4],
-        [config.GRID_W + 3.7, config.DOOR_ROW + 0.4],
-        [config.GRID_W + 0.8, config.DOOR_ROW + 9.5],
+        [GW + 1.2, DR + 0.3], [GW + 4.8, DR + 0.3], [GW + 1.2, DR + 14.8],
+        [CX - 7.2, DR + 0.3], [CX + 7.2, DR + 0.3],
     ] as [number, number][]) {
-        const bG = new THREE.CylinderGeometry(0.06, 0.08, 0.5, 8)
-        bG.translate(bx, 0.25, bz)
+        const bG = new THREE.CylinderGeometry(0.07, 0.09, 0.52, 8)
+        bG.translate(bx, 0.26, bz)
         collect('bollards', bollardMat, bG)
     }
-
-    // === GARAGE ENTRANCE APRON ===
-    const apronMat = new THREE.MeshStandardMaterial({ color: 0xd0ccc0, roughness: 0.75, metalness: 0.0 })
-    const apronGeom = new THREE.BoxGeometry(config.GRID_W + 2, 0.04, 2.5)
-    apronGeom.translate(config.GRID_CENTER_X, -0.16, config.DOOR_ROW - 0.5)
-    collect('apron', apronMat, apronGeom, false, true)
-
-    // === GREEN STRIPS (grass between sidewalk and buildings) ===
-    const grassMat = new THREE.MeshStandardMaterial({ color: 0x7cb342, roughness: 0.9, metalness: 0.0 })
-    // Left grass strip
-    const lGrassG = new THREE.BoxGeometry(2.0, 0.08, 44)
-    lGrassG.translate(-6.5, -0.14, config.DOOR_ROW + 10)
-    collect('grass', grassMat, lGrassG, false, true)
-    // Right grass strip
-    const rGrassG = new THREE.BoxGeometry(2.0, 0.08, 44)
-    rGrassG.translate(config.GRID_W + 5.5, -0.14, config.DOOR_ROW + 10)
-    collect('grass', grassMat, rGrassG, false, true)
-
-    // === PLATFORM EDGE BORDER (city block boundary) ===
-    const edgeMat = new THREE.MeshStandardMaterial({ color: 0x78909c, roughness: 0.6, metalness: 0.1 })
-    // Front edge
-    const frontEdgeG = new THREE.BoxGeometry(50, 0.5, 0.3)
-    frontEdgeG.translate(config.GRID_CENTER_X, -0.25, 52)
-    collect('edges', edgeMat, frontEdgeG)
-    // Back edge
-    const backEdgeG = new THREE.BoxGeometry(50, 0.5, 0.3)
-    backEdgeG.translate(config.GRID_CENTER_X, -0.25, -8)
-    collect('edges', edgeMat, backEdgeG)
-    // Left edge
-    const leftEdgeG = new THREE.BoxGeometry(0.3, 0.5, 60)
-    leftEdgeG.translate(config.GRID_CENTER_X - 25, -0.25, 22)
-    collect('edges', edgeMat, leftEdgeG)
-    // Right edge
-    const rightEdgeG = new THREE.BoxGeometry(0.3, 0.5, 60)
-    rightEdgeG.translate(config.GRID_CENTER_X + 25, -0.25, 22)
-    collect('edges', edgeMat, rightEdgeG)
 
     // ═══════════════════════════════════════════
     // BUILDING SYSTEM — Muted Realistic Palette
@@ -372,11 +392,6 @@ export function createOutdoorScene(
     })
     const shopDoorMat = new THREE.MeshStandardMaterial({ color: 0x4a3a2a, roughness: 0.6 })
 
-    // Water tower materials
-    const waterTowerLegMat = new THREE.MeshStandardMaterial({ color: 0x5D4037, roughness: 0.7 })
-    const waterTowerTankMat = new THREE.MeshStandardMaterial({ color: 0x7a6050, roughness: 0.6 })
-    const waterTowerConeMat = new THREE.MeshStandardMaterial({ color: 0x4E342E, roughness: 0.7 })
-
     // Window ledge / cornice materials
     const ledgeMat = new THREE.MeshStandardMaterial({ color: 0xc0b8a8, roughness: 0.6, metalness: 0.05 })
     const corniceMat = new THREE.MeshStandardMaterial({ color: 0xb0a898, roughness: 0.6, metalness: 0.05 })
@@ -386,7 +401,6 @@ export function createOutdoorScene(
         bw: number, bh: number, bd: number,
         paletteIdx: number, floors: number,
         options?: {
-            hasWaterTower?: boolean,
             hasAwning?: boolean,
             awningColor?: number,
             hasShopFront?: boolean,
@@ -504,20 +518,6 @@ export function createOutdoorScene(
             collect('bldgParapet', parapetMat, ppG)
         }
 
-        // Water tower
-        if (opts.hasWaterTower) {
-            for (const [lx, lz] of [[0.2, 0.2], [-0.2, 0.2], [0.2, -0.2], [-0.2, -0.2]] as [number, number][]) {
-                const legGeom = new THREE.CylinderGeometry(0.03, 0.03, 0.6, 8)
-                legGeom.translate(bx + lx, bh + 0.42, bz + lz)
-                collect('waterTowerLeg', waterTowerLegMat, legGeom)
-            }
-            const tankGeom = new THREE.CylinderGeometry(0.3, 0.3, 0.5, 12)
-            tankGeom.translate(bx, bh + 0.97, bz)
-            collect('waterTowerTank', waterTowerTankMat, tankGeom)
-            const coneGeom = new THREE.ConeGeometry(0.35, 0.25, 12)
-            coneGeom.translate(bx, bh + 1.35, bz)
-            collect('waterTowerCone', waterTowerConeMat, coneGeom)
-        }
     }
 
     // ═══════════════════════════════════════════
@@ -526,7 +526,7 @@ export function createOutdoorScene(
 
     // Left side buildings
     addBuilding(-8, config.DOOR_ROW + 7, 4, 8, 4, 0, 4,
-        { hasAwning: true, awningColor: 0x2a4a2a, hasShopFront: true, hasWaterTower: true })
+        { hasAwning: true, awningColor: 0x2a4a2a, hasShopFront: true })
     addBuilding(-8, config.DOOR_ROW + 14, 3.8, 12, 3.8, 1, 5,
         { hasAwning: true, awningColor: 0x6a2030, hasShopFront: true })
     addBuilding(-8, config.DOOR_ROW + 21, 3.5, 6, 3.5, 4, 3,
@@ -534,17 +534,58 @@ export function createOutdoorScene(
 
     // Right side buildings
     addBuilding(config.GRID_W + 8, config.DOOR_ROW + 6, 4, 14, 4, 2, 5,
-        { hasAwning: true, awningColor: 0x3a4a3a, hasShopFront: true, hasWaterTower: true })
+        { hasAwning: true, awningColor: 0x3a4a3a, hasShopFront: true })
     addBuilding(config.GRID_W + 8, config.DOOR_ROW + 13, 3.8, 7, 3.8, 3, 3,
         { hasAwning: true, awningColor: 0x5a4a30, hasShopFront: true })
     addBuilding(config.GRID_W + 8, config.DOOR_ROW + 20, 3.5, 10, 3.5, 5, 4,
         { hasAwning: true, awningColor: 0x2a3a3a, hasShopFront: true })
 
     // Background buildings
-    addBuilding(-14, config.DOOR_ROW + 8, 4.5, 16, 4.5, 6, 5, { hasWaterTower: true, roofColor: 0x707070 })
+    addBuilding(-14, config.DOOR_ROW + 8, 4.5, 16, 4.5, 6, 5, { roofColor: 0x707070 })
     addBuilding(-14, config.DOOR_ROW + 17, 4, 10, 4, 7, 4, { roofColor: 0x707070 })
     addBuilding(config.GRID_W + 15, config.DOOR_ROW + 7, 4.5, 18, 4.5, 0, 6, { roofColor: 0x707070 })
-    addBuilding(config.GRID_W + 15, config.DOOR_ROW + 16, 4, 12, 4, 3, 4, { hasWaterTower: true, roofColor: 0x707070 })
+    addBuilding(config.GRID_W + 15, config.DOOR_ROW + 16, 4, 12, 4, 3, 4, { roofColor: 0x707070 })
+
+    // Extended left/right side buildings (more z coverage)
+    addBuilding(-8, DR + 29, 4, 9, 4, 2, 4, { hasAwning: true, awningColor: 0x3a2a5a, hasShopFront: true })
+    addBuilding(-8, DR + 37, 3.5, 7, 3.5, 5, 3, { hasShopFront: true })
+    addBuilding(GW + 8, DR + 29, 3.8, 11, 3.8, 4, 4, { hasShopFront: true })
+    addBuilding(GW + 8, DR + 37, 4, 8, 4, 6, 3, { hasAwning: true, awningColor: 0x4a3a1a })
+
+    // Behind garage: buildings flanking the alley
+    addBuilding(-8, DR - 8, 4, 11, 4, 3, 4, { roofColor: 0x707070 })
+    addBuilding(-8, DR - 17, 3.8, 8, 3.8, 1, 3, { hasShopFront: true })
+    addBuilding(GW + 8, DR - 8, 4, 13, 4, 0, 5, { roofColor: 0x707070 })
+    addBuilding(GW + 8, DR - 17, 3.8, 9, 3.8, 2, 3, { hasShopFront: true })
+
+    // Deeper far-left (x = -18): more z coverage
+    addBuilding(-18, DR - 6, 5, 16, 5, 2, 5, { roofColor: 0x707070 })
+    addBuilding(-18, DR + 27, 5, 20, 5, 0, 7, { roofColor: 0x707070 })
+    addBuilding(-18, DR + 38, 4.5, 14, 4.5, 3, 5, { roofColor: 0x707070 })
+
+    // Deeper far-right (x = GW+15 = 27): more z coverage
+    addBuilding(GW + 15, DR - 6, 5, 18, 5, 6, 6, { roofColor: 0x707070 })
+    addBuilding(GW + 15, DR + 27, 5, 20, 5, 1, 6, { roofColor: 0x707070 })
+    addBuilding(GW + 15, DR + 38, 4.5, 15, 4.5, 4, 5, { roofColor: 0x707070 })
+
+    // Very far silhouette buildings (simple boxes — distant city depth)
+    ;([
+        [-28, DR + 12, 7, 24, 7, 3], [-28, DR + 28, 6, 18, 6, 5],
+        [-28, DR + 42, 7, 28, 7, 1], [-28, DR - 10, 6, 20, 6, 4],
+        [GW + 28, DR + 12, 7, 26, 7, 0], [GW + 28, DR + 28, 6, 19, 6, 2],
+        [GW + 28, DR + 42, 7, 30, 7, 6], [GW + 28, DR - 10, 6, 22, 6, 3],
+        [CX - 48, DR + 15, 8, 20, 8, 2], [CX + 46, DR + 15, 8, 18, 8, 5],
+        [CX - 15, DR + 68, 9, 22, 9, 0], [CX + 10, DR + 68, 9, 25, 9, 3],
+        [CX + 28, DR + 65, 8, 20, 8, 6],
+    ] as [number, number, number, number, number, number][]).forEach(([bx2, bz2, bw2, bh2, bd2, pi2]) => {
+        const bMat = getBodyMat(pi2)
+        const bG = new THREE.BoxGeometry(bw2, bh2, bd2)
+        bG.translate(bx2, bh2 / 2, bz2)
+        collect('body_' + (pi2 % buildingPalette.length), bMat, bG, true, false)
+        const rG = new THREE.BoxGeometry(bw2 + 0.15, 0.18, bd2 + 0.15)
+        rG.translate(bx2, bh2 + 0.09, bz2)
+        collect('roof', getRoofMat(0x707070), rG)
+    })
 
     // ═══════════════════════════════════════════
     // CARS — Realistic Colors
@@ -637,6 +678,18 @@ export function createOutdoorScene(
     addCar(config.GRID_W + 0.8, config.DOOR_ROW + 15, Math.PI, 3)
     addCar(config.GRID_W + 0.8, config.DOOR_ROW + 22, Math.PI, 5)
 
+    // Cross-road cars (east-west traffic)
+    addCar(CX - 22, DR + 3, -Math.PI / 2, 1)
+    addCar(CX + 20, DR + 3, Math.PI / 2, 4)
+    addCar(CX - 22, DR + 24, -Math.PI / 2, 2)
+    addCar(CX + 20, DR + 24, Math.PI / 2, 6)
+    // Extended north lane
+    addCar(-1.8, DR + 30, 0, 2)
+    addCar(GW + 0.8, DR + 30, Math.PI, 0)
+    // Behind garage lane
+    addCar(-1.8, DR - 12, 0, 3)
+    addCar(GW + 0.8, DR - 10, Math.PI, 6)
+
     // ═══════════════════════════════════════════
     // TREES — Taller with multi-sphere canopy
     // ═══════════════════════════════════════════
@@ -682,6 +735,12 @@ export function createOutdoorScene(
     leftTreeZ.forEach((z, i) => addTree(-2.5, z, i))
     const rightTreeZ = [config.DOOR_ROW + 7, config.DOOR_ROW + 12, config.DOOR_ROW + 19, config.DOOR_ROW + 25]
     rightTreeZ.forEach((z, i) => addTree(config.GRID_W + 1.5, z, i + 2))
+
+    // Extended trees — new building zones
+    ;([DR + 27, DR + 33] as number[]).forEach((z, i) => addTree(-2.5, z, i + 4))
+    ;([DR + 29, DR + 35] as number[]).forEach((z, i) => addTree(GW + 1.5, z, i + 1))
+    addTree(-2.5, DR - 5, 2)
+    addTree(GW + 1.5, DR - 5, 3)
 
     // ═══════════════════════════════════════════
     // SHRUBS / HEDGES
@@ -850,6 +909,56 @@ export function createOutdoorScene(
     scene.add(skyLight)
 
     return { skyLight, animatedObjects }
+}
+
+// ═══════════════════════════════════════════
+// BUILDING COLLISION BOXES (for camera)
+// ═══════════════════════════════════════════
+export function getBuildingCollisionBoxes(
+    config: { GRID_W: number, DOOR_ROW: number }
+): THREE.Box3[] {
+    const GW = config.GRID_W
+    const DR = config.DOOR_ROW
+    const M = 0.7  // collision margin around each building
+
+    // [cx, cz, half-width-x, maxY, half-depth-z]
+    const defs: [number, number, number, number, number][] = [
+        // Left side
+        [-8, DR + 7,   2 + M, 9,  2 + M],
+        [-8, DR + 14,  1.9 + M, 13, 1.9 + M],
+        [-8, DR + 21,  1.75 + M, 7, 1.75 + M],
+        [-8, DR + 29,  2 + M, 10, 2 + M],
+        [-8, DR + 37,  1.75 + M, 8, 1.75 + M],
+        [-8, DR - 8,   2 + M, 12, 2 + M],
+        [-8, DR - 17,  1.9 + M, 9, 1.9 + M],
+        // Right side
+        [GW + 8, DR + 6,  2 + M, 15, 2 + M],
+        [GW + 8, DR + 13, 1.9 + M, 8,  1.9 + M],
+        [GW + 8, DR + 20, 1.75 + M, 11, 1.75 + M],
+        [GW + 8, DR + 29, 1.9 + M, 12, 1.9 + M],
+        [GW + 8, DR + 37, 2 + M, 9,  2 + M],
+        [GW + 8, DR - 8,  2 + M, 14, 2 + M],
+        [GW + 8, DR - 17, 1.9 + M, 10, 1.9 + M],
+        // Far left background
+        [-14, DR + 8,  2.25 + M, 17, 2.25 + M],
+        [-14, DR + 17, 2 + M,   11, 2 + M],
+        [-18, DR - 6,  2.5 + M, 17, 2.5 + M],
+        [-18, DR + 27, 2.5 + M, 21, 2.5 + M],
+        [-18, DR + 38, 2.25 + M, 15, 2.25 + M],
+        // Far right background
+        [GW + 15, DR + 7,  2.25 + M, 19, 2.25 + M],
+        [GW + 15, DR + 16, 2 + M,   13, 2 + M],
+        [GW + 15, DR - 6,  2.5 + M, 19, 2.5 + M],
+        [GW + 15, DR + 27, 2.5 + M, 21, 2.5 + M],
+        [GW + 15, DR + 38, 2.25 + M, 16, 2.25 + M],
+    ]
+
+    return defs.map(([cx, cz, hw, maxY, hd]) =>
+        new THREE.Box3(
+            new THREE.Vector3(cx - hw, -1, cz - hd),
+            new THREE.Vector3(cx + hw, maxY, cz + hd)
+        )
+    )
 }
 
 // ═══════════════════════════════════════════

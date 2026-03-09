@@ -12,7 +12,7 @@ import EventBus from '../systems/EventBus'
 import { EyeExpression } from '../entities/Robot'
 import { soundManager } from '../systems/SoundManager'
 import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeometry.js'
-import { createSkyGradient, createOutdoorScene, applyThemeToEnvironment } from './scene/EnvironmentBuilder'
+import { createSkyGradient, createOutdoorScene, applyThemeToEnvironment, getBuildingCollisionBoxes } from './scene/EnvironmentBuilder'
 import { createGarage as buildGarageLib } from './scene/GarageBuilder'
 import { UIManager } from './UIManager'
 import { BlocklyManager } from './BlocklyManager'
@@ -1956,6 +1956,13 @@ function initGame() {
   const env = createOutdoorScene(scene, { GRID_W, GRID_H, DOOR_ROW, GRID_CENTER_X })
   skyLight = env.skyLight
   envAnimatedObjects = env.animatedObjects
+  buildingBoxes = getBuildingCollisionBoxes({ GRID_W, DOOR_ROW })
+  // Start intro drone: position camera high above city, begin orbit
+  droneActive = true
+  droneTime = 0
+  camera.position.set(GRID_CENTER_X + 20, 22, DOOR_ROW + 8)
+  controls.target.set(GRID_CENTER_X, 1.2, DOOR_ROW + 8)
+  controls.update()
 
   // Apply initial theme
   const initialTheme = (localStorage.getItem('bigbot-theme') as 'light' | 'dark') || 'dark'
@@ -2317,12 +2324,52 @@ function initGame() {
 // RENDER LOOP
 // ═══════════════════════════════════════════
 let time = 0
+let buildingBoxes: THREE.Box3[] = []
+let droneActive = false
+let droneTime = 0
 // Pre-allocated temporaries to avoid GC in render loop
 const _tmpVec3A = new THREE.Vector3()
 const _tmpVec3B = new THREE.Vector3()
+
+// ─── Drone intro camera animation ───────────────────────────────────────────
+function updateDroneCamera() {
+  if (!droneActive) return
+  droneTime += 0.006
+  const angle  = droneTime * 0.42
+  const radius = 22 + Math.sin(droneTime * 0.27) * 6   // 16 – 28 birim
+  const height = 19 + Math.sin(droneTime * 0.18) * 4   // 15 – 23 birim
+  camera.position.set(
+    GRID_CENTER_X + Math.cos(angle) * radius,
+    height,
+    DOOR_ROW + 8 + Math.sin(angle) * radius * 0.72
+  )
+  controls.target.set(GRID_CENTER_X, 1.2, DOOR_ROW + 8)
+  controls.update()
+}
 function renderLoop() {
   stats.begin()
-  requestAnimationFrame(renderLoop); time += 0.016; controls.update()
+  requestAnimationFrame(renderLoop); time += 0.016
+  updateDroneCamera()
+  controls.update()
+  // Camera-building collision (overview mode only, not during intro drone)
+  if (cameraMode === 'overview' && !droneActive && buildingBoxes.length > 0) {
+    const p = camera.position
+    for (const box of buildingBoxes) {
+      if (p.x > box.min.x && p.x < box.max.x &&
+          p.y > box.min.y && p.y < box.max.y &&
+          p.z > box.min.z && p.z < box.max.z) {
+        const cx = (box.min.x + box.max.x) * 0.5
+        const cz = (box.min.z + box.max.z) * 0.5
+        const penX = (box.max.x - box.min.x) * 0.5 - Math.abs(p.x - cx)
+        const penZ = (box.max.z - box.min.z) * 0.5 - Math.abs(p.z - cz)
+        if (penX <= penZ) {
+          p.x = p.x < cx ? box.min.x : box.max.x
+        } else {
+          p.z = p.z < cz ? box.min.z : box.max.z
+        }
+      }
+    }
+  }
   updateEyeBlink(0.016)
   updateEyeLineMode(0.016)
   updateGarageRoofVisual()
@@ -2558,9 +2605,10 @@ document.getElementById('intro-start-btn')!.addEventListener('click', () => {
   if (mainAmbientLight) mainAmbientLight.intensity = (garageMode === 'closed' ? 1.5 : 0.35) * lightMultiplier
   controls.maxPolarAngle = roofVisible ? Math.PI / 2.25 : Math.PI / 2.05
 
-  // Animate camera from close-up to overview
+  // Stop drone, animate camera down to overview
+  droneActive = false
   const pose = getPrimaryCameraPose()
-  animateCameraTo(pose.pos, pose.target, 2000)
+  animateCameraTo(pose.pos, pose.target, 2200)
 })
 
 // Panel toggle

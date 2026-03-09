@@ -688,3 +688,250 @@ Görev kartları daha net, daha güçlü ve daha okunaklı olmalı
 Kapalı tavan modu gibi özel durumlar sistem tarafından akıllıca yönetilmeli
 
 Görsel kalite ile kullanılabilirlik dengelenmeli
+
+todo 6:
+
+Mevcut 3D robot kodlama simülasyonunun environment / çevre tasarımını güncelle. Amaç; sahnenin test ortamı gibi değil, tamamlanmış, canlı, okunabilir, şehir hissi veren bir mini şehir bloğu gibi görünmesidir.
+
+Ana hedef
+
+Şu anki sahnede:
+
+zemin fazla boş ve düz görünüyor
+
+bazı açılarda beyaz / boş alanlar oluşuyor
+
+sahne sonsuzlukta duran bir platform gibi hissediliyor
+
+şehir dokusu yeterince güçlü değil
+
+gökyüzü soluk ve cansız kalıyor
+
+Yeni tasarımda ortam:
+
+sınırları belli bir şehir bloğu
+
+üstten bakıldığında boşluk hissi vermeyen
+
+zemin sürekliliği olan
+
+yol, kaldırım, bina ve açık alan ilişkileri net
+
+daha canlı gökyüzüne sahip
+
+robot garajını merkeze alan
+bir kompozisyona dönüşmelidir.
+
+1. Zemin ve şehir bloğu tasarımı
+
+Environment tasarımını bir “floating demo plane” gibi değil, tamamlanmış bir city block / mahalle parçası gibi düşün.
+
+Yapılması gerekenler:
+
+Beyaz boş alanlar tamamen kaldırılmalı
+
+Garajın etrafındaki zeminler daha planlı tasarlanmalı
+
+Yol, kaldırım, bina oturumları ve açık alanlar net şekilde tanımlanmalı
+
+Zemin tek renk büyük boş plane gibi görünmemeli
+
+Üstten bakıldığında sahne, çevresi düşünülmüş gerçek bir mini şehir parçası gibi görünmeli
+
+Garaj çevresinde apron alanı, yol bağlantısı, yaya kaldırımı ve bina ilişkisi güçlendirilmeli
+
+Eklenmesi gereken zemin bileşenleri:
+
+asfalt yollar
+
+kaldırım taşları
+
+bordürler
+
+yaya geçitleri
+
+dönüş çizgileri
+
+park cepleri
+
+bina ön alanları
+
+küçük yeşil bantlar
+
+ağaç adaları
+
+şehir blok sınırları
+
+servis / giriş yolları
+
+şarj istasyonuna bağlanan mantıklı zemin geçişleri
+
+2. Sonsuzluk hissini kaldır
+
+Sahne yukarıdan bakıldığında “bir platform üstüne bırakılmış obje grubu” gibi görünmemeli.
+
+Çözüm hedefi:
+
+çevresel sınırlar daha doğal kurulmalı
+
+sahnenin kenarları daha planlı bağlanmalı
+
+mini şehir bloğu hissi oluşmalı
+
+boşluk / uçurum / bitmemiş dünya algısı kaldırılmalı
+
+Bunun için:
+
+yol ağı biraz daha genişletilebilir
+
+çevrede ek binalar ve arka plan kütleleri kullanılabilir
+
+şehir silueti hissi verilebilir
+
+zemin sürekliliği artırılabilir
+
+background environment ile dünya tamamlanmış hissettirilmelidir
+
+3. Üstten bakışta güçlü kompozisyon
+
+Bu proje üstten veya yüksek açıdan sıkça görüldüğü için environment tasarımı özellikle top-down / high-angle görünümde iyi çalışmalı.
+
+Şunlara dikkat et:
+
+Üstten bakıldığında beyaz boşluklar görünmemeli
+
+Kaldırım, yol, bina ve açık alanlar grafik olarak iyi ayrışmalı
+
+Garaj sahnenin merkezindeki ana yapı gibi görünmeli
+
+Şarj istasyonu, yol ve bina kümeleri kompozisyonlu yerleşmeli
+
+Şehir dokusu hem işlevsel hem estetik görünmeli
+
+Üstten bakışta sahne “bitmiş level” hissi vermeli
+
+4. Gökyüzü ve atmosfer
+
+Gökyüzü daha canlı, ferah, enerjik ve pozitif olmalı.
+
+İstenen atmosfer:
+
+soluk gri arka plan istemiyorum
+
+daha temiz bir sky gradient olmalı
+
+açık mavi tonlar
+
+yumuşak ama canlı bulutlar
+
+çocuk dostu ve açık hava hissi
+
+sahneye enerji katan, ferah bir atmosfer
+
+Gökyüzü:
+
+çok gerçekçi kasvetli değil
+
+çok çizgi film gibi de değil
+
+modern, temiz, parlak ve pozitif bir şehir sabahı / öğlen atmosferi verebilir
+
+5. Şehir silueti ve çevresel derinlik
+
+Environment daha güçlü görünmesi için şehir silueti hissi artırılmalı.
+
+İstenen yaklaşım:
+
+sadece birkaç bina değil, daha bütüncül şehir hissi
+
+ön planda oynanabilir mini şehir bloğu
+
+orta planda ek yapılar
+
+arka planda daha yumuşak şehir silueti
+
+sahneye derinlik kazandıran bir urban backdrop
+
+Bu, özellikle üstten bakışta dünyayı daha tamamlanmış gösterir.
+
+6. Binalar ve çevre renkleri
+
+Binalar biraz daha canlı, çeşitli ve dengeli olabilir.
+
+Amaç:
+
+çocuk dostu ve sempatik
+
+ama çok oyuncak gibi değil
+
+temiz ve modern
+
+hafif stilize ama düzenli
+
+Renk yaklaşımı:
+
+pastel ama doygunluğu dengeli tonlar
+
+mavi, turkuaz, sıcak gri, yumuşak sarı, hafif turuncu, lavanta, yeşilimsi vurgular
+
+binalar birbirinden ayrışmalı ama kaotik görünmemeli
+
+7. Garaj çevresi daha iyi oturmalı
+
+Garaj şu an sahneye yerleştirilmiş bir obje gibi değil, mahallenin doğal bir parçası gibi görünmeli.
+
+Yapılması gerekenler:
+
+garaj önünde net apron alanı
+
+yol bağlantısı
+
+kaldırım ilişkisi
+
+servis girişi / giriş aksı
+
+şarj istasyonuyla mantıklı mekânsal bağ
+
+bina çevresinde küçük peyzaj / teknik detaylar
+
+çevre düzenlemesiyle garajın zemine oturması
+
+8. Genel estetik hedef
+
+Yeni environment şu hissi vermeli:
+
+modern mini city block
+
+robot eğitim merkezi etrafında kurulmuş mahalle parçası
+
+üstten bakışta okunabilir
+
+boşluksuz ve bütüncül
+
+canlı ama temiz
+
+ferah ve görsel olarak davetkâr
+
+ürün kalitesini yükselten bir sahne
+
+9. Özellikle kaçınılması gereken şeyler
+
+büyük beyaz boş alanlar
+
+sonsuz düz plane hissi
+
+havada duran platform etkisi
+
+zayıf arka plan
+
+çevresel bütünlüğü olmayan sahne
+
+çok koyu / kasvetli gökyüzü
+
+aşırı low-poly oyuncak hissi
+
+aşırı gerçekçi, ağır ve kirli şehir görünümü
+
+10. Beklenen çıktı
+
+Mevcut robot garajı, şarj istasyonu ve şehir öğelerini koruyarak; environment tasarımını daha güçlü, daha dolu, daha şehirsel ve daha atmosferik hale getir. Sonuç; yukarıdan bakıldığında boşluk hissi vermeyen, sınırları belli, düzenli, renkli ve canlı bir mini şehir bloğu olmalı.
