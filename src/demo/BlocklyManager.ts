@@ -426,4 +426,44 @@ export class BlocklyManager {
 
     this.updateProgramFromBlockly()
   }
+
+  loadBatteryDrainDemo() {
+    this.workspace.clear()
+    const gf = this.workspace.newBlock('green_flag')
+    gf.initSvg(); gf.render(); gf.moveBy(30, 30)
+
+    // Batarya = %5, her komut = %0.1 → 50 komutta batarya biter.
+    // Kare tur: 3 ileri, sağa dön × 4 = 16 komut/tur = %1.6/tur
+    // 5 tur × 16 = 80 komut → batarya 4. turun başında (50. komutta) biter
+    const repeat = this.workspace.newBlock('repeat_times')
+    repeat.setFieldValue(5, 'TIMES')
+    repeat.initSvg(); repeat.render()
+    gf.nextConnection.connect(repeat.previousConnection)
+
+    // İlk iç blok: DO input'una bağlanır
+    const firstInner = this.workspace.newBlock('move_forward')
+    firstInner.setFieldValue(3, 'COUNT')
+    firstInner.initSvg(); firstInner.render()
+    repeat.getInput('DO')!.connection!.connect(firstInner.previousConnection)
+
+    let innerCur: Blockly.Block = firstInner
+    const addInner = (type: string, fields?: Record<string, any>) => {
+      const b = this.workspace.newBlock(type)
+      if (fields) for (const f in fields) b.setFieldValue(fields[f], f)
+      b.initSvg(); b.render()
+      innerCur.nextConnection!.connect(b.previousConnection)
+      innerCur = b
+    }
+
+    // Kare: 3 ileri → sağa dön → 3 ileri → sağa dön → 3 ileri → sağa dön → 3 ileri → sağa dön
+    addInner('turn_right', { COUNT: 1 })
+    addInner('move_forward', { COUNT: 3 })
+    addInner('turn_right', { COUNT: 1 })
+    addInner('move_forward', { COUNT: 3 })
+    addInner('turn_right', { COUNT: 1 })
+    addInner('move_forward', { COUNT: 3 })
+    addInner('turn_right', { COUNT: 1 })
+
+    this.updateProgramFromBlockly()
+  }
 }

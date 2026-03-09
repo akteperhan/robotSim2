@@ -530,6 +530,19 @@
     }
 
     /* ═══════════════════════════════════
+       CONFETTI CANVAS
+    ═══════════════════════════════════ */
+    #confetti-canvas {
+      position: fixed;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+      z-index: 9999;
+      display: none;
+    }
+
+    /* ═══════════════════════════════════
        LOG PANEL
     ═══════════════════════════════════ */
     #log-toggle {
@@ -916,6 +929,143 @@
     /* ═══════════════════════════════════
        FAILURE OVERLAY
     ═══════════════════════════════════ */
+    /* ═══════════════════════════════════════════
+       BATTERY DEAD MODAL
+    ═══════════════════════════════════════════ */
+    #battery-dead-overlay {
+      position: fixed;
+      inset: 0;
+      z-index: 960;
+      background: rgba(0, 0, 0, 0.55);
+      backdrop-filter: blur(4px);
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      animation: overlay-fade-in 0.3s ease;
+    }
+
+    #battery-dead-overlay.visible { display: flex; }
+
+    .battery-dead-modal {
+      background: #fff;
+      border-radius: 24px;
+      padding: 40px 48px;
+      max-width: 420px;
+      width: 90%;
+      text-align: center;
+      box-shadow: 0 16px 48px rgba(231, 76, 60, 0.25), 0 6px 20px rgba(0, 0, 0, 0.12);
+      border: 3px solid #e74c3c;
+      animation: crash-modal-pop 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+    }
+
+    .battery-dead-icon {
+      font-size: 72px;
+      margin-bottom: 16px;
+      animation: battery-drain-pop 0.7s ease 0.15s both;
+    }
+
+    @keyframes battery-drain-pop {
+      0%   { transform: scale(0) rotate(-15deg); opacity: 0; }
+      55%  { transform: scale(1.18) rotate(6deg); }
+      78%  { transform: scale(0.93) rotate(-3deg); }
+      100% { transform: scale(1) rotate(0deg); opacity: 1; }
+    }
+
+    .battery-dead-title {
+      font-family: 'Inter', sans-serif;
+      font-size: 26px;
+      font-weight: 800;
+      color: #c0392b;
+      margin-bottom: 10px;
+    }
+
+    .battery-dead-message {
+      font-family: 'Inter', sans-serif;
+      font-size: 16px;
+      color: #3d3d6b;
+      line-height: 1.6;
+      margin-bottom: 20px;
+    }
+
+    .battery-dead-stats {
+      display: flex;
+      gap: 20px;
+      justify-content: center;
+      margin-bottom: 14px;
+    }
+
+    .battery-dead-stat-box {
+      background: #fdf2f0;
+      border: 2px solid #f5b7b1;
+      border-radius: 14px;
+      padding: 12px 24px;
+      min-width: 90px;
+    }
+
+    .battery-dead-stat-box.empty {
+      background: #fee8e6;
+      border-color: #e74c3c;
+    }
+
+    .battery-dead-stat-value {
+      font-family: 'Inter', sans-serif;
+      font-size: 26px;
+      font-weight: 800;
+      color: #c0392b;
+    }
+
+    .battery-dead-stat-label {
+      font-family: 'Inter', sans-serif;
+      font-size: 12px;
+      color: #888;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      margin-top: 2px;
+    }
+
+    .battery-dead-hint {
+      font-family: 'Inter', sans-serif;
+      font-size: 14px;
+      color: #aaa;
+      font-style: italic;
+      margin-bottom: 24px;
+    }
+
+    .battery-dead-actions {
+      display: flex;
+      gap: 14px;
+      justify-content: center;
+    }
+
+    .battery-dead-btn {
+      font-family: 'Inter', sans-serif;
+      font-size: 15px;
+      font-weight: 700;
+      padding: 13px 28px;
+      border: none;
+      border-radius: 14px;
+      cursor: pointer;
+      transition: all 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
+    }
+
+    .battery-dead-btn:hover  { transform: translateY(-2px) scale(1.04); }
+    .battery-dead-btn:active { transform: scale(0.97); }
+
+    .battery-dead-btn-retry {
+      background: linear-gradient(135deg, #e74c3c, #c0392b);
+      color: #fff;
+      box-shadow: 0 4px 16px rgba(231, 76, 60, 0.35);
+    }
+
+    .battery-dead-btn-edit {
+      background: #eef2ff;
+      color: #7c4dff;
+      border: 2px solid #c5caff;
+    }
+
+    .battery-dead-btn-edit:hover { background: #dde5ff; border-color: #7c4dff; }
+
     #failure-overlay {
       position: fixed;
       inset: 0;
@@ -1206,12 +1356,22 @@
       box-shadow: 0 4px 12px rgba(255, 107, 122, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.15);
     }
 
+    #btn-load-battery {
+      background: linear-gradient(135deg, #f39c12, #e74c3c);
+      box-shadow: 0 4px 12px rgba(243, 156, 18, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.15);
+      margin-left: 10px;
+    }
+
     #btn-load-code:hover {
       box-shadow: 0 0 20px rgba(176, 106, 255, 0.5);
     }
 
     #btn-load-crash:hover {
       box-shadow: 0 0 20px rgba(255, 107, 122, 0.5);
+    }
+
+    #btn-load-battery:hover {
+      box-shadow: 0 0 20px rgba(243, 156, 18, 0.5);
     }
 
     #btn-step-toggle {
@@ -2464,8 +2624,32 @@
         </div>
       </div>
       <div class="success-actions">
-        <button class="success-btn success-btn-secondary" id="success-replay-btn">🔄 Tekrar Oyna</button>
-        <button class="success-btn success-btn-primary" id="success-next-btn">▶ Sonraki Bölüme Geç</button>
+        <button class="success-btn success-btn-primary" id="success-replay-btn">🔄 Tekrar Başla</button>
+        <button class="success-btn success-btn-secondary" id="success-next-btn">▶ Sonraki Bölüm</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══ BATTERY DEAD MODAL ═══ -->
+  <div id="battery-dead-overlay">
+    <div class="battery-dead-modal">
+      <div class="battery-dead-icon">🪫</div>
+      <div class="battery-dead-title">Enerji Tükendi!</div>
+      <div class="battery-dead-message" id="battery-dead-message">BIG-BOT hareket etmeye devam edemez. Görev tamamlanamadı.</div>
+      <div class="battery-dead-stats">
+        <div class="battery-dead-stat-box empty">
+          <div class="battery-dead-stat-value">%0</div>
+          <div class="battery-dead-stat-label">Batarya</div>
+        </div>
+        <div class="battery-dead-stat-box">
+          <div class="battery-dead-stat-value" id="battery-dead-cmds">—</div>
+          <div class="battery-dead-stat-label">Komut</div>
+        </div>
+      </div>
+      <div class="battery-dead-hint" id="battery-dead-hint">Daha kısa bir rota dene veya gereksiz hareketleri azalt.</div>
+      <div class="battery-dead-actions">
+        <button class="battery-dead-btn battery-dead-btn-retry" id="battery-dead-retry-btn">🔄 Tekrar Dene</button>
+        <button class="battery-dead-btn battery-dead-btn-edit" id="battery-dead-continue-btn">✏️ Koda Geri Dön</button>
       </div>
     </div>
   </div>
@@ -2556,6 +2740,7 @@
           <div class="tb-row">
             <button class="ctrl-btn" id="btn-load-code">💡 Çözümü Yükle</button>
             <button class="ctrl-btn" id="btn-load-crash">💥 Çarpma Testi</button>
+            <button class="ctrl-btn" id="btn-load-battery">🔋 Batarya Testi</button>
           </div>
         </div>
         <!-- B. Kamera -->
@@ -2614,9 +2799,9 @@
           <div class="tb-row">
             <span class="tb-label">Işık</span>
             <div class="speed-control">
-              <span>🌑</span>
-              <input type="range" id="light-slider" min="0" max="200" value="0" step="5">
               <span>☀️</span>
+              <input type="range" id="light-slider" min="0" max="200" value="0" step="5">
+              <span>🌑</span>
             </div>
           </div>
           <div class="tb-desc">Sahnenin aydınlatma yoğunluğunu değiştirir</div>
@@ -2819,6 +3004,7 @@
       }
     });
   </script>
+  <canvas id="confetti-canvas"></canvas>
 </body>
 
 </html>

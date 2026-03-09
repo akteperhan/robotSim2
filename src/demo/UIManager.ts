@@ -100,6 +100,17 @@ export class UIManager {
     document.getElementById('failure-overlay')!.classList.remove('visible')
   }
 
+  showBatteryDeadModal(commandsUsed: number) {
+    soundManager.playFailure()
+    const cmdsEl = document.getElementById('battery-dead-cmds')
+    if (cmdsEl) cmdsEl.textContent = String(commandsUsed)
+    document.getElementById('battery-dead-overlay')!.classList.add('visible')
+  }
+
+  hideBatteryDeadModal() {
+    document.getElementById('battery-dead-overlay')!.classList.remove('visible')
+  }
+
   showCrashModal(msg: string) {
     document.getElementById('crash-message')!.textContent = msg
     document.getElementById('crash-overlay')!.classList.add('visible')

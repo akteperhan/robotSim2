@@ -182,6 +182,22 @@ function applyGarageMode(mode: GarageMode, animate = false, notify = false) {
     cameraNotice.style.display = roofVisible ? 'block' : 'none'
   }
 
+  // Tavan moduna göre ışık slider'ı ayarla
+  // ☀️ sol (value=0) = en aydınlık (multiplier=2.0), 🌑 sağ (value=200) = en karanlık (multiplier=0)
+  {
+    const lightSliderEl = document.getElementById('light-slider') as HTMLInputElement | null
+    if (lightSliderEl) {
+      if (roofVisible) {
+        // Kapalı tavan: slider ortada (value=100) → multiplier = (200-100)/100 = 1.0
+        lightSliderEl.value = '100'; lightMultiplier = 1.0
+      } else {
+        // Açık tavan: slider en solda (value=0, ☀️ tarafı) → multiplier = (200-0)/100 = 2.0
+        lightSliderEl.value = '0'; lightMultiplier = 2.0
+      }
+      applyLightMultiplier()
+    }
+  }
+
   if (notify) {
     ui.showToast(
       mode === 'closed'
@@ -1379,6 +1395,7 @@ function resetSimulationState() {
 
   ui.hideSuccess()
   ui.hideFailure()
+  ui.hideBatteryDeadModal()
   ui.clearMissionAlerts()
   blocklyMgr.clearHighlight()
 
@@ -2090,9 +2107,26 @@ function initGame() {
     isExecuting = false; gameState = GameState.FAILED
     syncGarageModeSelect()
     blocklyMgr.clearHighlight()
-    ui.showFailure('BIG-BOT\'un bataryası bitti! Daha verimli bir rota dene.')
-    ui.showMissionAlert('💀', 'Batarya bitti!', 'danger', 5000)
-    logPanel.addEntry('error', 'Batarya bitti! Görev başarısız.')
+
+    // Robot worried expression + screen flash
+    EventBus.emit('robot:expression', EyeExpression.WORRIED)
+    ui.showCollisionFlash()
+
+    // Camera shake
+    const _origPos = camera.position.clone()
+    const _shakeStart = Date.now()
+    const _shake = () => {
+      const _t = Math.min((Date.now() - _shakeStart) / 450, 1)
+      const _d = 1 - _t
+      camera.position.x = _origPos.x + (Math.random() - 0.5) * 0.18 * _d
+      camera.position.y = _origPos.y + (Math.random() - 0.5) * 0.18 * _d
+      if (_t < 1) requestAnimationFrame(_shake)
+      else camera.position.copy(_origPos)
+    }
+    _shake()
+
+    ui.showBatteryDeadModal(executor.getCommands().length)
+    logPanel.addEntry('error', 'Batarya bitti! Görev tamamlanamadı.')
   })
 
   EventBus.on('battery:full', () => {
@@ -2103,6 +2137,7 @@ function initGame() {
     gameState = GameState.COMPLETE
     ui.showMissionAlert('⚡', 'Batarya %100 dolu!', 'success', 4000)
     blocklyMgr.clearHighlight()
+    launchConfetti()
 
     // Celebration: happy expression + jump
     EventBus.emit('robot:expression', EyeExpression.HAPPY)
@@ -2134,47 +2169,58 @@ function initGame() {
   })
   EventBus.on('program:complete', () => {
     isExecuting = false; syncGarageModeSelect(); blocklyMgr.clearHighlight(); ui.updateStatus('Tamamlandı', 'ready')
-    // Check mission win condition (allow COMPLETE state too — battery:full may have set it already)
-    if (gameState !== GameState.FAILED) {
-      const alreadyComplete = gameState === GameState.COMPLETE
-      if (alreadyComplete || missionMgr.checkWinCondition(robot, grid, battery)) {
-        if (!alreadyComplete) {
-          gameState = GameState.COMPLETE
-        }
-        const score = missionMgr.completeCurrentMission(executor.getCommands().length, battery.getCurrentLevel())
-        const missionIdx = missionMgr.getCurrentIndex()
-        const missionNum = missionIdx + 1
-        const chapterMissions = missionMgr.getCurrentChapterMissions()
-        const currentMission = missionMgr.getCurrentMission()
-        const chapterIdx = chapterMissions.findIndex(m => m.id === currentMission.id)
-        const isLastMissionInChapter = chapterIdx === chapterMissions.length - 1
-        console.log('[MISSION] completed:', currentMission.id, 'chapterIdx:', chapterIdx, '/', chapterMissions.length, 'isLast:', isLastMissionInChapter)
 
-        // Immediately update card to completed (green)
-        updateMissionStarsDisplay()
-        loadMissionUI()
+    if (gameState === GameState.FAILED) return
 
-        // Show confetti
-        if (particles) {
-          particles.emitConfetti(robotMesh.position.clone(), 50)
-          particles.emitChargeSparks(robotMesh.position.clone().add(new THREE.Vector3(0, 1, 0)), 30)
-        }
+    if (gameState === GameState.COMPLETE) {
+      // battery:full already fired — robot charged to 100%, chapter is definitively done.
+      // Do NOT check currentIndex: user may have completed all missions in one run.
+      updateMissionStarsDisplay()
+      loadMissionUI()
+      if (particles) {
+        particles.emitConfetti(robotMesh.position.clone(), 50)
+        particles.emitChargeSparks(robotMesh.position.clone().add(new THREE.Vector3(0, 1, 0)), 30)
+      }
+      logPanel.addEntry('success', '1. Bölüm tamamlandı! 🏆')
+      setTimeout(() => {
+        ui.showFinalSuccess('1. Bölüm Tamamlandı!', executor.getCommands().length, battery.getCurrentLevel())
+      }, 1200)
+      return
+    }
 
-        logPanel.addEntry('success', `${missionNum}. Görev tamamlandı!`)
+    // Normal per-mission progression (user runs one mission at a time)
+    if (missionMgr.checkWinCondition(robot, grid, battery)) {
+      gameState = GameState.COMPLETE
+      const score = missionMgr.completeCurrentMission(executor.getCommands().length, battery.getCurrentLevel())
+      const missionIdx = missionMgr.getCurrentIndex()
+      const missionNum = missionIdx + 1
+      const chapterMissions = missionMgr.getCurrentChapterMissions()
+      const currentMission = missionMgr.getCurrentMission()
+      const chapterIdx = chapterMissions.findIndex(m => m.id === currentMission.id)
+      const isLastMissionInChapter = chapterIdx === chapterMissions.length - 1
+      console.log('[MISSION] completed:', currentMission.id, 'chapterIdx:', chapterIdx, '/', chapterMissions.length, 'isLast:', isLastMissionInChapter)
 
-        if (isLastMissionInChapter) {
-          // FINAL MISSION: big modal with buttons (no auto-dismiss)
-          setTimeout(() => {
-            ui.showFinalSuccess('1. Bölüm Tamamlandı!', score.commandsUsed, score.batteryRemaining)
-          }, 1200)
-        } else {
-          // INTERMEDIATE MISSION: card banner
-          ui.showCardSuccess(missionNum)
-          setTimeout(() => {
-            ui.hideCardSuccess()
-            EventBus.emit('mission:autoAdvance')
-          }, 2000)
-        }
+      updateMissionStarsDisplay()
+      loadMissionUI()
+
+      if (particles) {
+        particles.emitConfetti(robotMesh.position.clone(), 50)
+        particles.emitChargeSparks(robotMesh.position.clone().add(new THREE.Vector3(0, 1, 0)), 30)
+      }
+
+      logPanel.addEntry('success', `${missionNum}. Görev tamamlandı!`)
+
+      if (isLastMissionInChapter) {
+        setTimeout(() => {
+          ui.showFinalSuccess('1. Bölüm Tamamlandı!', score.commandsUsed, score.batteryRemaining)
+        }, 1200)
+      } else {
+        // Intermediate mission: show card then auto-advance
+        ui.showCardSuccess(missionNum)
+        setTimeout(() => {
+          ui.hideCardSuccess()
+          EventBus.emit('mission:autoAdvance')
+        }, 2000)
       }
     }
   })
@@ -2593,6 +2639,98 @@ function renderLoop() {
 }
 
 // ═══════════════════════════════════════════
+// CONFETTI
+// ═══════════════════════════════════════════
+let confettiAnimId: number | null = null
+let confettiActive = false
+
+function launchConfetti() {
+  const canvas = document.getElementById('confetti-canvas') as HTMLCanvasElement | null
+  if (!canvas) return
+  const ctx = canvas.getContext('2d')!
+  confettiActive = true
+  canvas.style.display = 'block'
+
+  const colors = ['#ff4757', '#ffa502', '#2ed573', '#1e90ff', '#ff6b81', '#ffda79', '#7bed9f', '#eccc68', '#a29bfe', '#fd79a8']
+  type Piece = { x: number; y: number; w: number; h: number; color: string; dx: number; dy: number; rot: number; drot: number; shape: 'rect' | 'circle' }
+  const pieces: Piece[] = []
+  const startTime = Date.now()
+  const EMIT_DURATION = 3500
+
+  const frame = () => {
+    if (!confettiActive) {
+      ctx.clearRect(0, 0, canvas.width, canvas.height)
+      canvas.style.display = 'none'
+      confettiAnimId = null
+      return
+    }
+
+    canvas.width = window.innerWidth
+    canvas.height = window.innerHeight
+
+    // Emit bursts for EMIT_DURATION ms
+    if (Date.now() - startTime < EMIT_DURATION) {
+      for (let i = 0; i < 10; i++) {
+        pieces.push({
+          x: Math.random() * canvas.width,
+          y: -20,
+          w: 7 + Math.random() * 9,
+          h: 5 + Math.random() * 7,
+          color: colors[Math.floor(Math.random() * colors.length)],
+          dx: (Math.random() - 0.5) * 5,
+          dy: 2.5 + Math.random() * 4,
+          rot: Math.random() * Math.PI * 2,
+          drot: (Math.random() - 0.5) * 0.18,
+          shape: Math.random() < 0.3 ? 'circle' : 'rect',
+        })
+      }
+    }
+
+    ctx.clearRect(0, 0, canvas.width, canvas.height)
+    for (let i = pieces.length - 1; i >= 0; i--) {
+      const p = pieces[i]
+      p.x += p.dx
+      p.y += p.dy
+      p.dy += 0.06 // gravity
+      p.rot += p.drot
+      ctx.save()
+      ctx.translate(p.x, p.y)
+      ctx.rotate(p.rot)
+      ctx.fillStyle = p.color
+      if (p.shape === 'circle') {
+        ctx.beginPath(); ctx.arc(0, 0, p.w / 2, 0, Math.PI * 2); ctx.fill()
+      } else {
+        ctx.fillRect(-p.w / 2, -p.h / 2, p.w, p.h)
+      }
+      ctx.restore()
+      if (p.y > canvas.height + 30) pieces.splice(i, 1)
+    }
+
+    if (pieces.length > 0 || Date.now() - startTime < EMIT_DURATION) {
+      confettiAnimId = requestAnimationFrame(frame)
+    } else {
+      canvas.style.display = 'none'
+      confettiActive = false
+      confettiAnimId = null
+    }
+  }
+
+  if (confettiAnimId) cancelAnimationFrame(confettiAnimId)
+  confettiAnimId = requestAnimationFrame(frame)
+}
+
+function stopConfetti() {
+  confettiActive = false
+  if (confettiAnimId) { cancelAnimationFrame(confettiAnimId); confettiAnimId = null }
+  const canvas = document.getElementById('confetti-canvas') as HTMLCanvasElement | null
+  if (canvas) {
+    const ctx = canvas.getContext('2d')
+    if (ctx) ctx.clearRect(0, 0, canvas.width, canvas.height)
+    canvas.style.display = 'none'
+  }
+}
+
+// ═══════════════════════════════════════════
 // UI EVENT HANDLERS
 // ═══════════════════════════════════════════
 
@@ -2709,7 +2847,7 @@ document.getElementById('btn-run-toggle')!.addEventListener('click', async () =>
   const cmds = executor.getCommands().length
   if (cmds === 0) { ui.showToast('Blok ekleyin!', 'warning'); return }
   if (battery.getCurrentLevel() <= 0) {
-    ui.showFailure('Batarya tamamen bitti! Sıfırla ve tekrar dene.')
+    ui.showBatteryDeadModal(0)
     gameState = GameState.FAILED; return
   }
 
@@ -2763,8 +2901,9 @@ document.getElementById('failure-retry-btn')!.addEventListener('click', () => {
   ui.hideFailure(); document.getElementById('btn-reset')!.click()
 })
 
-// SUCCESS MODAL — Tekrar Oyna
+// SUCCESS MODAL — Tekrar Başla
 document.getElementById('success-replay-btn')!.addEventListener('click', () => {
+  stopConfetti()
   ui.hideSuccess()
   resetSimulationState()
   blocklyMgr.clearHighlight()
@@ -2775,11 +2914,15 @@ document.getElementById('success-replay-btn')!.addEventListener('click', () => {
   missionMgr.resetToFirst()
   loadMissionUI()
   updateMissionStarsDisplay()
-  ui.showToast('🔄 Bölüm sıfırlandı, tekrar oyna!', 'info')
+  // Animate camera back to overview like "Göreve Başla"
+  const pose = getPrimaryCameraPose()
+  animateCameraTo(pose.pos, pose.target, 2000)
+  ui.showToast('🔄 Baştan başlıyoruz!', 'info')
 })
 
-// SUCCESS MODAL — Sonraki Bölüme Geç
+// SUCCESS MODAL — Sonraki Bölüm
 document.getElementById('success-next-btn')!.addEventListener('click', () => {
+  stopConfetti()
   ui.hideSuccess()
   resetSimulationState()
   blocklyMgr.clearHighlight()
@@ -2811,6 +2954,27 @@ document.getElementById('crash-continue-btn')!.addEventListener('click', () => {
   ui.showToast('✏️ Kodunu düzenle ve tekrar dene', 'info')
 })
 
+// BATTERY DEAD MODAL — Tekrar Dene
+document.getElementById('battery-dead-retry-btn')!.addEventListener('click', () => {
+  ui.hideBatteryDeadModal()
+  resetSimulationState()
+  blocklyMgr.clearHighlight()
+  const btn = document.getElementById('btn-run-toggle') as HTMLButtonElement
+  btn.classList.remove('running')
+  btn.innerHTML = '<span>🚀</span> Çalıştır'
+  ui.showToast('🔄 Tekrar denemeye hazır!', 'info')
+})
+
+// BATTERY DEAD MODAL — Koda Geri Dön
+document.getElementById('battery-dead-continue-btn')!.addEventListener('click', () => {
+  ui.hideBatteryDeadModal()
+  EventBus.emit('robot:expression', EyeExpression.NORMAL)
+  const btn = document.getElementById('btn-run-toggle') as HTMLButtonElement
+  btn.classList.remove('running')
+  btn.innerHTML = '<span>🚀</span> Çalıştır'
+  ui.showToast('✏️ Daha az hareket kullanmayı dene', 'info')
+})
+
 // LOAD SAMPLE CODE
 document.getElementById('btn-load-code')!.addEventListener('click', () => {
   if (isExecuting) return
@@ -2823,6 +2987,13 @@ document.getElementById('btn-load-crash')!.addEventListener('click', () => {
   if (isExecuting) return
   blocklyMgr.loadWallCrashDemo()
   ui.showToast('💥 Duvara çarpma testi yüklendi!', 'warning')
+})
+
+// LOAD BATTERY DRAIN DEMO
+document.getElementById('btn-load-battery')!.addEventListener('click', () => {
+  if (isExecuting) return
+  blocklyMgr.loadBatteryDrainDemo()
+  ui.showToast('🔋 Batarya bitim testi yüklendi!', 'warning')
 })
 
 // ═══════════════════════════════════════════
@@ -2950,7 +3121,8 @@ function applyLightMultiplier() {
 const lightSlider = document.getElementById('light-slider') as HTMLInputElement | null
 if (lightSlider) {
   lightSlider.addEventListener('input', () => {
-    lightMultiplier = parseInt(lightSlider.value, 10) / 100
+    // ☀️ is on the left (min=0 = brightest), 🌑 on right (max=200 = darkest)
+    lightMultiplier = (200 - parseInt(lightSlider.value, 10)) / 100
     applyLightMultiplier()
   })
 }
@@ -3062,9 +3234,9 @@ reflectionToggleBtn?.addEventListener('click', () => {
 document.getElementById('btn-defaults')?.addEventListener('click', () => {
   // Speed
   if (speedSlider) { speedSlider.value = '800'; executor.setSpeed(800); updateSpeedIndicator(800) }
-  // Light
+  // Light (açık tavan default: slider solda/☀️ tarafı, value=0 → multiplier=2.0)
   const lightSliderEl = document.getElementById('light-slider') as HTMLInputElement | null
-  if (lightSliderEl) { lightSliderEl.value = '0'; lightMultiplier = 0.0; applyLightMultiplier() }
+  if (lightSliderEl) { lightSliderEl.value = '0'; lightMultiplier = 2.0; applyLightMultiplier() }
   // Resolution
   if (resolutionSlider) {
     resolutionSlider.value = '200'
@@ -3129,6 +3301,9 @@ stepNextBtn?.addEventListener('click', () => {
 initScene()
 createGarage()
 initGame()
+// Sync lights to slider value — skyLight/env_sun are created inside initGame(),
+// so applyLightMultiplier() must run AFTER initGame() for the initial state to be correct.
+applyLightMultiplier()
 // Apply default HD resolution (slider value=200 → scale=2.0)
 {
   const _c = document.getElementById('canvas-container')!
