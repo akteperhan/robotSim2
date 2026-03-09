@@ -92,4 +92,9 @@ export class MissionManager {
   resetForMission(): void {
     this.doorOpened = false
   }
+
+  resetToFirst(): void {
+    this.currentIndex = 0
+    this.doorOpened = false
+  }
 }

@@ -59,6 +59,8 @@ let chargingSurfaceMat: THREE.MeshStandardMaterial | null = null
 let chargingAmbientGlowMat: THREE.MeshBasicMaterial | null = null
 let isExecuting = false, isPanelOpen = true
 let lightMultiplier = 1.0
+// FPS tracking for settings panel
+let fpsFrameCount = 0, fpsLastTime = performance.now(), fpsAvgSamples: number[] = []
 let skyLight: THREE.HemisphereLight
 let doorClipPlane: THREE.Plane
 let doorGlowPlane: THREE.Mesh | null = null
@@ -166,6 +168,20 @@ function applyGarageMode(mode: GarageMode, animate = false, notify = false) {
     }
   }
 
+  // Camera dropdown restriction for closed roof
+  const cameraSelect = document.getElementById('camera-mode-select') as HTMLSelectElement | null
+  const cameraNotice = document.getElementById('camera-closed-notice')
+  if (cameraSelect) {
+    cameraSelect.disabled = roofVisible
+    if (roofVisible) {
+      cameraSelect.value = 'overview'
+      cameraMode = 'overview'
+    }
+  }
+  if (cameraNotice) {
+    cameraNotice.style.display = roofVisible ? 'block' : 'none'
+  }
+
   if (notify) {
     ui.showToast(
       mode === 'closed'
@@ -187,10 +203,7 @@ function initScene() {
   stats = new Stats()
   stats.showPanel(0)
   document.body.appendChild(stats.dom)
-  stats.dom.style.position = 'absolute'
-  stats.dom.style.top = '42px'
-  stats.dom.style.right = '10px'
-  stats.dom.style.left = 'unset'
+  stats.dom.style.display = 'none' // Hidden — FPS shown in settings panel instead
 
   const skyTex = createSkyGradient()
   scene.background = skyTex
@@ -693,7 +706,7 @@ function createButton3D(pos: Position) {
 
   // The actual push button (yellow, slightly raised from frame)
   const screenMat = new THREE.MeshStandardMaterial({
-    color: 0xFFEA00, emissive: 0xFFEA00, emissiveIntensity: 2.5, roughness: 0.1
+    color: 0xFFEA00, emissive: 0xFFEA00, emissiveIntensity: 0.8, roughness: 0.2
   })
   const screen = new THREE.Mesh(new RoundedBoxGeometry(0.06, 0.55, 0.35, 3, 0.02), screenMat)
   screen.position.set(wallX + faceDir * 0.08, 1.2, pos.y)
@@ -703,7 +716,7 @@ function createButton3D(pos: Position) {
 
   // Small status LED above button
   const ledMat = new THREE.MeshStandardMaterial({
-    color: 0xFFEA00, emissive: 0xFFEA00, emissiveIntensity: 3, roughness: 0.1
+    color: 0xFFEA00, emissive: 0xFFEA00, emissiveIntensity: 1.0, roughness: 0.2
   })
   const led = new THREE.Mesh(new THREE.SphereGeometry(0.025, 12, 12), ledMat)
   led.position.set(wallX + faceDir * 0.08, 1.6, pos.y)
@@ -711,7 +724,7 @@ function createButton3D(pos: Position) {
 
   // Floor interaction decal zone
   const zMat = new THREE.MeshStandardMaterial({
-    color: 0xFFEA00, emissive: 0xFFEA00, emissiveIntensity: 1.5, transparent: true, opacity: 0.4
+    color: 0xFFEA00, emissive: 0xFFEA00, emissiveIntensity: 0.5, transparent: true, opacity: 0.3
   })
   const zone = new THREE.Mesh(new THREE.CylinderGeometry(0.6, 0.6, 0.02, 32), zMat)
   zone.position.set(pos.x, 0.01, pos.y)
@@ -719,25 +732,25 @@ function createButton3D(pos: Position) {
   buttonZoneMat = zMat
 
   // Subtle wall light
-  const pl = new THREE.PointLight(0xFFEA00, 2.0, 5.0)
+  const pl = new THREE.PointLight(0xFFEA00, 0.8, 3.0)
   pl.position.set(wallX + faceDir * 0.3, 1.2, pos.y)
   group.add(pl)
 
-  // ── "KAPI BUTONU" text sprite ──
+  // ── "Kapı Butonu" text sprite — clean, stable label ──
   const lblCanvas = document.createElement('canvas')
   lblCanvas.width = 512; lblCanvas.height = 64
   const lctx = lblCanvas.getContext('2d')!
-  lctx.fillStyle = 'rgba(10, 15, 25, 0.85)'
-  lctx.roundRect(6, 4, 500, 56, 12)
+  lctx.fillStyle = 'rgba(20, 25, 40, 0.9)'
+  lctx.roundRect(6, 4, 500, 56, 10)
   lctx.fill()
-  lctx.strokeStyle = 'rgba(255, 234, 0, 0.5)'
-  lctx.lineWidth = 2
-  lctx.roundRect(6, 4, 500, 56, 12)
+  lctx.strokeStyle = 'rgba(255, 234, 0, 0.35)'
+  lctx.lineWidth = 1.5
+  lctx.roundRect(6, 4, 500, 56, 10)
   lctx.stroke()
-  lctx.font = 'bold 36px Arial'
+  lctx.font = 'bold 34px Arial'
   lctx.textAlign = 'center'; lctx.textBaseline = 'middle'
-  lctx.fillStyle = '#FFEA00'
-  lctx.fillText('KAPI BUTONU', 256, 32)
+  lctx.fillStyle = '#FFF9C4'
+  lctx.fillText('Kapı Butonu', 256, 32)
   const lblTex = new THREE.CanvasTexture(lblCanvas)
   lblTex.minFilter = THREE.LinearFilter
   const lblSprite = new THREE.Sprite(
@@ -877,24 +890,22 @@ function createChargingStation(pos: Position): THREE.Group {
   iconSprite.renderOrder = 999
   g.add(iconSprite)
 
-  // ── "ŞARJ İSTASYONU" text sprite — bold & prominent ──
+  // ── "Şarj İstasyonu" text sprite — clean, stable label ──
   const labelCanvas = document.createElement('canvas')
   labelCanvas.width = 1024; labelCanvas.height = 128
   const ctx = labelCanvas.getContext('2d')!
-  // Background — clean, readable
-  ctx.fillStyle = 'rgba(10, 30, 20, 0.85)'
-  ctx.roundRect(12, 8, 1000, 112, 18)
+  ctx.fillStyle = 'rgba(15, 30, 25, 0.9)'
+  ctx.roundRect(12, 8, 1000, 112, 14)
   ctx.fill()
-  ctx.strokeStyle = 'rgba(105, 240, 174, 0.5)'
-  ctx.lineWidth = 3
-  ctx.roundRect(12, 8, 1000, 112, 18)
+  ctx.strokeStyle = 'rgba(105, 240, 174, 0.35)'
+  ctx.lineWidth = 2
+  ctx.roundRect(12, 8, 1000, 112, 14)
   ctx.stroke()
-  // Text — clean, no excessive glow
-  ctx.font = 'bold 72px Arial'
+  ctx.font = 'bold 68px Arial'
   ctx.textAlign = 'center'
   ctx.textBaseline = 'middle'
-  ctx.fillStyle = '#69f0ae'
-  ctx.fillText('ŞARJ İSTASYONU', 512, 64)
+  ctx.fillStyle = '#b9f6ca'
+  ctx.fillText('Şarj İstasyonu', 512, 64)
   const labelTex = new THREE.CanvasTexture(labelCanvas)
   labelTex.minFilter = THREE.LinearFilter
   const labelSprite = new THREE.Sprite(
@@ -905,13 +916,13 @@ function createChargingStation(pos: Position): THREE.Group {
   labelSprite.renderOrder = 999
   g.add(labelSprite)
 
-  // Local lighting (adjusted for bigger size)
-  const spotDown = new THREE.SpotLight(0x69f0ae, 2.5, 8.0, Math.PI / 4.5, 0.45)
+  // Local lighting (subtle)
+  const spotDown = new THREE.SpotLight(0x69f0ae, 1.5, 6.0, Math.PI / 4.5, 0.45)
   spotDown.position.set(0, 2.9, 0.1)
   spotDown.target.position.set(0, 0, 0.05)
   g.add(spotDown)
   g.add(spotDown.target)
-  g.add(new THREE.PointLight(0x69f0ae, 1.2, 9).translateY(0.6))
+  g.add(new THREE.PointLight(0x69f0ae, 0.6, 6).translateY(0.6))
   chargingAmbientGlowMat = new THREE.MeshBasicMaterial({ color: 0x69f0ae, transparent: true, opacity: 0.06 })
   const glowSphere = new THREE.Mesh(new THREE.SphereGeometry(1.4, 24, 18), chargingAmbientGlowMat)
   glowSphere.position.y = 0.6
@@ -2142,12 +2153,9 @@ function initGame() {
         logPanel.addEntry('success', `${missionNum}. Görev tamamlandı!`)
 
         if (isLastMissionInChapter) {
-          // FINAL MISSION: big modal
+          // FINAL MISSION: big modal with buttons (no auto-dismiss)
           setTimeout(() => {
-            ui.showFinalSuccess('HAZIRSIN! ŞEHİR SENİ BEKLİYOR!', score.commandsUsed, score.batteryRemaining)
-            setTimeout(() => {
-              EventBus.emit('mission:autoAdvance')
-            }, 3700)
+            ui.showFinalSuccess('1. Bölüm Tamamlandı!', score.commandsUsed, score.batteryRemaining)
           }, 1200)
         } else {
           // INTERMEDIATE MISSION: card banner
@@ -2496,6 +2504,28 @@ function renderLoop() {
 
   renderer.render(scene, camera)
   stats.end()
+
+  // FPS panel update
+  fpsFrameCount++
+  const fpsNow = performance.now()
+  if (fpsNow - fpsLastTime >= 500) {
+    const fps = Math.round(fpsFrameCount / ((fpsNow - fpsLastTime) / 1000))
+    fpsFrameCount = 0
+    fpsLastTime = fpsNow
+    fpsAvgSamples.push(fps)
+    if (fpsAvgSamples.length > 20) fpsAvgSamples.shift()
+    const avg = Math.round(fpsAvgSamples.reduce((a, b) => a + b, 0) / fpsAvgSamples.length)
+    const fpsEl = document.getElementById('perf-fps')
+    const avgEl = document.getElementById('perf-avg-fps')
+    const badgeEl = document.getElementById('perf-badge')
+    if (fpsEl) fpsEl.textContent = String(fps)
+    if (avgEl) avgEl.textContent = String(avg)
+    if (badgeEl) {
+      if (avg >= 50) { badgeEl.textContent = 'İyi'; badgeEl.className = 'tb-perf-badge good' }
+      else if (avg >= 30) { badgeEl.textContent = 'Orta'; badgeEl.className = 'tb-perf-badge medium' }
+      else { badgeEl.textContent = 'Düşük'; badgeEl.className = 'tb-perf-badge low' }
+    }
+  }
 }
 
 // ═══════════════════════════════════════════
@@ -2638,6 +2668,33 @@ document.getElementById('failure-retry-btn')!.addEventListener('click', () => {
   ui.hideFailure(); document.getElementById('btn-reset')!.click()
 })
 
+// SUCCESS MODAL — Tekrar Oyna
+document.getElementById('success-replay-btn')!.addEventListener('click', () => {
+  ui.hideSuccess()
+  resetSimulationState()
+  blocklyMgr.clearHighlight()
+  const btn = document.getElementById('btn-run-toggle') as HTMLButtonElement
+  btn.classList.remove('running')
+  btn.innerHTML = '<span>🚀</span> Çalıştır'
+  // Reset missions back to first
+  missionMgr.resetToFirst()
+  loadMissionUI()
+  updateMissionStarsDisplay()
+  ui.showToast('🔄 Bölüm sıfırlandı, tekrar oyna!', 'info')
+})
+
+// SUCCESS MODAL — Sonraki Bölüme Geç
+document.getElementById('success-next-btn')!.addEventListener('click', () => {
+  ui.hideSuccess()
+  resetSimulationState()
+  blocklyMgr.clearHighlight()
+  const btn = document.getElementById('btn-run-toggle') as HTMLButtonElement
+  btn.classList.remove('running')
+  btn.innerHTML = '<span>🚀</span> Çalıştır'
+  // Advance to next chapter (for now, just show toast since only chapter 1 exists)
+  ui.showToast('🎉 Sonraki bölüm yakında!', 'info')
+})
+
 // CRASH MODAL — Tekrar Dene
 document.getElementById('crash-retry-btn')!.addEventListener('click', () => {
   ui.hideCrashModal()
@@ -2765,13 +2822,22 @@ if (cameraModeSelect) {
 }
 
 // ═══════════════════════════════════════════
-// SPEED CONTROL
+// SPEED CONTROL (max = Normal +20%)
 // ═══════════════════════════════════════════
+function updateSpeedIndicator(val: number) {
+  const el = document.getElementById('speed-indicator')
+  if (!el) return
+  if (val <= 600) el.textContent = 'Yavaş'
+  else if (val <= 900) el.textContent = 'Normal'
+  else el.textContent = 'Hızlı'
+}
 const speedSlider = document.getElementById('speed-slider') as HTMLInputElement | null
 if (speedSlider) {
+  updateSpeedIndicator(parseInt(speedSlider.value, 10))
   speedSlider.addEventListener('input', () => {
     const val = parseInt(speedSlider.value, 10)
     executor.setSpeed(val)
+    updateSpeedIndicator(val)
   })
 }
 
@@ -2802,7 +2868,7 @@ if (resolutionSlider) {
   resolutionSlider.addEventListener('input', () => {
     const scale = parseInt(resolutionSlider.value, 10) / 100
     const c = document.getElementById('canvas-container')!
-    const baseDPR = currentQuality === 'high' ? Math.min(window.devicePixelRatio, 1.5) : 1
+    const baseDPR = currentQuality === 'high' ? Math.min(window.devicePixelRatio, 1.5) : currentQuality === 'balanced' ? Math.min(window.devicePixelRatio, 1.25) : 1
     renderer.setPixelRatio(scale * baseDPR)
     renderer.setSize(c.clientWidth, c.clientHeight)
   })
@@ -2811,15 +2877,14 @@ if (resolutionSlider) {
 // ═══════════════════════════════════════════
 // QUALITY PRESETS
 // ═══════════════════════════════════════════
-let currentQuality: 'high' | 'performance' = 'high'
+let currentQuality: 'high' | 'balanced' | 'performance' = 'balanced'
 
-function applyQualityPreset(preset: 'high' | 'performance') {
+function applyQualityPreset(preset: 'high' | 'balanced' | 'performance') {
   currentQuality = preset
   const c = document.getElementById('canvas-container')!
   const sun = scene?.getObjectByName('env_sun') as THREE.DirectionalLight | undefined
 
   if (preset === 'high') {
-    // Cap at 1.5 — almost indistinguishable from 2.0 but 44% fewer pixels
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5))
     if (sun) {
       sun.shadow.mapSize.set(2048, 2048)
@@ -2828,20 +2893,21 @@ function applyQualityPreset(preset: 'high' | 'performance') {
       sun.shadow.map = null as any
     }
     if (scene?.fog) (scene.fog as THREE.FogExp2).density = 0.004
+  } else if (preset === 'balanced') {
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.25))
+    if (scene?.fog) (scene.fog as THREE.FogExp2).density = 0.004
   } else {
     renderer.setPixelRatio(1)
     if (scene?.fog) (scene.fog as THREE.FogExp2).density = 0.002
   }
 
   renderer.setSize(c.clientWidth, c.clientHeight)
-
-  // Sync resolution slider
   if (resolutionSlider) resolutionSlider.value = '100'
 }
 
 document.querySelectorAll('.quality-btn').forEach(btn => {
   btn.addEventListener('click', () => {
-    const quality = (btn as HTMLElement).dataset.quality as 'high' | 'performance'
+    const quality = (btn as HTMLElement).dataset.quality as 'high' | 'balanced' | 'performance'
     document.querySelectorAll('.quality-btn').forEach(b => b.classList.remove('active'))
     btn.classList.add('active')
     applyQualityPreset(quality)
@@ -2852,7 +2918,7 @@ document.querySelectorAll('.quality-btn').forEach(btn => {
 let shadowEnabled = false
 const shadowToggleBtn = document.getElementById('btn-shadow-toggle')
 if (shadowToggleBtn) {
-  shadowToggleBtn.textContent = '🌑 Kapalı'
+  shadowToggleBtn.textContent = 'Kapalı'
   shadowToggleBtn.classList.remove('active')
 }
 shadowToggleBtn?.addEventListener('click', () => {
@@ -2860,7 +2926,7 @@ shadowToggleBtn?.addEventListener('click', () => {
   const sun = scene?.getObjectByName('env_sun') as THREE.DirectionalLight | undefined
   renderer.shadowMap.enabled = shadowEnabled
   if (sun) sun.castShadow = shadowEnabled
-  shadowToggleBtn.textContent = shadowEnabled ? '🌑 Açık' : '🌑 Kapalı'
+  shadowToggleBtn.textContent = shadowEnabled ? 'Açık' : 'Kapalı'
   shadowToggleBtn.classList.toggle('active', shadowEnabled)
 })
 
@@ -2886,15 +2952,56 @@ function applyReflectionState() {
 }
 
 if (reflectionToggleBtn) {
-  reflectionToggleBtn.textContent = '🌑 Kapalı'
+  reflectionToggleBtn.textContent = 'Kapalı'
   reflectionToggleBtn.classList.remove('active')
 }
 reflectionToggleBtn?.addEventListener('click', () => {
   reflectionEnabled = !reflectionEnabled
   applyReflectionState()
-  reflectionToggleBtn.textContent = reflectionEnabled ? '✨ Açık' : '🌑 Kapalı'
+  reflectionToggleBtn.textContent = reflectionEnabled ? 'Açık' : 'Kapalı'
   reflectionToggleBtn.classList.toggle('active', reflectionEnabled)
 })
+// ═══════════════════════════════════════════
+// DEFAULTS BUTTON
+// ═══════════════════════════════════════════
+document.getElementById('btn-defaults')?.addEventListener('click', () => {
+  // Speed
+  if (speedSlider) { speedSlider.value = '800'; executor.setSpeed(800); updateSpeedIndicator(800) }
+  // Light
+  const lightSliderEl = document.getElementById('light-slider') as HTMLInputElement | null
+  if (lightSliderEl) { lightSliderEl.value = '100'; lightMultiplier = 1.0; applyLightMultiplier() }
+  // Resolution
+  if (resolutionSlider) { resolutionSlider.value = '100' }
+  // Quality = balanced
+  document.querySelectorAll('.quality-btn').forEach(b => b.classList.remove('active'))
+  document.querySelector('.quality-btn[data-quality="balanced"]')?.classList.add('active')
+  applyQualityPreset('balanced')
+  // Shadow off
+  shadowEnabled = false
+  const sun = scene?.getObjectByName('env_sun') as THREE.DirectionalLight | undefined
+  renderer.shadowMap.enabled = false
+  if (sun) sun.castShadow = false
+  const shadowBtn = document.getElementById('btn-shadow-toggle')
+  if (shadowBtn) { shadowBtn.textContent = 'Kapalı'; shadowBtn.classList.remove('active') }
+  // Reflection off
+  reflectionEnabled = false
+  applyReflectionState()
+  const reflBtn = document.getElementById('btn-reflection-toggle')
+  if (reflBtn) { reflBtn.textContent = 'Kapalı'; reflBtn.classList.remove('active') }
+  // Camera = overview
+  const camSelect = document.getElementById('camera-mode-select') as HTMLSelectElement | null
+  if (camSelect) { camSelect.value = 'overview' }
+  cameraMode = 'overview'
+  if (controls) controls.enabled = true
+  const pose = getPrimaryCameraPose()
+  animateCameraTo(pose.pos, pose.target, 800)
+  // Garage = open
+  const garageSelect = document.getElementById('garage-mode-select') as HTMLSelectElement | null
+  if (garageSelect) garageSelect.value = 'open'
+  applyGarageMode('open', true, false)
+  ui.showToast('🔄 Varsayılan ayarlara dönüldü', 'info')
+})
+
 // STEP MODE
 // ═══════════════════════════════════════════
 let stepModeEnabled = false

@@ -453,7 +453,7 @@
       display: flex;
       gap: 24px;
       justify-content: center;
-      margin-bottom: 8px;
+      margin-bottom: 24px;
     }
 
     .success-stat-box {
@@ -478,6 +478,55 @@
       text-transform: uppercase;
       letter-spacing: 1px;
       margin-top: 2px;
+    }
+
+    .success-actions {
+      display: flex;
+      gap: 14px;
+      justify-content: center;
+      flex-wrap: wrap;
+    }
+
+    .success-btn {
+      font-family: 'Inter', sans-serif;
+      font-size: 15px;
+      font-weight: 700;
+      padding: 12px 28px;
+      border-radius: 14px;
+      border: none;
+      cursor: pointer;
+      transition: all 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .success-btn:hover {
+      transform: translateY(-2px) scale(1.04);
+    }
+
+    .success-btn:active {
+      transform: translateY(0) scale(0.97);
+    }
+
+    .success-btn-primary {
+      background: linear-gradient(135deg, #43a047, #2e7d32);
+      color: #fff;
+      box-shadow: 0 4px 16px rgba(46, 125, 50, 0.35);
+    }
+
+    .success-btn-primary:hover {
+      box-shadow: 0 6px 24px rgba(46, 125, 50, 0.5);
+    }
+
+    .success-btn-secondary {
+      background: #f0faf0;
+      color: #2e7d32;
+      border: 2px solid #a5d6a7;
+    }
+
+    .success-btn-secondary:hover {
+      background: #e8f5e9;
     }
 
     /* ═══════════════════════════════════
@@ -1211,53 +1260,53 @@
     }
 
     /* ═══ FLOATING TOOLBOX ═══ */
+    /* Toolbox toggle — toolbar içinde inline buton */
     #toolbox-toggle {
-      position: absolute;
-      top: 60px;
-      right: 8px;
-      width: 36px;
-      height: 36px;
-      border-radius: 10px;
-      background: rgba(255, 255, 255, 0.9);
-      backdrop-filter: blur(8px);
-      border: 1px solid rgba(126, 149, 255, 0.25);
-      color: var(--text-primary);
-      font-size: 16px;
-      cursor: pointer;
       display: flex;
       align-items: center;
-      justify-content: center;
-      z-index: 50;
+      gap: 6px;
+      padding: 6px 14px;
+      border-radius: 10px;
+      background: rgba(255, 255, 255, 0.15);
+      backdrop-filter: blur(8px);
+      border: 1px solid rgba(255, 255, 255, 0.25);
+      color: #fff;
+      font-size: 13px;
+      font-weight: 600;
+      font-family: 'Inter', sans-serif;
+      cursor: pointer;
       transition: all 0.2s;
-      box-shadow: 0 2px 12px rgba(0, 0, 0, 0.4);
+      white-space: nowrap;
     }
 
     #toolbox-toggle:hover {
-      background: rgba(126, 149, 255, 0.2);
-      border-color: var(--accent-primary);
-      box-shadow: 0 0 16px rgba(0, 230, 184, 0.2);
+      background: rgba(255, 255, 255, 0.25);
+      border-color: rgba(255, 255, 255, 0.5);
     }
 
     #toolbox-toggle.open {
-      background: var(--accent-primary);
-      color: #0b1120;
-      border-color: var(--accent-primary);
+      background: rgba(255, 255, 255, 0.3);
+      border-color: rgba(255, 255, 255, 0.6);
+    }
+
+    .toolbox-wrapper {
+      position: relative;
     }
 
     #toolbox-panel {
-      position: absolute;
+      position: fixed;
       top: 60px;
-      right: 50px;
-      background: rgba(255, 255, 255, 0.96);
-      backdrop-filter: blur(12px);
-      border: 1px solid rgba(126, 149, 255, 0.2);
-      border-radius: 12px;
+      right: 8px;
+      background: rgba(255, 255, 255, 0.97);
+      backdrop-filter: blur(14px);
+      border: 1px solid rgba(126, 149, 255, 0.18);
+      border-radius: 14px;
       padding: 0;
-      z-index: 49;
-      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.6);
+      z-index: 200;
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.16), 0 2px 8px rgba(0, 0, 0, 0.08);
       display: none;
-      width: 280px;
-      max-height: calc(100% - 16px);
+      width: 320px;
+      max-height: calc(100vh - 72px);
       overflow-y: auto;
     }
 
@@ -1265,23 +1314,33 @@
       display: block;
     }
 
+    /* Custom scrollbar */
+    #toolbox-panel::-webkit-scrollbar { width: 5px; }
+    #toolbox-panel::-webkit-scrollbar-track { background: transparent; }
+    #toolbox-panel::-webkit-scrollbar-thumb { background: rgba(124, 77, 255, 0.2); border-radius: 3px; }
+    #toolbox-panel::-webkit-scrollbar-thumb:hover { background: rgba(124, 77, 255, 0.4); }
+
     .tb-section {
-      padding: 10px 14px;
-      border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+      padding: 12px 16px;
+      border-bottom: 1px solid rgba(0, 0, 0, 0.06);
     }
 
     .tb-section:last-child {
       border-bottom: none;
     }
 
+    .tb-section-footer {
+      padding: 10px 16px;
+      text-align: center;
+    }
+
     .tb-section-title {
-      font-size: 9px;
-      font-weight: 700;
+      font-size: 11px;
+      font-weight: 800;
       text-transform: uppercase;
-      letter-spacing: 1px;
-      color: var(--accent-primary);
-      margin-bottom: 8px;
-      opacity: 0.7;
+      letter-spacing: 0.8px;
+      color: var(--text-primary);
+      margin-bottom: 10px;
     }
 
     .tb-row {
@@ -1296,11 +1355,23 @@
       margin-bottom: 0;
     }
 
+    .tb-row.disabled {
+      opacity: 0.4;
+      pointer-events: none;
+    }
+
     .tb-label {
-      font-size: 11px;
+      font-size: 12px;
       font-weight: 600;
       color: var(--text-secondary);
       white-space: nowrap;
+    }
+
+    .tb-desc {
+      font-size: 10px;
+      color: var(--text-muted);
+      margin: 2px 0 8px 0;
+      line-height: 1.4;
     }
 
     .tb-btn-group {
@@ -1309,11 +1380,11 @@
     }
 
     .tb-btn {
-      padding: 4px 10px;
+      padding: 5px 12px;
       font-size: 11px;
       font-weight: 600;
       border: 1px solid var(--border-color);
-      border-radius: 6px;
+      border-radius: 8px;
       background: var(--bg-card);
       color: var(--text-secondary);
       cursor: pointer;
@@ -1323,6 +1394,7 @@
 
     .tb-btn:hover {
       background: var(--bg-hover);
+      border-color: var(--accent-primary);
     }
 
     .tb-btn.active {
@@ -1331,52 +1403,186 @@
       border-color: var(--accent-primary);
     }
 
+    /* Toggle buttons */
+    .tb-toggle {
+      min-width: 64px;
+      text-align: center;
+      border-radius: 8px;
+      font-size: 11px;
+      font-weight: 700;
+      padding: 5px 12px;
+      background: #f0f0f0;
+      color: #888;
+      border: 1px solid #ddd;
+    }
+
+    .tb-toggle.active {
+      background: #e8f5e9;
+      color: #2e7d32;
+      border-color: #a5d6a7;
+    }
+
     .quality-presets {
       display: flex;
-      gap: 4px;
+      gap: 3px;
     }
 
     .quality-btn {
-      padding: 4px 10px;
-      font-size: 11px;
-      font-weight: 600;
+      padding: 5px 10px;
+      font-size: 10px;
+      font-weight: 700;
       border: 1px solid var(--border-color);
-      border-radius: 6px;
+      border-radius: 8px;
       background: var(--bg-card);
       color: var(--text-secondary);
       cursor: pointer;
-      transition: all 0.15s;
+      transition: all 0.2s;
       font-family: 'Inter', sans-serif;
     }
 
     .quality-btn:hover {
       background: var(--bg-hover);
+      border-color: var(--accent-secondary);
     }
 
     .quality-btn.active {
-      background: var(--accent-primary);
+      background: var(--accent-secondary);
       color: #fff;
-      border-color: var(--accent-primary);
+      border-color: var(--accent-secondary);
+      box-shadow: 0 2px 8px rgba(124, 77, 255, 0.25);
     }
 
     #toolbox-panel .speed-control input[type="range"] {
       width: 90px;
     }
 
+    .speed-label-edge {
+      font-size: 9px;
+      font-weight: 600;
+      color: var(--text-muted);
+      white-space: nowrap;
+    }
+
+    .tb-speed-indicator {
+      text-align: center;
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--accent-secondary);
+      margin: 2px 0;
+    }
+
+    /* Camera closed-roof notice */
+    .tb-camera-notice {
+      background: #fff3e0;
+      border: 1px solid #ffe0b2;
+      border-radius: 8px;
+      padding: 6px 10px;
+      font-size: 10px;
+      color: #e65100;
+      font-weight: 500;
+      margin-top: 6px;
+      line-height: 1.4;
+    }
+
+    /* Performance section */
+    .tb-perf-grid {
+      display: flex;
+      gap: 8px;
+    }
+
+    .tb-perf-item {
+      flex: 1;
+      text-align: center;
+      background: var(--bg-card);
+      border-radius: 8px;
+      padding: 6px 4px;
+      border: 1px solid rgba(0,0,0,0.04);
+    }
+
+    .tb-perf-label {
+      display: block;
+      font-size: 9px;
+      font-weight: 600;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 2px;
+    }
+
+    .tb-perf-value {
+      display: block;
+      font-size: 16px;
+      font-weight: 800;
+      color: var(--text-primary);
+      font-family: 'JetBrains Mono', monospace;
+    }
+
+    .tb-perf-badge {
+      display: inline-block;
+      font-size: 10px;
+      font-weight: 700;
+      padding: 2px 8px;
+      border-radius: 6px;
+      background: #e0e0e0;
+      color: #666;
+    }
+
+    .tb-perf-badge.good {
+      background: #e8f5e9;
+      color: #2e7d32;
+    }
+
+    .tb-perf-badge.medium {
+      background: #fff3e0;
+      color: #e65100;
+    }
+
+    .tb-perf-badge.low {
+      background: #ffebee;
+      color: #c62828;
+    }
+
+    /* Defaults button */
+    .tb-defaults-btn {
+      width: 100%;
+      padding: 8px 16px;
+      font-size: 12px;
+      font-weight: 600;
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      background: var(--bg-card);
+      color: var(--text-secondary);
+      cursor: pointer;
+      transition: all 0.2s;
+      font-family: 'Inter', sans-serif;
+    }
+
+    .tb-defaults-btn:hover {
+      background: var(--bg-hover);
+      border-color: var(--accent-primary);
+      color: var(--text-primary);
+    }
+
     #toolbox-panel select {
       background: var(--bg-card);
       color: var(--text-primary);
       border: 1px solid var(--border-color);
-      border-radius: 6px;
-      font-size: 11px;
+      border-radius: 8px;
+      font-size: 12px;
       font-family: 'Inter', sans-serif;
-      padding: 4px 8px;
+      padding: 5px 10px;
       cursor: pointer;
       outline: none;
+      transition: border-color 0.15s;
     }
 
     #toolbox-panel select:hover {
-      border-color: var(--accent-primary);
+      border-color: var(--accent-secondary);
+    }
+
+    #toolbox-panel select:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
     }
 
     .mission-nav {
@@ -1869,12 +2075,12 @@
 
     .mission-label {
       font-family: 'Inter', sans-serif;
-      font-size: 16px;
+      font-size: 18px;
       font-weight: 900;
       text-transform: uppercase;
       letter-spacing: 2px;
       color: #fff;
-      margin-bottom: 10px;
+      margin-bottom: 12px;
       text-shadow: 0 0 12px rgba(255, 184, 51, 0.5);
       background: linear-gradient(90deg, var(--accent-warning), #ffe082);
       -webkit-background-clip: text;
@@ -1882,23 +2088,22 @@
       background-clip: text;
     }
 
-    /* mission-label-glow removed — less distraction */
-
     .mission-title {
       font-family: 'Inter', sans-serif;
-      font-size: 17px;
+      font-size: 18px;
       font-weight: 800;
       color: #fff;
-      margin-bottom: 8px;
+      margin-bottom: 10px;
       text-shadow: 0 2px 6px rgba(0, 0, 0, 0.4);
+      line-height: 1.4;
     }
 
     .mission-desc {
       font-family: 'Inter', sans-serif;
-      font-size: 13px;
-      color: rgba(255, 255, 255, 0.75);
+      font-size: 14px;
+      color: rgba(255, 255, 255, 0.95);
       line-height: 1.7;
-      margin-bottom: 10px;
+      margin-bottom: 12px;
       font-weight: 500;
     }
 
@@ -1918,7 +2123,7 @@
     }
 
     .mission-card.completed .mission-desc {
-      color: rgba(165, 214, 167, 0.8);
+      color: rgba(165, 214, 167, 0.95);
     }
 
     /* ═══ Card success banner (görev 1-3 tamamlama) ═══ */
@@ -2214,8 +2419,8 @@
   <div id="success-overlay">
     <div class="success-modal">
       <div class="success-icon">🏆</div>
-      <div class="success-title" id="success-title">HAZIRSIN! ŞEHİR SENİ BEKLİYOR!</div>
-      <div class="success-message" id="success-message">Tüm görevleri tamamladın!</div>
+      <div class="success-title" id="success-title">1. Bölüm Tamamlandı!</div>
+      <div class="success-message" id="success-message">Tebrikler! Robotu başarıyla şarj istasyonuna ulaştırdın.</div>
       <div class="success-stats">
         <div class="success-stat-box">
           <div class="stat-value" id="stat-commands">0</div>
@@ -2225,6 +2430,10 @@
           <div class="stat-value" id="stat-battery">100%</div>
           <div class="stat-label">Batarya</div>
         </div>
+      </div>
+      <div class="success-actions">
+        <button class="success-btn success-btn-secondary" id="success-replay-btn">🔄 Tekrar Oyna</button>
+        <button class="success-btn success-btn-primary" id="success-next-btn">▶ Sonraki Bölüme Geç</button>
       </div>
     </div>
   </div>
@@ -2273,6 +2482,10 @@
         </div>
         <span class="battery-text" id="battery-text">5%</span>
       </div>
+      <!-- Ayarlar butonu — toolbar'da, her zaman üstte -->
+      <div class="toolbox-wrapper">
+        <button id="toolbox-toggle" title="Ayarlar">⚙️ Ayarlar</button>
+      </div>
     </div>
   </div>
 
@@ -2290,64 +2503,82 @@
     </div>
 
     <div id="canvas-container">
-      <!-- ═══ FLOATING TOOLBOX ═══ -->
-      <button id="toolbox-toggle" title="Araç Kutusu">🛠</button>
       <div id="toolbox-panel">
+        <!-- A. Çalıştırma -->
         <div class="tb-section">
-          <div class="tb-section-title">Çalıştırma</div>
+          <div class="tb-section-title">🚀 Çalıştırma</div>
           <div class="tb-row">
             <span class="tb-label">Hız</span>
             <div class="speed-control">
-              <span>🐢</span>
-              <input type="range" id="speed-slider" min="100" max="2000" value="800" step="100">
-              <span>🐇</span>
+              <span class="speed-label-edge">Yavaş</span>
+              <input type="range" id="speed-slider" min="400" max="1200" value="800" step="100">
+              <span class="speed-label-edge">Hızlı</span>
             </div>
           </div>
-          <div class="tb-row">
+          <div class="tb-speed-indicator" id="speed-indicator">Normal</div>
+          <div class="tb-desc">Robotun simülasyondaki hızını değiştirir</div>
+          <div class="tb-row" style="margin-top: 8px;">
             <button class="ctrl-btn" id="btn-step-toggle" title="Adım adım modunu aç/kapat">👣 Adım Modu</button>
             <button class="ctrl-btn" id="btn-step-next" style="display:none" title="Sonraki adım">⏭ Adım</button>
+          </div>
+          <div class="tb-row">
             <button class="ctrl-btn" id="btn-load-code">💡 Çözümü Yükle</button>
             <button class="ctrl-btn" id="btn-load-crash">💥 Çarpma Testi</button>
           </div>
         </div>
+        <!-- B. Kamera -->
         <div class="tb-section">
-          <div class="tb-section-title">Kamera</div>
+          <div class="tb-section-title">🎥 Kamera</div>
           <div class="tb-row">
+            <span class="tb-label">Görünüm</span>
             <select id="camera-mode-select">
               <option value="overview">Genel Bakış</option>
               <option value="follow">Robot Takip</option>
               <option value="cinematic">Sinematik</option>
             </select>
-            <button class="tb-btn" id="camera-reset">🎥 Sıfırla</button>
+          </div>
+          <div class="tb-desc">Sahneyi hangi açıdan izlediğini belirler</div>
+          <div class="tb-camera-notice" id="camera-closed-notice" style="display:none">
+            ℹ️ Kapalı tavan modunda kamera otomatik ayarlanır
+          </div>
+          <div class="tb-row" style="margin-top: 6px;">
+            <button class="tb-btn" id="camera-reset">🔄 Kamerayı Sıfırla</button>
           </div>
         </div>
+        <!-- C. Sahne -->
         <div class="tb-section">
-          <div class="tb-section-title">Sahne</div>
+          <div class="tb-section-title">🏠 Sahne</div>
           <div class="tb-row">
-            <span class="tb-label">Garaj</span>
+            <span class="tb-label">Garaj Modu</span>
             <select id="garage-mode-select">
               <option value="open">Açık Tavan</option>
               <option value="closed">Kapalı Tavan Sürüş</option>
             </select>
           </div>
+          <div class="tb-desc">Açık veya kapalı tavan görünümünü değiştirir</div>
         </div>
+        <!-- D. Grafik Ayarları -->
         <div class="tb-section">
-          <div class="tb-section-title">Grafik Ayarları</div>
+          <div class="tb-section-title">🎨 Grafik Ayarları</div>
           <div class="tb-row">
             <span class="tb-label">Kalite</span>
             <div class="quality-presets">
-              <button class="quality-btn active" data-quality="high">Kalite 1</button>
-              <button class="quality-btn" data-quality="performance">Kalite 2</button>
+              <button class="quality-btn" data-quality="performance">Performans</button>
+              <button class="quality-btn active" data-quality="balanced">Dengeli</button>
+              <button class="quality-btn" data-quality="high">Kalite</button>
             </div>
           </div>
+          <div class="tb-desc">Görsel detay seviyesini belirler</div>
           <div class="tb-row">
             <span class="tb-label">Gölge</span>
-            <button class="ctrl-btn" id="btn-shadow-toggle" title="Gölgeleri aç/kapat">🌑 Kapalı</button>
+            <button class="ctrl-btn tb-toggle" id="btn-shadow-toggle" title="Gölgeleri aç/kapat">Kapalı</button>
           </div>
+          <div class="tb-desc">Sahnedeki gölgeleri açar veya kapatır</div>
           <div class="tb-row">
             <span class="tb-label">Yansıma</span>
-            <button class="ctrl-btn" id="btn-reflection-toggle" title="Zemin yansımalarını aç/kapat">🌑 Kapalı</button>
+            <button class="ctrl-btn tb-toggle" id="btn-reflection-toggle" title="Zemin yansımalarını aç/kapat">Kapalı</button>
           </div>
+          <div class="tb-desc">Parlak yüzeylerdeki yansıma efektlerini kontrol eder</div>
           <div class="tb-row">
             <span class="tb-label">Işık</span>
             <div class="speed-control">
@@ -2356,6 +2587,7 @@
               <span>☀️</span>
             </div>
           </div>
+          <div class="tb-desc">Sahnenin aydınlatma yoğunluğunu değiştirir</div>
           <div class="tb-row">
             <span class="tb-label">Çözünürlük</span>
             <div class="speed-control">
@@ -2364,6 +2596,29 @@
               <span>HD</span>
             </div>
           </div>
+          <div class="tb-desc">Görüntü netliği ve performans dengesini etkiler</div>
+        </div>
+        <!-- E. Performans -->
+        <div class="tb-section">
+          <div class="tb-section-title">📊 Performans</div>
+          <div class="tb-perf-grid">
+            <div class="tb-perf-item">
+              <span class="tb-perf-label">FPS</span>
+              <span class="tb-perf-value" id="perf-fps">--</span>
+            </div>
+            <div class="tb-perf-item">
+              <span class="tb-perf-label">Ortalama</span>
+              <span class="tb-perf-value" id="perf-avg-fps">--</span>
+            </div>
+            <div class="tb-perf-item">
+              <span class="tb-perf-label">Durum</span>
+              <span class="tb-perf-badge" id="perf-badge">--</span>
+            </div>
+          </div>
+        </div>
+        <!-- Varsayılan Ayarlar -->
+        <div class="tb-section tb-section-footer">
+          <button class="tb-defaults-btn" id="btn-defaults">🔄 Varsayılan Ayarlar</button>
         </div>
       </div>
       <div id="mission-overlay">

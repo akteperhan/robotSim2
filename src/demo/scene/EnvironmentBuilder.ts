@@ -10,13 +10,13 @@ export function createSkyGradient(): THREE.Texture {
     canvas.width = 2; canvas.height = 512
     const ctx = canvas.getContext('2d')!
     const g = ctx.createLinearGradient(0, 0, 0, 512)
-    g.addColorStop(0, '#0a3d7a')
-    g.addColorStop(0.15, '#1565c0')
-    g.addColorStop(0.30, '#1e88e5')
-    g.addColorStop(0.50, '#42a5f5')
-    g.addColorStop(0.70, '#87ceeb')
-    g.addColorStop(0.90, '#e3f2fd')
-    g.addColorStop(1.0, '#ffffff')
+    g.addColorStop(0, '#1565c0')
+    g.addColorStop(0.15, '#1e88e5')
+    g.addColorStop(0.30, '#42a5f5')
+    g.addColorStop(0.50, '#64b5f6')
+    g.addColorStop(0.70, '#90caf9')
+    g.addColorStop(0.85, '#bbdefb')
+    g.addColorStop(1.0, '#e3f2fd')
     ctx.fillStyle = g; ctx.fillRect(0, 0, 2, 512)
     const tex = new THREE.CanvasTexture(canvas)
     tex.mapping = THREE.EquirectangularReflectionMapping
@@ -44,20 +44,20 @@ export function createOutdoorScene(
         if (receiveShadow) b.receiveShadow = true
     }
 
-    // === Atmospheric Fog (slightly less dense for cleaner view) ===
-    scene.fog = new THREE.FogExp2(0xd4e4f0, 0.006)
+    // === Atmospheric Fog (light and airy) ===
+    scene.fog = new THREE.FogExp2(0xe8f4fd, 0.004)
 
-    // === Sky Shader ===
+    // === Sky Shader (bright, cheerful, child-friendly) ===
     const sky = new Sky()
     sky.scale.setScalar(480)
     sky.position.set(config.GRID_CENTER_X, 0, config.DOOR_ROW + 10)
     const skyUniforms = (sky.material as THREE.ShaderMaterial).uniforms as Record<string, THREE.IUniform<unknown>>
-        ; (skyUniforms['turbidity'] as THREE.IUniform<number>).value = 2.0
-        ; (skyUniforms['rayleigh'] as THREE.IUniform<number>).value = 0.4
-        ; (skyUniforms['mieCoefficient'] as THREE.IUniform<number>).value = 0.003
-        ; (skyUniforms['mieDirectionalG'] as THREE.IUniform<number>).value = 0.95
+        ; (skyUniforms['turbidity'] as THREE.IUniform<number>).value = 1.5
+        ; (skyUniforms['rayleigh'] as THREE.IUniform<number>).value = 1.2
+        ; (skyUniforms['mieCoefficient'] as THREE.IUniform<number>).value = 0.005
+        ; (skyUniforms['mieDirectionalG'] as THREE.IUniform<number>).value = 0.92
     const sunDir = new THREE.Vector3()
-    const elevation = 50, azimuth = 180
+    const elevation = 55, azimuth = 160
     sunDir.setFromSphericalCoords(1, THREE.MathUtils.degToRad(90 - elevation), THREE.MathUtils.degToRad(azimuth))
         ; (skyUniforms['sunPosition'] as THREE.IUniform<THREE.Vector3>).value.copy(sunDir)
         ; (sky.material as THREE.ShaderMaterial).depthWrite = false
@@ -155,7 +155,7 @@ export function createOutdoorScene(
     }
 
     // === DIORAMA BASE PLATFORM ===
-    const platformMat = new THREE.MeshStandardMaterial({ color: 0x2a2a2a, roughness: 0.9, metalness: 0.05 })
+    const platformMat = new THREE.MeshStandardMaterial({ color: 0x5a6a5a, roughness: 0.85, metalness: 0.05 })
     const platformGeom = new THREE.BoxGeometry(50, 0.3, 60)
     platformGeom.translate(config.GRID_CENTER_X, -0.35, 22)
     collect('platform', platformMat, platformGeom, false, true)
@@ -280,18 +280,54 @@ export function createOutdoorScene(
         collect('bollards', bollardMat, bG)
     }
 
+    // === GARAGE ENTRANCE APRON ===
+    const apronMat = new THREE.MeshStandardMaterial({ color: 0xd0ccc0, roughness: 0.75, metalness: 0.0 })
+    const apronGeom = new THREE.BoxGeometry(config.GRID_W + 2, 0.04, 2.5)
+    apronGeom.translate(config.GRID_CENTER_X, -0.16, config.DOOR_ROW - 0.5)
+    collect('apron', apronMat, apronGeom, false, true)
+
+    // === GREEN STRIPS (grass between sidewalk and buildings) ===
+    const grassMat = new THREE.MeshStandardMaterial({ color: 0x7cb342, roughness: 0.9, metalness: 0.0 })
+    // Left grass strip
+    const lGrassG = new THREE.BoxGeometry(2.0, 0.08, 44)
+    lGrassG.translate(-6.5, -0.14, config.DOOR_ROW + 10)
+    collect('grass', grassMat, lGrassG, false, true)
+    // Right grass strip
+    const rGrassG = new THREE.BoxGeometry(2.0, 0.08, 44)
+    rGrassG.translate(config.GRID_W + 5.5, -0.14, config.DOOR_ROW + 10)
+    collect('grass', grassMat, rGrassG, false, true)
+
+    // === PLATFORM EDGE BORDER (city block boundary) ===
+    const edgeMat = new THREE.MeshStandardMaterial({ color: 0x78909c, roughness: 0.6, metalness: 0.1 })
+    // Front edge
+    const frontEdgeG = new THREE.BoxGeometry(50, 0.5, 0.3)
+    frontEdgeG.translate(config.GRID_CENTER_X, -0.25, 52)
+    collect('edges', edgeMat, frontEdgeG)
+    // Back edge
+    const backEdgeG = new THREE.BoxGeometry(50, 0.5, 0.3)
+    backEdgeG.translate(config.GRID_CENTER_X, -0.25, -8)
+    collect('edges', edgeMat, backEdgeG)
+    // Left edge
+    const leftEdgeG = new THREE.BoxGeometry(0.3, 0.5, 60)
+    leftEdgeG.translate(config.GRID_CENTER_X - 25, -0.25, 22)
+    collect('edges', edgeMat, leftEdgeG)
+    // Right edge
+    const rightEdgeG = new THREE.BoxGeometry(0.3, 0.5, 60)
+    rightEdgeG.translate(config.GRID_CENTER_X + 25, -0.25, 22)
+    collect('edges', edgeMat, rightEdgeG)
+
     // ═══════════════════════════════════════════
     // BUILDING SYSTEM — Muted Realistic Palette
     // ═══════════════════════════════════════════
     const buildingPalette = [
-        { body: 0x8b8b7a, base: 0x707060 },   // Warm gray stone
-        { body: 0xa0816c, base: 0x806050 },   // Brownstone
-        { body: 0x7a8b8b, base: 0x607070 },   // Cool gray
-        { body: 0xb8a88a, base: 0x988868 },   // Sandstone
-        { body: 0x6b7b7b, base: 0x506060 },   // Dark slate
-        { body: 0x9a8878, base: 0x7a6858 },   // Taupe
-        { body: 0x8a7a6a, base: 0x6a5a4a },   // Brown
-        { body: 0x7b8a7b, base: 0x5b6a5b },   // Sage
+        { body: 0x90caf9, base: 0x64b5f6 },   // Açık mavi
+        { body: 0x80cbc4, base: 0x4db6ac },   // Turkuaz
+        { body: 0xbcaaa4, base: 0xa1887f },   // Sıcak gri
+        { body: 0xfff176, base: 0xfdd835 },   // Yumuşak sarı
+        { body: 0xffab91, base: 0xff8a65 },   // Canlı turuncu
+        { body: 0xa5d6a7, base: 0x81c784 },   // Hafif yeşil
+        { body: 0xce93d8, base: 0xba68c8 },   // Lavanta
+        { body: 0xb0bec5, base: 0x90a4ae },   // Modern gri
     ]
 
     const windowFrameMat = new THREE.MeshStandardMaterial({ color: 0xd0d0d0, roughness: 0.5 })

@@ -77,19 +77,12 @@ export class UIManager {
     const overlay = document.getElementById('success-overlay')!
     const titleEl = document.getElementById('success-title')
     if (titleEl) titleEl.textContent = msg
-    document.getElementById('success-message')!.textContent = 'Tüm görevleri tamamladın! Tebrikler!'
+    document.getElementById('success-message')!.textContent = 'Tebrikler! Robotu başarıyla şarj istasyonuna ulaştırdın.'
     document.getElementById('stat-commands')!.textContent = String(cmds)
     document.getElementById('stat-battery')!.textContent = `${Math.round(bat)}%`
     overlay.classList.remove('dismissing')
     overlay.classList.add('visible')
-
-    // Auto-dismiss after 3s
-    setTimeout(() => {
-      overlay.classList.add('dismissing')
-      setTimeout(() => {
-        overlay.classList.remove('visible', 'dismissing')
-      }, 500)
-    }, 3000)
+    // No auto-dismiss — user clicks "Tekrar Oyna" or "Sonraki Bölüme Geç"
   }
 
   hideSuccess() {
