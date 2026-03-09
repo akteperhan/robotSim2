@@ -18,8 +18,8 @@ export class PressButtonCommand implements ICommand {
 
     nearbyButton.interact()
 
-    // Wait for door animation + cinematic camera sequence to complete
-    await new Promise(resolve => setTimeout(resolve, DOOR_ANIMATION_DURATION + 4000))
+    // Wait for door animation to complete + small buffer
+    await new Promise(resolve => setTimeout(resolve, DOOR_ANIMATION_DURATION + 500))
 
     return {
       success: true,

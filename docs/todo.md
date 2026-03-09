@@ -935,3 +935,65 @@ aşırı gerçekçi, ağır ve kirli şehir görünümü
 10. Beklenen çıktı
 
 Mevcut robot garajı, şarj istasyonu ve şehir öğelerini koruyarak; environment tasarımını daha güçlü, daha dolu, daha şehirsel ve daha atmosferik hale getir. Sonuç; yukarıdan bakıldığında boşluk hissi vermeyen, sınırları belli, düzenli, renkli ve canlı bir mini şehir bloğu olmalı.
+
+todo 7:
+
+1. Garaj kapısı buton etiketi güncellemesi
+
+Garaj kapısını açan etkileşim butonunun mevcut metni şu an “KAPI BUTONU” görünüyor.
+
+Bu metin daha açıklayıcı hale getirilmeli.
+
+Yeni etiket şu olmalı:
+
+KAPI AÇMA BUTONU
+
+Etiket sabit, net, okunabilir ve temiz görünmeli.
+
+Yazı büyük harfli kalabilir ama daha doğru yönlendirme sağlamalı.
+
+2. Kapı açılma animasyonundan sonra gereksiz bekleme kaldırılmalı
+
+Kullanıcı butona bastığında garaj kapısı açılıyor animasyonu doğru şekilde oynuyor.
+
+Ancak animasyon bittikten sonra robot bir sonraki komuta geçmeden önce gereğinden fazla bekliyor.
+
+Örneğin örnek çözümde kapı açıldıktan sonra gelen komutlar:
+
+sola dön
+
+ileri git 18 adım
+
+Şu an robot kapı açılma animasyonu bittikten sonra yaklaşık 3–4 saniye boşta bekliyor gibi hissediliyor.
+
+Bu gereksiz bekleme kaldırılmalı.
+
+İstenen davranış
+
+Kapı açılma animasyonu tamamlandıktan sonra robot kod akışına hızlı şekilde geri dönmeli.
+
+Maksimum bekleme süresi:
+
+0.5 saniye
+
+en fazla 1 saniye
+
+Bunun üstünde ekstra delay olmamalı.
+
+Sistem “animasyon bitti → kısa geçiş → sıradaki komutu çalıştır” mantığında ilerlemeli.
+
+Hedef
+
+Robotun akışı daha doğal, hızlı ve tepkisel hissettirmeli.
+
+Görev çözümü gereksiz yere yavaşlamamalı.
+
+Kapı açma etkileşimi ile sonraki komut arasında kopukluk hissi olmamalı.
+
+Kısa teknik prompt
+
+Implement the following fixes in the robot coding simulation:
+
+Change the garage door interaction label from “KAPI BUTONU” to “KAPI AÇMA BUTONU”.
+
+After the garage door opening animation finishes, remove the unnecessary long delay before continuing with the next command. The robot should continue to the next action, such as turning left and moving forward, after at most 0.5 to 1 second. Do not allow a 3–4 second pause after the door animation completes.

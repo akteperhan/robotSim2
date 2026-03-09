@@ -58,7 +58,7 @@ let mainAmbientLight: THREE.AmbientLight | null = null
 let chargingSurfaceMat: THREE.MeshStandardMaterial | null = null
 let chargingAmbientGlowMat: THREE.MeshBasicMaterial | null = null
 let isExecuting = false, isPanelOpen = true
-let lightMultiplier = 1.0
+let lightMultiplier = 0.0
 // FPS tracking for settings panel
 let fpsFrameCount = 0, fpsLastTime = performance.now(), fpsAvgSamples: number[] = []
 let skyLight: THREE.HemisphereLight
@@ -750,7 +750,7 @@ function createButton3D(pos: Position) {
   lctx.font = 'bold 34px Arial'
   lctx.textAlign = 'center'; lctx.textBaseline = 'middle'
   lctx.fillStyle = '#FFF9C4'
-  lctx.fillText('Kapı Butonu', 256, 32)
+  lctx.fillText('Kapı Açma Butonu', 256, 32)
   const lblTex = new THREE.CanvasTexture(lblCanvas)
   lblTex.minFilter = THREE.LinearFilter
   const lblSprite = new THREE.Sprite(
@@ -1372,6 +1372,7 @@ function resetSimulationState() {
   isChargingActive = false
   chargePulseUntil = 0
   isExecuting = false
+  syncGarageModeSelect()
   // Remove mission complete overlay if still showing
   const mcOverlay = document.getElementById('mission-complete-overlay')
   if (mcOverlay) mcOverlay.remove()
@@ -2087,6 +2088,7 @@ function initGame() {
     isChargingActive = false
     chargePulseUntil = 0
     isExecuting = false; gameState = GameState.FAILED
+    syncGarageModeSelect()
     blocklyMgr.clearHighlight()
     ui.showFailure('BIG-BOT\'un bataryası bitti! Daha verimli bir rota dene.')
     ui.showMissionAlert('💀', 'Batarya bitti!', 'danger', 5000)
@@ -2125,12 +2127,13 @@ function initGame() {
 
   EventBus.on('program:stopped', () => {
     isExecuting = false
+    syncGarageModeSelect()
     blocklyMgr.clearHighlight()
     if (!isRobotOnChargingPad()) setChargingCableConnected(false)
     ui.updateStatus('Durduruldu', 'ready')
   })
   EventBus.on('program:complete', () => {
-    isExecuting = false; blocklyMgr.clearHighlight(); ui.updateStatus('Tamamlandı', 'ready')
+    isExecuting = false; syncGarageModeSelect(); blocklyMgr.clearHighlight(); ui.updateStatus('Tamamlandı', 'ready')
     // Check mission win condition (allow COMPLETE state too — battery:full may have set it already)
     if (gameState !== GameState.FAILED) {
       const alreadyComplete = gameState === GameState.COMPLETE
@@ -2664,9 +2667,19 @@ const garageModeSelect = document.getElementById('garage-mode-select') as HTMLSe
 if (garageModeSelect) {
   garageModeSelect.value = garageMode
   garageModeSelect.addEventListener('change', () => {
+    if (isExecuting) return          // çalışırken değişime izin verme
     const nextMode: GarageMode = garageModeSelect.value === 'closed' ? 'closed' : 'open'
     applyGarageMode(nextMode, true, true)
   })
+}
+
+function syncGarageModeSelect() {
+  if (!garageModeSelect) return
+  garageModeSelect.disabled = isExecuting
+  // Disable durumunda görsel geri bildirim için title
+  garageModeSelect.title = isExecuting
+    ? 'Simülasyon çalışırken değiştirilemez — önce Sıfırla'
+    : ''
 }
 
 // GREEN FLAG — run program
@@ -2677,6 +2690,7 @@ document.getElementById('btn-run-toggle')!.addEventListener('click', async () =>
   // STOP branch
   if (isExecuting) {
     executor.stop(); isExecuting = false; isAntennaBlinking = false
+    syncGarageModeSelect()
     blocklyMgr.clearHighlight()
     cameraMode = previousCameraMode
     if (cameraMode === 'overview') {
@@ -2700,6 +2714,7 @@ document.getElementById('btn-run-toggle')!.addEventListener('click', async () =>
   }
 
   isExecuting = true
+  syncGarageModeSelect()
   btn.classList.add('running')
   btn.innerHTML = '⏹ Durdur'
   previousCameraMode = cameraMode
@@ -2724,6 +2739,7 @@ document.getElementById('btn-run-toggle')!.addEventListener('click', async () =>
   }
 
   isExecuting = false
+  syncGarageModeSelect()
   isAntennaBlinking = false
   btn.classList.remove('running')
   btn.innerHTML = '<span>🚀</span> Çalıştır'
@@ -3048,9 +3064,15 @@ document.getElementById('btn-defaults')?.addEventListener('click', () => {
   if (speedSlider) { speedSlider.value = '800'; executor.setSpeed(800); updateSpeedIndicator(800) }
   // Light
   const lightSliderEl = document.getElementById('light-slider') as HTMLInputElement | null
-  if (lightSliderEl) { lightSliderEl.value = '100'; lightMultiplier = 1.0; applyLightMultiplier() }
+  if (lightSliderEl) { lightSliderEl.value = '0'; lightMultiplier = 0.0; applyLightMultiplier() }
   // Resolution
-  if (resolutionSlider) { resolutionSlider.value = '100' }
+  if (resolutionSlider) {
+    resolutionSlider.value = '200'
+    const _c2 = document.getElementById('canvas-container')!
+    const _baseDPR2 = Math.min(window.devicePixelRatio, 1.25)
+    renderer.setPixelRatio(2.0 * _baseDPR2)
+    renderer.setSize(_c2.clientWidth, _c2.clientHeight)
+  }
   // Quality = balanced
   document.querySelectorAll('.quality-btn').forEach(b => b.classList.remove('active'))
   document.querySelector('.quality-btn[data-quality="balanced"]')?.classList.add('active')
@@ -3107,6 +3129,13 @@ stepNextBtn?.addEventListener('click', () => {
 initScene()
 createGarage()
 initGame()
+// Apply default HD resolution (slider value=200 → scale=2.0)
+{
+  const _c = document.getElementById('canvas-container')!
+  const _baseDPR = Math.min(window.devicePixelRatio, 1.25)
+  renderer!.setPixelRatio(2.0 * _baseDPR)
+  renderer!.setSize(_c.clientWidth, _c.clientHeight)
+}
 blocklyMgr.init((newExecutor, totalCost) => {
   executor = newExecutor
   ui.updateEnergyEstimate(totalCost)
