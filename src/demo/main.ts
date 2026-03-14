@@ -21,6 +21,7 @@ import { WorkspacePersistence } from '../systems/WorkspacePersistence'
 import { MissionManager } from '../missions/MissionManager'
 import { getFullErrorMessage } from '../systems/ErrorMessages'
 import { ParticleSystem } from './ParticleSystem'
+import { detectGpuCapabilities, GpuCapabilities } from './GpuDetector'
 import { LogPanel } from './LogPanel'
 import {
   GRID_W, GRID_H, GARAGE_DEPTH, DOOR_ROW, GRID_CENTER_X, DOOR_PANEL_H, DOOR_Z,
@@ -61,6 +62,12 @@ let isExecuting = false, isPanelOpen = true
 let lightMultiplier = 0.0
 // FPS tracking for settings panel
 let fpsFrameCount = 0, fpsLastTime = performance.now(), fpsAvgSamples: number[] = []
+// GPU auto-quality detection
+let gpuCaps: GpuCapabilities = null!
+let autoQualityApplied = false
+let benchmarkPhase = true
+let benchmarkStartTime = 0
+const BENCHMARK_DURATION_MS = 3000
 let skyLight: THREE.HemisphereLight
 let doorClipPlane: THREE.Plane
 let doorGlowPlane: THREE.Mesh | null = null
@@ -224,14 +231,22 @@ function initScene() {
   const skyTex = createSkyGradient()
   scene.background = skyTex
   scene.environment = skyTex
-  scene.fog = new THREE.FogExp2(0xd4e4f0, 0.004)
+  // GPU auto-detection — must run BEFORE renderer creation
+  gpuCaps = detectGpuCapabilities()
+  console.log(`[GPU Detection] Tier: ${gpuCaps.tier}, GPU: ${gpuCaps.renderer}, MaxTex: ${gpuCaps.maxTextureSize}`)
+
+  scene.fog = new THREE.FogExp2(0xd4e4f0, gpuCaps.tier === 'low' ? 0.002 : 0.004)
   camera = new THREE.PerspectiveCamera(45, c.clientWidth / c.clientHeight, 0.1, 500)
   // Start with close-up of robot face for intro (robot at grid pos 5,8 → 3D pos 5,0,8)
   camera.position.set(GRID_CENTER_X + 0.3, 0.8, ROBOT_START.y + 2.2)
 
-  renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance', logarithmicDepthBuffer: true })
+  const useAntialias = gpuCaps.tier !== 'low'
+  const useLogDepth = gpuCaps.tier !== 'low'
+  const maxDPR = gpuCaps.tier === 'low' ? 1.0 : gpuCaps.tier === 'medium' ? 1.25 : 1.5
+
+  renderer = new THREE.WebGLRenderer({ antialias: useAntialias, powerPreference: 'high-performance', logarithmicDepthBuffer: useLogDepth })
   renderer.setSize(c.clientWidth, c.clientHeight)
-  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5))
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio, maxDPR))
   renderer.shadowMap.enabled = false
   renderer.shadowMap.type = THREE.PCFSoftShadowMap
   renderer.toneMapping = THREE.ACESFilmicToneMapping; renderer.toneMappingExposure = BASE_EXPOSURE
@@ -1974,6 +1989,13 @@ function initGame() {
   const env = createOutdoorScene(scene, { GRID_W, GRID_H, DOOR_ROW, GRID_CENTER_X })
   skyLight = env.skyLight
   envAnimatedObjects = env.animatedObjects
+
+  // Hide animated env objects on low-end GPUs immediately
+  if (gpuCaps.tier === 'low' && envAnimatedObjects) {
+    envAnimatedObjects.clouds.forEach(c => c.visible = false)
+    envAnimatedObjects.birds.forEach(b => b.visible = false)
+    envAnimatedObjects.planes.forEach(p => p.visible = false)
+  }
   buildingBoxes = getBuildingCollisionBoxes({ GRID_W, DOOR_ROW })
   // Start intro drone: position camera high above city, begin orbit
   droneActive = true
@@ -2540,10 +2562,12 @@ function renderLoop() {
   // === Animate Sky Objects ===
   if (envAnimatedObjects) {
     envAnimatedObjects.clouds.forEach((cloud, i) => {
+      if (!cloud.visible) return
       cloud.position.x += 0.004 + i * 0.0005
       if (cloud.position.x > 60) cloud.position.x = -40
     })
     envAnimatedObjects.birds.forEach((flock, i) => {
+      if (!flock.visible) return
       flock.position.x += 0.012 + i * 0.002
       flock.position.y = flock.position.y + Math.sin(time * 2.5 + i) * 0.002
       if (flock.position.x > 50) flock.position.x = -30
@@ -2553,6 +2577,7 @@ function renderLoop() {
       })
     })
     envAnimatedObjects.planes.forEach((plane, i) => {
+      if (!plane.visible) return
       plane.position.x += 0.025 + i * 0.01
       plane.position.z += 0.01
       if (plane.position.x > 80) { plane.position.x = -60; plane.position.z = 10 + i * 15 }
@@ -2634,6 +2659,25 @@ function renderLoop() {
       if (avg >= 50) { badgeEl.textContent = 'İyi'; badgeEl.className = 'tb-perf-badge good' }
       else if (avg >= 30) { badgeEl.textContent = 'Orta'; badgeEl.className = 'tb-perf-badge medium' }
       else { badgeEl.textContent = 'Düşük'; badgeEl.className = 'tb-perf-badge low' }
+    }
+  }
+
+  // Auto-quality benchmark — check after first 3 seconds
+  if (benchmarkPhase) {
+    if (benchmarkStartTime === 0) {
+      benchmarkStartTime = performance.now()
+    } else if (performance.now() - benchmarkStartTime >= BENCHMARK_DURATION_MS && fpsAvgSamples.length >= 3) {
+      benchmarkPhase = false
+      const avg = Math.round(fpsAvgSamples.reduce((a, b) => a + b, 0) / fpsAvgSamples.length)
+      console.log(`[Benchmark] Avg FPS: ${avg}, GPU tier: ${gpuCaps.tier}`)
+
+      if (!autoQualityApplied) {
+        let targetPreset: 'high' | 'balanced' | 'performance'
+        if (avg < 25) targetPreset = 'performance'
+        else if (avg < 45) targetPreset = 'balanced'
+        else targetPreset = gpuCaps.tier === 'low' ? 'balanced' : 'high'
+        applyAutoQuality(targetPreset)
+      }
     }
   }
 }
@@ -3172,12 +3216,51 @@ function applyQualityPreset(preset: 'high' | 'balanced' | 'performance') {
   if (resolutionSlider) resolutionSlider.value = '100'
 }
 
+function setEnvObjectsVisible(show: boolean) {
+  if (!envAnimatedObjects) return
+  envAnimatedObjects.clouds.forEach(c => c.visible = show)
+  envAnimatedObjects.birds.forEach(b => b.visible = show)
+  envAnimatedObjects.planes.forEach(p => p.visible = show)
+}
+
+function applyAutoQuality(preset: 'high' | 'balanced' | 'performance') {
+  autoQualityApplied = true
+  applyQualityPreset(preset)
+
+  // Update UI buttons
+  document.querySelectorAll('.quality-btn').forEach(b => b.classList.remove('active'))
+  document.querySelector(`.quality-btn[data-quality="${preset}"]`)?.classList.add('active')
+
+  if (preset === 'performance') {
+    setEnvObjectsVisible(false)
+    // Update auto-quality badge
+    const aqEl = document.getElementById('perf-auto-quality')
+    if (aqEl) { aqEl.textContent = 'Düşük'; aqEl.className = 'tb-perf-badge low' }
+    ui.showToast('Cihaz performansına göre düşük kalite seçildi', 'info')
+  } else if (preset === 'balanced') {
+    setEnvObjectsVisible(true)
+    const aqEl = document.getElementById('perf-auto-quality')
+    if (aqEl) { aqEl.textContent = 'Dengeli'; aqEl.className = 'tb-perf-badge medium' }
+    ui.showToast('Cihaz performansına göre dengeli kalite seçildi', 'info')
+  } else {
+    setEnvObjectsVisible(true)
+    const aqEl = document.getElementById('perf-auto-quality')
+    if (aqEl) { aqEl.textContent = 'Yüksek'; aqEl.className = 'tb-perf-badge good' }
+  }
+
+  // Show GPU name
+  const gpuEl = document.getElementById('perf-gpu')
+  if (gpuEl) gpuEl.textContent = gpuCaps.renderer.substring(0, 50)
+}
+
 document.querySelectorAll('.quality-btn').forEach(btn => {
   btn.addEventListener('click', () => {
+    autoQualityApplied = true // Prevent auto-quality from overriding manual choice
     const quality = (btn as HTMLElement).dataset.quality as 'high' | 'balanced' | 'performance'
     document.querySelectorAll('.quality-btn').forEach(b => b.classList.remove('active'))
     btn.classList.add('active')
     applyQualityPreset(quality)
+    setEnvObjectsVisible(quality !== 'performance')
   })
 })
 
@@ -3304,11 +3387,18 @@ initGame()
 // Sync lights to slider value — skyLight/env_sun are created inside initGame(),
 // so applyLightMultiplier() must run AFTER initGame() for the initial state to be correct.
 applyLightMultiplier()
-// Apply default HD resolution (slider value=200 → scale=2.0)
+// Apply default HD resolution — adjusted by GPU tier
 {
   const _c = document.getElementById('canvas-container')!
-  const _baseDPR = Math.min(window.devicePixelRatio, 1.25)
-  renderer!.setPixelRatio(2.0 * _baseDPR)
+  if (gpuCaps.tier === 'low') {
+    renderer!.setPixelRatio(1.0)
+  } else if (gpuCaps.tier === 'medium') {
+    const _baseDPR = Math.min(window.devicePixelRatio, 1.25)
+    renderer!.setPixelRatio(1.0 * _baseDPR)
+  } else {
+    const _baseDPR = Math.min(window.devicePixelRatio, 1.25)
+    renderer!.setPixelRatio(2.0 * _baseDPR)
+  }
   renderer!.setSize(_c.clientWidth, _c.clientHeight)
 }
 blocklyMgr.init((newExecutor, totalCost) => {
